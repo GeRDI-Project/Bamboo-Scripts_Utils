@@ -408,6 +408,7 @@ PrepareUpdate() {
 
 # FUNCTION FOR EXECUTING ALL QUEUED UPDATES AND COMMITTING THE CHANGES
 ExecuteUpdate() {
+  isReadyToBuild=1
   
   if [ "$sourceVersion" != "$targetVersion" ]; then
     echo "Will update $artifactId from $sourceVersion to $targetVersion" >&2
@@ -416,24 +417,24 @@ ExecuteUpdate() {
     subTaskKey=$(CreateJiraSubTask "$jiraKey" "$artifactId" "$targetVersion" "$subTaskDescription")
     StartJiraTask "$subTaskKey"
   
-  # update and commit version if it is not major
+    # update and commit version if it is not major
     isMajorUpdate=$(IsMajorVersionUpdated "$sourceVersion" "$targetVersion")
     if [ "$isMajorUpdate" = "false" ]; then
       # create git branch
       branchName="$jiraKey-$subTaskKey-VersionUpdate"
       echo $(git checkout -b $branchName) >&2
     
-    # set GIT user
-    echo $(git config user.email "$userName") >&2
-    echo $(git config user.name "$userFullName") >&2
+      # set GIT user
+      echo $(git config user.email "$userName") >&2
+      echo $(git config user.name "$userFullName") >&2
   
       echo $(git push -q --set-upstream origin $branchName) >&2
     
       # execute update queue
-    echo $(cat $updateQueue) >&2
-    echo $($updateQueue) >&2
+      echo $(cat $updateQueue) >&2
+      echo $($updateQueue) >&2
    
-    # set major version
+      # set major version
       echo $(mvn versions:set "-DnewVersion=$targetVersion" -DallowSnapshots=true -DgenerateBackupPoms=false -f"$pomDirectory/pom.xml") >&2
     
       echo $(git add -A) >&2
@@ -441,6 +442,9 @@ ExecuteUpdate() {
    
       ReviewJiraTask "$subTaskKey"
       FinishJiraTask "$subTaskKey"
+    
+    # set global variable to allow a Bamboo Deployment
+    isReadyToBuild=0
     else
       AbortJiraTask "$subTaskKey" "Could not auto-update, because the major version would change. Please do it manually!"
     fi
@@ -489,56 +493,64 @@ UpdateHarvester() {
 
 
 # FUNCTION FOR BUILDING AND DEPLOYING A HARVESTER RELATED LIBRARY VIA THE BAMBOO REST API
-BuildAndDeployLibrary() {
+BuildAndDeployLibrary() {  
   planLabel="$1"
   deploymentVersion="$2"
-  
-  # get ID of deployment project
-  deploymentId=$(GetDeploymentId "$planLabel")
-  
-  if [ "$deploymentId" != "" ]; then
-    echo "deploymentId: $deploymentId" >&2
-  
-    # get ID of 'Maven Deploy' environment
-  environmentId=$(GetMavenDeployEnvironmentId "$deploymentId")
-  
-    if [ "$environmentId" != "" ]; then
-    echo "environmentId: $environmentId" >&2
+	
+  if [ $isReadyToBuild -ne 0 ]; then
+    echo "DID NOT START BAMBOO PLAN/DEPLOYMENT $planLabel: Version is up-to-date!" >&2
+  else    
+    isEverythingSuccessful=1
     
-    # get branch number of the plan
-    planBranchId=$(GetPlanBranchId "$planLabel")
+    # get ID of deployment project
+    deploymentId=$(GetDeploymentId "$planLabel")
     
-      if [ "$planBranchId" != "" ]; then
-      echo "planLabel: $planLabel$planBranchId" >&2
+    if [ "$deploymentId" != "" ]; then
+      echo "deploymentId: $deploymentId" >&2
+    
+      # get ID of 'Maven Deploy' environment
+      environmentId=$(GetMavenDeployEnvironmentId "$deploymentId")
+    
+      if [ "$environmentId" != "" ]; then
+        echo "environmentId: $environmentId" >&2
+       
+        # get branch number of the plan
+        planBranchId=$(GetPlanBranchId "$planLabel")
+       
+        if [ "$planBranchId" != "" ]; then
+          echo "planLabel: $planLabel$planBranchId" >&2  
 
-      # start bamboo plan
-      planResultKey=$(StartBambooPlan "$planLabel$planBranchId")
+          # start bamboo plan
+          planResultKey=$(StartBambooPlan "$planLabel$planBranchId")
       
-        if [ "$planResultKey" != "" ]; then
-        echo "planResultKey: $planResultKey" >&2
+          if [ "$planResultKey" != "" ]; then
+            echo "planResultKey: $planResultKey" >&2
         
-        # wait for plan to finish
-        didPlanSucceed=$(WaitForPlanToBeDone "$planResultKey")
+            # wait for plan to finish
+            didPlanSucceed=$(WaitForPlanToBeDone "$planResultKey")
 
-        # fail if the plan was not successful
-        if [ $didPlanSucceed -eq 0 ]; then        
-          # start bamboo deployment
-          deploymentResultId=$(StartBambooDeployment "$deploymentId" "$environmentId" "$deploymentVersion($planResultKey)" "$planResultKey")
-          
-            if [ "$deploymentResultId" != "" ]; then
-              echo "deploymentResultId: $deploymentResultId" >&2
-              didDeploymentSucceed=$(WaitForDeploymentToBeDone "$deploymentResultId")
-            
-              if [ $didDeploymentSucceed -eq 0 ]; then
-                  exit 0
+            # fail if the plan was not successful
+            if [ $didPlanSucceed -eq 0 ]; then        
+              # start bamboo deployment
+              deploymentResultId=$(StartBambooDeployment "$deploymentId" "$environmentId" "$deploymentVersion($planResultKey)" "$planResultKey")
+        
+              if [ "$deploymentResultId" != "" ]; then
+                echo "deploymentResultId: $deploymentResultId" >&2
+                didDeploymentSucceed=$(WaitForDeploymentToBeDone "$deploymentResultId")
+        
+                if [ $didDeploymentSucceed -eq 0 ]; then
+                  isEverythingSuccessful=0
+                fi
               fi
             fi
           fi
         fi
       fi
     fi
-  fi  
-  echo "COULD NOT FINISH BAMBOO PLAN/DEPLOYMENT $planLabel!" >&2
+    if [ $isEverythingSuccessful -eq 0 ]; then
+      echo "COULD NOT FINISH BAMBOO PLAN/DEPLOYMENT $planLabel!" >&2
+    fi
+  fi
 }
 
 
