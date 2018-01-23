@@ -1,55 +1,6 @@
 #!/bin/bash
 
 
-# set up some variables
-InitVariables
-
-# update harvester setup /archive
-PrepareUpdate "code.gerdi-project.de/scm/har/harvestersetup.git" "archive"
-QueueParentPomUpdate "$parentPomVersion"
-harvesterSetupArchiveVersion=$(ExecuteUpdate)
-
-# update harvester setup
-PrepareUpdate "code.gerdi-project.de/scm/har/harvestersetup.git" "."
-QueueParentPomUpdate "$parentPomVersion"
-QueuePropertyUpdate "setup.archive.dependency.version" "$harvesterSetupArchiveVersion"
-harvesterSetupVersion=$(ExecuteUpdate)
-
-# update json library
-PrepareUpdate "code.gerdi-project.de/scm/har/jsonlibraries.git" "."
-QueueParentPomUpdate "$parentPomVersion"
-jsonLibVersion=$(ExecuteUpdate)
-BuildAndDeployLibrary "CA-JL" "$jsonLibVersion"
-
-# update harvester base library
-PrepareUpdate "code.gerdi-project.de/scm/har/harvesterbaselibrary.git" "."
-QueuePropertyUpdate "gerdigson.dependency.version" "$jsonLibVersion"
-QueueParentPomUpdate "$parentPomVersion"
-harvesterLibVersion=$(ExecuteUpdate)
-BuildAndDeployLibrary "CA-HL" "$harvesterLibVersion"
-
-# update harvester utils
-PrepareUpdate "code.gerdi-project.de/scm/har/harvesterutils.git" "."
-QueueParentPomUpdate "$parentPomVersion"
-harvesterUtilsVersion=$(ExecuteUpdate)
-BuildAndDeployLibrary "CA-HU" "$harvesterUtilsVersion"
-
-# update harvester parent pom
-PrepareUpdate "code.gerdi-project.de/scm/har/parentpoms.git" "harvester"
-QueueParentPomUpdate "$parentPomVersion"
-QueuePropertyUpdate "restfulharvester.dependency.version" "$harvesterLibVersion"
-QueuePropertyUpdate "harvesterutils.dependency.version" "$harvesterUtilsVersion"
-harvesterParentPomVersion=$(ExecuteUpdate)
-BuildAndDeployLibrary "CA-HPPSA" "$harvesterParentPomVersion"
-
-# update all other harvesters
-UpdateAllHarvesters "$harvesterParentPomVersion"
-
-# set main task to "Review"
-ReviewJiraTask "$jiraKey"
-exit 0
-
-
 # FUNCTION FOR SETTING UP GLOBAL VARIABLES
 InitVariables() {
   # check login
@@ -58,6 +9,7 @@ InitVariables() {
     echo "Please log in to Bamboo!" >&2
     exit 1
   fi
+  echo "User Email: $userName" >&2
   encodedEmail=$(echo "$userName" | sed -e "s/@/%40/g")
 
   # check if password exists
@@ -79,16 +31,20 @@ InitVariables() {
     exit 1
   fi
 
+  echo "Reviewer 1: $reviewer1" >&2
+  echo "Reviewer 2: $reviewer2" >&2
+  
   # Get User Full Name
   userFullName=$(curl -sX GET -u $userName:$userPw https://ci.gerdi-project.de/browse/user/$encodedEmail)
   userFullName=${userFullName#*<title>}
   userFullName=${userFullName%%:*}
+  echo "User Full Name: $userFullName" >&2
 
   # get parent pom version
   topDir=$(pwd)
   cd parentPoms
   parentPomVersion=$(mvn -q -Dexec.executable="echo" -Dexec.args='${project.version}' --non-recursive org.codehaus.mojo:exec-maven-plugin:1.3.1:exec)
-  echo "ParentPom version is: $parentPomVersion" >&2
+  echo "ParentPom Version: $parentPomVersion" >&2
   cd $topDir
 }
 
@@ -739,3 +695,51 @@ WaitForDeploymentToBeDone() {
     echo 1
   fi
 }
+
+
+# set up some variables
+InitVariables
+
+# update harvester setup /archive
+PrepareUpdate "code.gerdi-project.de/scm/har/harvestersetup.git" "archive"
+QueueParentPomUpdate "$parentPomVersion"
+harvesterSetupArchiveVersion=$(ExecuteUpdate)
+
+# update harvester setup
+PrepareUpdate "code.gerdi-project.de/scm/har/harvestersetup.git" "."
+QueueParentPomUpdate "$parentPomVersion"
+QueuePropertyUpdate "setup.archive.dependency.version" "$harvesterSetupArchiveVersion"
+harvesterSetupVersion=$(ExecuteUpdate)
+
+# update json library
+PrepareUpdate "code.gerdi-project.de/scm/har/jsonlibraries.git" "."
+QueueParentPomUpdate "$parentPomVersion"
+jsonLibVersion=$(ExecuteUpdate)
+BuildAndDeployLibrary "CA-JL" "$jsonLibVersion"
+
+# update harvester base library
+PrepareUpdate "code.gerdi-project.de/scm/har/harvesterbaselibrary.git" "."
+QueuePropertyUpdate "gerdigson.dependency.version" "$jsonLibVersion"
+QueueParentPomUpdate "$parentPomVersion"
+harvesterLibVersion=$(ExecuteUpdate)
+BuildAndDeployLibrary "CA-HL" "$harvesterLibVersion"
+
+# update harvester utils
+PrepareUpdate "code.gerdi-project.de/scm/har/harvesterutils.git" "."
+QueueParentPomUpdate "$parentPomVersion"
+harvesterUtilsVersion=$(ExecuteUpdate)
+BuildAndDeployLibrary "CA-HU" "$harvesterUtilsVersion"
+
+# update harvester parent pom
+PrepareUpdate "code.gerdi-project.de/scm/har/parentpoms.git" "harvester"
+QueueParentPomUpdate "$parentPomVersion"
+QueuePropertyUpdate "restfulharvester.dependency.version" "$harvesterLibVersion"
+QueuePropertyUpdate "harvesterutils.dependency.version" "$harvesterUtilsVersion"
+harvesterParentPomVersion=$(ExecuteUpdate)
+BuildAndDeployLibrary "CA-HPPSA" "$harvesterParentPomVersion"
+
+# update all other harvesters
+UpdateAllHarvesters "$harvesterParentPomVersion"
+
+# set main task to "Review"
+ReviewJiraTask "$jiraKey"
