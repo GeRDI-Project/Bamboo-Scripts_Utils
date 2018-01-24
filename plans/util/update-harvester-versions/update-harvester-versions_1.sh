@@ -502,8 +502,8 @@ UpdateHarvester() {
 BuildAndDeployLibrary() {  
   planLabel="$1"
   deploymentVersion="$2"
-	
-  # TODO: check if the latest version is among the deployments
+  isReadyToBuild=$(IsMavenVersionInSonatype "$artifactId" "$deploymentVersion")
+  
   if [ $isReadyToBuild -eq 0 ]; then
     isEverythingSuccessful=1
     
@@ -599,6 +599,22 @@ GetMavenDeployEnvironmentId() {
     echo "Could not find a 'Maven Deploy' environment for deployment project $deploymentId!" >&2
   fi
   echo "$environmentId"
+}
+
+
+# FUNCTION FOR CHECKING IF A VERSION IS IN SONATYPE
+IsMavenVersionInSonatype() {
+  checkedArtifact="$1"
+  checkedVersion="$2"
+  
+  sonaTypeResponse=$(curl -sI -X HEAD https://oss.sonatype.org/content/repositories/snapshots/de/gerdi-project/$checkedArtifact/$checkedVersion/)
+  httpCode=$(echo "$sonaTypeResponse" | grep -oP '(?<=HTTP/\d\.\d )\d+')
+  
+  if [ $httpCode -eq 200 ]
+    echo 0
+  else
+    echo 1
+  fi
 }
 
 
