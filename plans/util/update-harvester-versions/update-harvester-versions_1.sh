@@ -13,7 +13,7 @@ InitVariables() {
   encodedEmail=$(echo "$userName" | sed -e "s/@/%40/g")
 
   # check if password exists
-  userPw=$bamboo_passwordGit"
+  userPw="$bamboo_passwordGit"
   if [ "$userPw" = "" ]; then
     echo "You need to specify your BitBucket password by setting the 'passwordGit' variable when running the plan customized!" >&2
     exit 1
