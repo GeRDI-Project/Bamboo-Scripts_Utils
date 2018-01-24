@@ -610,7 +610,7 @@ IsMavenVersionInSonatype() {
   sonaTypeResponse=$(curl -sI -X HEAD https://oss.sonatype.org/content/repositories/snapshots/de/gerdi-project/$checkedArtifact/$checkedVersion/)
   httpCode=$(echo "$sonaTypeResponse" | grep -oP '(?<=HTTP/\d\.\d )\d+')
   
-  if [ $httpCode -eq 200 ]
+  if [ $httpCode -eq 200 ]; then
     echo 0
   else
     echo 1
