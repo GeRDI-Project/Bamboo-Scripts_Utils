@@ -1,22 +1,22 @@
 # check login
 authorEmail="$bamboo_ManualBuildTriggerReason_userName"
 if [ "$authorEmail" = "" ]; then
-echo "Please log in to Bamboo!"
-exit 1
+  echo "Please log in to Bamboo!"
+  exit 1
 fi
 encodedEmail=$(echo "$authorEmail" | sed -e "s/@/%40/g")
 
 # check if password exists
 userPw="$bamboo_gitPassword"
 if [ "$userPw" = "" ]; then
-echo "You need to specify your BitBucket password by setting the 'gitPassword' variable when running the plan customized!"
-exit 1
+  echo "You need to specify your BitBucket password by setting the 'gitPassword' variable when running the plan customized!"
+  exit 1
 fi
 
 repositoryUrl="$bamboo_gitCloneLink"
 if [ "$repositoryUrl" = "" ]; then
-echo "You need to specify a clone link of an existing harvester repository!"
-exit 1
+  echo "You need to specify a clone link of an existing harvester repository!"
+  exit 1
 fi
 
 overwriteFlag="$bamboo_replacePlans"
@@ -42,8 +42,8 @@ echo "Cloning repository https://$encodedEmail@code.gerdi-project.de/scm/$projec
 cloneResponse=$(git clone -q https://$encodedEmail:$userPw@code.gerdi-project.de/scm/$projectAbbrev/$repositorySlug.git .)
 returnCode=$?
 if [ $returnCode -ne 0 ]; then
- echo "Could not clone GIT repository!"
- exit 1
+  echo "Could not clone GIT repository!"
+  exit 1
 fi
 
 
@@ -82,8 +82,8 @@ GetGerdiMavenVersion () {
   ver=${metaData#*<latest>}
   ver=${ver%</latest>*}
   if [ "$ver" = "$metaData" ]; then
-   ver=${metaData##*<version>}
-   ver=${ver%</version>*}
+    ver=${metaData##*<version>}
+    ver=${ver%</version>*}
   fi
   echo "$ver"
 }
@@ -116,9 +116,9 @@ echo "Generating harvester setup files"
 response=$(mvn generate-resources -Psetup)
 returnCode=$?
 if [ $returnCode -ne 0 ]; then
- echo "$response"
- echo "Could not generate Maven resources!"
- exit 1
+  echo "$response"
+  echo "Could not generate Maven resources!"
+  exit 1
 fi
 
 
