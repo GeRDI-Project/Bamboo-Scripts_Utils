@@ -1,22 +1,22 @@
 # check login
-authorEmail=${bamboo.ManualBuildTriggerReason.userName}
+authorEmail="$bamboo_ManualBuildTriggerReason_userName"
 if [ "$authorEmail" = "" ]; then
 echo "Please log in to Bamboo!"
 exit 1
 fi
 
 # check if password exists
-userPw=${bamboo.passwordGit}
+userPw="$bamboo_passwordGit"
 if [ "$userPw" = "" ]; then
 echo "You need to specify your BitBucket password by setting the 'passwordGit' variable when running the plan customized!"
 exit 1
 fi
 
 # check if all required variables exist
-if [ "${bamboo.providerName}" = "" ] \
-|| [ "${bamboo.providerUrl}" = "" ] \
-|| [ "${bamboo.authorOrganization}" = "" ] \
-|| [ "${bamboo.authorOrganizationUrl}" = "" ]
+if [ "$bamboo_providerName" = "" ] \
+|| [ "$bamboo_providerUrl" = "" ] \
+|| [ "$bamboo_authorOrganization" = "" ] \
+|| [ "$bamboo_authorOrganizationUrl" = "" ]
 then
 echo "Some Variables are missing! Make sure to fill out all variables and to run the plan customized!"
 exit 1
@@ -24,7 +24,7 @@ fi
 
 # create repository
 response=$(curl -sX POST -u "$authorEmail:$userPw" -H "Content-Type: application/json" -d '{
-    "name": "${bamboo.providerName}",
+    "name": "'"$bamboo_providerName"'",
     "scmId": "git",
     "forkable": true
 }' https://code.gerdi-project.de/rest/api/1.0/projects/HAR/repos/)
@@ -122,12 +122,12 @@ echo "Latest version of the Harvester Parent Pom is: $parentPomVersion"
 chmod o+rw scripts/renameSetup.sh
 chmod +x scripts/renameSetup.sh
 ./scripts/renameSetup.sh\
- "${bamboo.providerName}"\
- "${bamboo.providerUrl}"\
+ "$bamboo_providerName"\
+ "$bamboo_providerUrl"\
  "$authorFullName"\
  "$authorEmail"\
- "${bamboo.authorOrganization}"\
- "${bamboo.authorOrganizationUrl}"\
+ "$bamboo_authorOrganization"\
+ "$bamboo_authorOrganizationUrl"\
  "$parentPomVersion"
  
 # check if bamboo plans already exist
@@ -163,7 +163,7 @@ git add -A ${PWD}
 echo "Committing files to GIT"
 git config user.email "$authorEmail"
 git config user.name "$authorFullName"
-git commit -m "Bamboo: Created harvester repository for the provider '${bamboo.providerName}.'"
+git commit -m "Bamboo: Created harvester repository for the provider '$bamboo_providerName'."
 
 echo "Pushing files to GIT"
 git push -q

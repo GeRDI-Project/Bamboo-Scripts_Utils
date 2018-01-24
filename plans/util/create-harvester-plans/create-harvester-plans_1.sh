@@ -1,5 +1,5 @@
 # check login
-authorEmail=${bamboo.ManualBuildTriggerReason.userName}
+authorEmail="$bamboo_ManualBuildTriggerReason_userName"
 if [ "$authorEmail" = "" ]; then
 echo "Please log in to Bamboo!"
 exit 1
@@ -7,19 +7,19 @@ fi
 encodedEmail=$(echo "$authorEmail" | sed -e "s/@/%40/g")
 
 # check if password exists
-userPw=${bamboo.gitPassword}
+userPw="$bamboo_gitPassword"
 if [ "$userPw" = "" ]; then
 echo "You need to specify your BitBucket password by setting the 'gitPassword' variable when running the plan customized!"
 exit 1
 fi
 
-repositoryUrl=${bamboo.gitCloneLink}
+repositoryUrl="$bamboo_gitCloneLink"
 if [ "$repositoryUrl" = "" ]; then
 echo "You need to specify a clone link of an existing harvester repository!"
 exit 1
 fi
 
-overwriteFlag=${bamboo.replacePlans}
+overwriteFlag="$bamboo_replacePlans"
 
 projectAbbrev=${repositoryUrl%/*}
 projectAbbrev=${projectAbbrev##*/}
