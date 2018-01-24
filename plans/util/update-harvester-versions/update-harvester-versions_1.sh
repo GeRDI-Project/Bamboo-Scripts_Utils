@@ -20,8 +20,8 @@ InitVariables() {
   fi
 
   # check pull-request reviewers
-  reviewer1="$bamboo_firstReviewer}"
-  reviewer2="$bamboo_secondReviewer}"
+  reviewer1="$bamboo_firstReviewer"
+  reviewer2="$bamboo_secondReviewer"
   if [ "$reviewer1" = "" ] || [ "$reviewer2" = "" ] ; then
     echo "You need to specify valid reviewers for your pull-request by setting the 'firstReviewer' and 'secondReviewer' variables when running the plan customized!" >&2
     exit 1
