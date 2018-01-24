@@ -4,7 +4,7 @@
 # FUNCTION FOR SETTING UP GLOBAL VARIABLES
 InitVariables() {
   # check login
-  userName=${bamboo.ManualBuildTriggerReason.userName}
+  userName="$bamboo_ManualBuildTriggerReason_userName"
   if [ "$userName" = "" ]; then
     echo "Please log in to Bamboo!" >&2
     exit 1
@@ -13,15 +13,15 @@ InitVariables() {
   encodedEmail=$(echo "$userName" | sed -e "s/@/%40/g")
 
   # check if password exists
-  userPw=${bamboo.passwordGit}
+  userPw=$bamboo_passwordGit"
   if [ "$userPw" = "" ]; then
     echo "You need to specify your BitBucket password by setting the 'passwordGit' variable when running the plan customized!" >&2
     exit 1
   fi
 
   # check pull-request reviewers
-  reviewer1=${bamboo.firstReviewer}
-  reviewer2=${bamboo.secondReviewer}
+  reviewer1="$bamboo_firstReviewer}"
+  reviewer2="$bamboo_secondReviewer}"
   if [ "$reviewer1" = "" ] || [ "$reviewer2" = "" ] ; then
     echo "You need to specify valid reviewers for your pull-request by setting the 'firstReviewer' and 'secondReviewer' variables when running the plan customized!" >&2
     exit 1
@@ -251,7 +251,7 @@ CreatePullRequest() {
 
 # FUNCTION FOR GETTING A NEW POM VERSION
 GetTargetVersionForUpdate(){
-  sourceVersion="$1"
+  currentSourceVersion="$1"
   currentTargetVersion="$2"
   sourceParentVersion="$3"
   targetParentVersion="$4"
@@ -261,10 +261,10 @@ GetTargetVersionForUpdate(){
   bugfixVersionPattern="s~\\w.\\w.\(\\w\)-*\\w*~\1~g"
   suffixPattern="s~\\w.\\w.\\w\(-*\\w*\)~\1~g"
     
-  sourceMajorVersion=$(echo $sourceVersion | sed -e "$majorVersionPattern")
-  sourceMinorVersion=$(echo $sourceVersion | sed -e "$minorVersionPattern")
-  sourceBugfixVersion=$(echo $sourceVersion | sed -e "$bugfixVersionPattern")
-  sourceSuffix=$(echo $sourceVersion | sed -e "$suffixPattern")
+  sourceMajorVersion=$(echo $currentSourceVersion | sed -e "$majorVersionPattern")
+  sourceMinorVersion=$(echo $currentSourceVersion | sed -e "$minorVersionPattern")
+  sourceBugfixVersion=$(echo $currentSourceVersion | sed -e "$bugfixVersionPattern")
+  sourceSuffix=$(echo $currentSourceVersion | sed -e "$suffixPattern")
   
   targetMajorVersion=$(echo $currentTargetVersion | sed -e "$majorVersionPattern")
   targetMinorVersion=$(echo $currentTargetVersion | sed -e "$minorVersionPattern")
@@ -324,16 +324,16 @@ QueueParentPomUpdate(){
     fi
     
     # calculate next version
-  targetVersion=$(GetTargetVersionForUpdate "$sourceVersion" "$targetVersion" "$sourceParentVersion" "$targetParentVersion")
+    targetVersion=$(GetTargetVersionForUpdate "$sourceVersion" "$targetVersion" "$sourceParentVersion" "$targetParentVersion")
     echo "pomContent=\"\$(cat \"$pomDirectory/pom.xml\")\"" >> $updateQueue
-  echo "newParent=\"<parent>\${pomContent#*<parent>}\"" >> $updateQueue
-  echo "newParent=\"\${newParent%%</parent>*}</parent>\"" >> $updateQueue
-  echo "newParent=\$(echo \"\$newParent\" | sed -e \"s~<version>$sourceParentVersion</version>~<version>$targetParentVersion</version>~g\")" >> $updateQueue
-  echo "rm -f \"$pomDirectory/pom.xml\"" >> $updateQueue
-  echo "echo \"\${pomContent%%<parent>*}\$newParent\${pomContent#*</parent>}\" >> \"$pomDirectory/pom.xml\"" >> $updateQueue
+    echo "newParent=\"<parent>\${pomContent#*<parent>}\"" >> $updateQueue
+    echo "newParent=\"\${newParent%%</parent>*}</parent>\"" >> $updateQueue
+    echo "newParent=\$(echo \"\$newParent\" | sed -e \"s~<version>$sourceParentVersion</version>~<version>$targetParentVersion</version>~g\")" >> $updateQueue
+    echo "rm -f \"$pomDirectory/pom.xml\"" >> $updateQueue
+    echo "echo \"\${pomContent%%<parent>*}\$newParent\${pomContent#*</parent>}\" >> \"$pomDirectory/pom.xml\"" >> $updateQueue
 
-  subTaskDescription="$subTaskDescription \\n- Updated *parent-pom* version to *$targetParentVersion*"
-  echo "Updated parent-pom version to $targetParentVersion." >> $gitCommitDescription
+    subTaskDescription="$subTaskDescription \\n- Updated *parent-pom* version to *$targetParentVersion*"
+    echo "Updated parent-pom version to $targetParentVersion." >> $gitCommitDescription
   fi
 }
 
@@ -360,7 +360,7 @@ QueuePropertyUpdate(){
     
     # calculate next version
   targetVersion=$(GetTargetVersionForUpdate "$sourceVersion" "$targetVersion" "$sourcePropertyVersion" "$targetPropertyVersion")
-    echo "sed --in-place=.tmp -e \"s~<$targetPropertyName>$sourcePropertyVersion</$targetPropertyName>~<$targetPropertyName>$targetPropertyVersion</$targetPropertyName>~g\" $pomDirectory/pom.xml && rm -f $pomDirectory/pom.xml.tmp" >> $updateQueue
+  echo "sed --in-place=.tmp -e \"s~<$targetPropertyName>$sourcePropertyVersion</$targetPropertyName>~<$targetPropertyName>$targetPropertyVersion</$targetPropertyName>~g\" $pomDirectory/pom.xml && rm -f $pomDirectory/pom.xml.tmp" >> $updateQueue
   subTaskDescription="$subTaskDescription \\n- Updated *<$targetPropertyName>* property to *$targetPropertyVersion*"
   echo "Updated $targetPropertyName property to $targetPropertyVersion." >> $gitCommitDescription
   fi
@@ -372,7 +372,6 @@ PrepareUpdate() {
   repositoryAddress="$1"
   pomDirectory="$topDir/tempDir/$2"
   
-  echo "Going to topDir '$topDir'"
   cd "$topDir"
 
   # create new file for the update queue shell script  
@@ -400,16 +399,22 @@ PrepareUpdate() {
   cloneResponse=$(git clone -q https://$encodedEmail:$userPw@$repositoryAddress .)
 
   # get version
-  artifactId=$(mvn -q -Dexec.executable="echo" -Dexec.args='${project.artifactId}' --non-recursive org.codehaus.mojo:exec-maven-plugin:1.3.1:exec -f"$pomDirectory/pom.xml")
-  sourceVersion=$(mvn -q -Dexec.executable="echo" -Dexec.args='${project.version}' --non-recursive org.codehaus.mojo:exec-maven-plugin:1.3.1:exec -f"$pomDirectory/pom.xml")
-  targetVersion="$sourceVersion"
+  if [ -f "$pomDirectory/pom.xml" ]; then
+    artifactId=$(mvn -q -Dexec.executable="echo" -Dexec.args='${project.artifactId}' --non-recursive org.codehaus.mojo:exec-maven-plugin:1.3.1:exec -f"$pomDirectory/pom.xml")
+    sourceVersion=$(mvn -q -Dexec.executable="echo" -Dexec.args='${project.version}' --non-recursive org.codehaus.mojo:exec-maven-plugin:1.3.1:exec -f"$pomDirectory/pom.xml")
+    targetVersion="$sourceVersion"
+  else
+    # if no pom.xml exists, we cannot update it
+	echo "Cannot update '$repositoryAddress' because the pom.xml is missing!" >&2
+    artifactId=""
+	sourceVersion=""
+	targetVersion=""
+  fi
 }
 
 
 # FUNCTION FOR EXECUTING ALL QUEUED UPDATES AND COMMITTING THE CHANGES
-ExecuteUpdate() {
-  isReadyToBuild=1
-  
+ExecuteUpdate() {  
   if [ "$sourceVersion" != "$targetVersion" ]; then
     echo "Will update $artifactId from $sourceVersion to $targetVersion" >&2
   
@@ -438,18 +443,15 @@ ExecuteUpdate() {
       echo $(mvn versions:set "-DnewVersion=$targetVersion" -DallowSnapshots=true -DgenerateBackupPoms=false -f"$pomDirectory/pom.xml") >&2
     
       echo $(git add -A) >&2
-      echo $(CreatePullRequest "$branchName" "$jiraKey $subTaskKey Harvester Version Update" "$jiraKey $subTaskKey Updated pom version to $targetVersion. $(cat $gitCommitDescription)") >&2
+      echo $(CreatePullRequest "$branchName" "Update $artifactId" "$jiraKey $subTaskKey Updated pom version to $targetVersion. $(cat $gitCommitDescription)") >&2
    
       ReviewJiraTask "$subTaskKey"
       FinishJiraTask "$subTaskKey"
-    
-    # set global variable to allow a Bamboo Deployment
-    isReadyToBuild=0
     else
       AbortJiraTask "$subTaskKey" "Could not auto-update, because the major version would change. Please do it manually!"
     fi
   else
-    echo "$artifactId is already up-to-date!" >&2
+    echo "$artifactId is already up-to-date at version: $targetVersion" >&2
   fi
   
   #rm -rf tempDir
@@ -461,17 +463,19 @@ ExecuteUpdate() {
 UpdateAllHarvesters() {
   newParentVersion="$1"
   
+  echo "Trying to update all Harvesters to parent version $newParentVersion!" >&2
+  
   harvesterUrls=$(curl -sX GET -u $userName:$userPw -H "Content-Type: application/json" https://code.gerdi-project.de/rest/api/latest/projects/HAR/repos | python -m json.tool) 
 
   # grep harvester clone URLs, except those of the libraries, and convert them to batch instructions
   harvesterUrls=$(echo "$harvesterUrls" \
   | grep -oE '"http.*?git"' \
-  | grep -vE '".*/harvesterbaselibrary.git' \
-  | grep -vE '".*/harvestersetup.git' \
-  | grep -vE '".*/harvesterutils.git' \
-  | grep -vE '".*/jsonlibraries.git' \
-  | grep -vE '".*/parentpoms.git' \
-  | sed -e "s~\"http.*@\(.*\)\"~UpdateHarvester \"\\1\" \"$newParentVersion\"~")
+  | grep -vE '".*/harvesterbaselibrary.git"' \
+  | grep -vE '".*/harvestersetup.git"' \
+  | grep -vE '".*/harvesterutils.git"' \
+  | grep -vE '".*/jsonlibraries.git"' \
+  | grep -vE '".*/parentpoms.git"' \
+  | sed -e "s~\"http.*@\(.*\)\"~UpdateHarvester \\1 $newParentVersion~")
 
   # execute update of all harvesters
   printf '%s\n' "$harvesterUrls" | while IFS= read -r updateInstruction
@@ -485,10 +489,12 @@ UpdateAllHarvesters() {
 UpdateHarvester() {
   cloneLink="$1"
   newParentVersion="$2"
-
+  
   PrepareUpdate "$cloneLink" "."
-  QueueParentPomUpdate "$newParentVersion"
-  harvesterVersion=$(ExecuteUpdate)
+  if [ "$sourceVersion" != "" ]; then
+    QueueParentPomUpdate "$newParentVersion"
+    harvesterVersion=$(ExecuteUpdate)
+  fi
 }
 
 
@@ -497,9 +503,8 @@ BuildAndDeployLibrary() {
   planLabel="$1"
   deploymentVersion="$2"
 	
-  if [ $isReadyToBuild -ne 0 ]; then
-    echo "DID NOT START BAMBOO PLAN/DEPLOYMENT $planLabel: Version is up-to-date!" >&2
-  else    
+  # TODO: check if the latest version is among the deployments
+  if [ $isReadyToBuild -eq 0 ]; then
     isEverythingSuccessful=1
     
     # get ID of deployment project
@@ -714,41 +719,53 @@ InitVariables
 
 # update harvester setup /archive
 PrepareUpdate "code.gerdi-project.de/scm/har/harvestersetup.git" "archive"
-QueueParentPomUpdate "$parentPomVersion"
-harvesterSetupArchiveVersion=$(ExecuteUpdate)
+if [ "$sourceVersion" != "" ]; then
+  QueueParentPomUpdate "$parentPomVersion"
+  harvesterSetupArchiveVersion=$(ExecuteUpdate)
+fi
 
 # update harvester setup
 PrepareUpdate "code.gerdi-project.de/scm/har/harvestersetup.git" "."
-QueueParentPomUpdate "$parentPomVersion"
-QueuePropertyUpdate "setup.archive.dependency.version" "$harvesterSetupArchiveVersion"
-harvesterSetupVersion=$(ExecuteUpdate)
+if [ "$sourceVersion" != "" ]; then
+  QueueParentPomUpdate "$parentPomVersion"
+  QueuePropertyUpdate "setup.archive.dependency.version" "$harvesterSetupArchiveVersion"
+  harvesterSetupVersion=$(ExecuteUpdate)
+fi
 
 # update json library
 PrepareUpdate "code.gerdi-project.de/scm/har/jsonlibraries.git" "."
-QueueParentPomUpdate "$parentPomVersion"
-jsonLibVersion=$(ExecuteUpdate)
-BuildAndDeployLibrary "CA-JL" "$jsonLibVersion"
+if [ "$sourceVersion" != "" ]; then
+  QueueParentPomUpdate "$parentPomVersion"
+  jsonLibVersion=$(ExecuteUpdate)
+  BuildAndDeployLibrary "CA-JL" "$jsonLibVersion"
+fi
 
 # update harvester base library
 PrepareUpdate "code.gerdi-project.de/scm/har/harvesterbaselibrary.git" "."
-QueuePropertyUpdate "gerdigson.dependency.version" "$jsonLibVersion"
-QueueParentPomUpdate "$parentPomVersion"
-harvesterLibVersion=$(ExecuteUpdate)
-BuildAndDeployLibrary "CA-HL" "$harvesterLibVersion"
+if [ "$sourceVersion" != "" ]; then
+  QueuePropertyUpdate "gerdigson.dependency.version" "$jsonLibVersion"
+  QueueParentPomUpdate "$parentPomVersion"
+  harvesterLibVersion=$(ExecuteUpdate)
+  BuildAndDeployLibrary "CA-HL" "$harvesterLibVersion"
+fi
 
 # update harvester utils
 PrepareUpdate "code.gerdi-project.de/scm/har/harvesterutils.git" "."
-QueueParentPomUpdate "$parentPomVersion"
-harvesterUtilsVersion=$(ExecuteUpdate)
-BuildAndDeployLibrary "CA-HU" "$harvesterUtilsVersion"
+if [ "$sourceVersion" != "" ]; then
+  QueueParentPomUpdate "$parentPomVersion"
+  harvesterUtilsVersion=$(ExecuteUpdate)
+  BuildAndDeployLibrary "CA-HU" "$harvesterUtilsVersion"
+fi
 
 # update harvester parent pom
 PrepareUpdate "code.gerdi-project.de/scm/har/parentpoms.git" "harvester"
-QueueParentPomUpdate "$parentPomVersion"
-QueuePropertyUpdate "restfulharvester.dependency.version" "$harvesterLibVersion"
-QueuePropertyUpdate "harvesterutils.dependency.version" "$harvesterUtilsVersion"
-harvesterParentPomVersion=$(ExecuteUpdate)
-BuildAndDeployLibrary "CA-HPPSA" "$harvesterParentPomVersion"
+if [ "$sourceVersion" != "" ]; then
+  QueueParentPomUpdate "$parentPomVersion"
+  QueuePropertyUpdate "restfulharvester.dependency.version" "$harvesterLibVersion"
+  QueuePropertyUpdate "harvesterutils.dependency.version" "$harvesterUtilsVersion"
+  harvesterParentPomVersion=$(ExecuteUpdate)
+  BuildAndDeployLibrary "CA-HPPSA" "$harvesterParentPomVersion"
+fi
 
 # update all other harvesters
 UpdateAllHarvesters "$harvesterParentPomVersion"
