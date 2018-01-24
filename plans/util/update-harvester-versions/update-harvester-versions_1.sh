@@ -1,5 +1,11 @@
 #!/bin/bash
 
+echo "Testing plan variables in external scripts"
+echo "$bamboo_ManualBuildTriggerReason_userName"
+echo "$bamboo_passwordGit"
+echo "$bamboo_firstReviewer"
+echo "$bamboo_secondReviewer"
+exit 0
 
 # FUNCTION FOR SETTING UP GLOBAL VARIABLES
 InitVariables() {
