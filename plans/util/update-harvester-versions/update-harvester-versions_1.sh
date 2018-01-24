@@ -502,9 +502,9 @@ UpdateHarvester() {
 BuildAndDeployLibrary() {  
   planLabel="$1"
   deploymentVersion="$2"
-  isReadyToBuild=$(IsMavenVersionInSonatype "$artifactId" "$deploymentVersion")
+  isVersionAlreadyBuilt=$(IsMavenVersionInSonatype "$artifactId" "$deploymentVersion")
   
-  if [ $isReadyToBuild -eq 0 ]; then
+  if [ $isVersionAlreadyBuilt -ne 0 ]; then
     isEverythingSuccessful=1
     
     # get ID of deployment project
@@ -604,10 +604,10 @@ GetMavenDeployEnvironmentId() {
 
 # FUNCTION FOR CHECKING IF A VERSION IS IN SONATYPE
 IsMavenVersionInSonatype() {
-  checkedArtifact="$1"
+  checkedArtifactId="$1"
   checkedVersion="$2"
   
-  sonaTypeResponse=$(curl -sI -X HEAD https://oss.sonatype.org/content/repositories/snapshots/de/gerdi-project/$checkedArtifact/$checkedVersion/)
+  sonaTypeResponse=$(curl -sI -X HEAD https://oss.sonatype.org/content/repositories/snapshots/de/gerdi-project/$checkedArtifactId/$checkedVersion/)
   httpCode=$(echo "$sonaTypeResponse" | grep -oP '(?<=HTTP/\d\.\d )\d+')
   
   if [ $httpCode -eq 200 ]; then
@@ -787,4 +787,17 @@ fi
 UpdateAllHarvesters "$harvesterParentPomVersion"
 
 # set main task to "Review"
-ReviewJiraTask "$jiraKey"
+if [ "$jiraKey" != "" ]; then
+  ReviewJiraTask "$jiraKey"
+  
+  echo " " >&2
+  echo "---------------------------------------------------" >&2
+  echo "- FINISHED UPDATING! PLEASE, CHECK THE JIRA TICKET:" >&2
+  echo "- https://tasks.gerdi-project.de/browse/$jiraKey" >&2
+  echo "---------------------------------------------------" >&2
+else
+  echo " " >&2
+  echo "---------------------------------------------------" >&2
+  echo "- NO PROJECTS HAD TO BE UPDATED!" >&2
+  echo "---------------------------------------------------" >&2
+  fi
