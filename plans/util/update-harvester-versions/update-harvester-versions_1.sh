@@ -20,19 +20,17 @@ InitVariables() {
   fi
 
   # check pull-request reviewers
-  reviewer1="$bamboo_firstReviewer"
-  reviewer2="$bamboo_secondReviewer"
-  if [ "$reviewer1" = "" ] || [ "$reviewer2" = "" ] ; then
-    echo "You need to specify valid reviewers for your pull-request by setting the 'firstReviewer' and 'secondReviewer' variables when running the plan customized!" >&2
+  reviewer1="$bamboo_reviewer"
+  if [ "$reviewer1" = "" ]; then
+    echo "You need to specify valid reviewers for your pull-request by setting the 'reviewer' variable when running the plan customized!" >&2
     exit 1
   fi
-  if [ "$reviewer1" = "$userName" ] || [ "$reviewer2" = "$userName" ] ; then
-    echo "You cannot be a reviewer yourself! Please set the 'firstReviewer' and 'secondReviewer' variables to proper values when running the plan customized!" >&2
+  if [ "$reviewer1" = "$userName" ]; then
+    echo "You cannot be a reviewer yourself! Please set the 'reviewer' variable to a proper value when running the plan customized!" >&2
     exit 1
   fi
 
-  echo "Reviewer 1: $reviewer1" >&2
-  echo "Reviewer 2: $reviewer2" >&2
+  echo "Reviewer: $reviewer1" >&2
   
   # Get User Full Name
   userFullName=$(curl -sX GET -u $userName:$userPw https://ci.gerdi-project.de/browse/user/$encodedEmail)
@@ -206,7 +204,7 @@ CreatePullRequest() {
   projectKey=${repositoryAddress%/*}
   projectKey=${projectKey##*/}
   
-  echo "Creating Pull-Request for repository '$repoSlug' in project '$projectKey'. Reviewers are $reviewer1 and $reviewer2" >&2
+  echo "Creating Pull-Request for repository '$repoSlug' in project '$projectKey'. Reviewer is $reviewer1" >&2
   
   # create pull-request
   bitbucketPostResponse=$(curl -sX POST -u $userName:$userPw -H "Content-Type: application/json" -d '{
@@ -237,8 +235,7 @@ CreatePullRequest() {
     },
     "locked": false,
     "reviewers": [
-        { "user": { "name": "'"$reviewer1"'" }},
-        { "user": { "name": "'"$reviewer2"'" }}
+        { "user": { "name": "'"$reviewer1"'" }}
     ],
     "links": {
         "self": [
