@@ -543,12 +543,12 @@ BuildAndDeployLibrary() {
           fi
         fi
       fi
-	else
-      echo "Did not deploy $artifactId $deploymentVersion, because it already exists in the Sonatype repository." >&2
     fi
     if [ $isEverythingSuccessful -ne 0 ]; then
       echo "DID NOT FINISH BAMBOO PLAN/DEPLOYMENT $planLabel!" >&2
     fi
+  else
+    echo "Did not deploy $artifactId $deploymentVersion, because it already exists in the Sonatype repository." >&2
   fi
 }
 
