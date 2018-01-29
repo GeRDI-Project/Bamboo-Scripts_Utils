@@ -522,35 +522,32 @@ BuildAndDeployLibrary() {
         if [ "$planBranchId" != "" ]; then
           echo "planLabel: $planLabel$planBranchId" >&2  
 
-          # start bamboo plan
-          planResultKey=$(StartBambooPlan "$planLabel$planBranchId")
-      
-          if [ "$planResultKey" != "" ]; then
-            echo "planResultKey: $planResultKey" >&2
+          planResultKey="$planLabel$planBranchId-2"
         
-            # wait for plan to finish
-            didPlanSucceed=$(WaitForPlanToBeDone "$planResultKey")
+          # wait for plan to finish
+          didPlanSucceed=$(WaitForPlanToBeDone "$planResultKey")
 
-            # fail if the plan was not successful
-            if [ $didPlanSucceed -eq 0 ]; then        
-              # start bamboo deployment
-              deploymentResultId=$(StartBambooDeployment "$deploymentId" "$environmentId" "$deploymentVersion($planResultKey)" "$planResultKey")
+          # fail if the plan was not successful
+          if [ $didPlanSucceed -eq 0 ]; then        
+            # start bamboo deployment
+            deploymentResultId=$(StartBambooDeployment "$deploymentId" "$environmentId" "$deploymentVersion($planResultKey)" "$planResultKey")
         
-              if [ "$deploymentResultId" != "" ]; then
-                echo "deploymentResultId: $deploymentResultId" >&2
-                didDeploymentSucceed=$(WaitForDeploymentToBeDone "$deploymentResultId")
+            if [ "$deploymentResultId" != "" ]; then
+              echo "deploymentResultId: $deploymentResultId" >&2
+              didDeploymentSucceed=$(WaitForDeploymentToBeDone "$deploymentResultId")
         
-                if [ $didDeploymentSucceed -eq 0 ]; then
-                  isEverythingSuccessful=0
-                fi
+              if [ $didDeploymentSucceed -eq 0 ]; then
+                isEverythingSuccessful=0
               fi
             fi
           fi
         fi
       fi
+	else
+      echo "Did not deploy $artifactId $deploymentVersion, because it already exists in the Sonatype repository." >&2
     fi
-    if [ $isEverythingSuccessful -eq 0 ]; then
-      echo "COULD NOT FINISH BAMBOO PLAN/DEPLOYMENT $planLabel!" >&2
+    if [ $isEverythingSuccessful -ne 0 ]; then
+      echo "DID NOT FINISH BAMBOO PLAN/DEPLOYMENT $planLabel!" >&2
     fi
   fi
 }
@@ -604,14 +601,54 @@ IsMavenVersionInSonatype() {
   checkedArtifactId="$1"
   checkedVersion="$2"
   
-  sonaTypeResponse=$(curl -sI -X HEAD https://oss.sonatype.org/content/repositories/snapshots/de/gerdi-project/$checkedArtifactId/$checkedVersion/)
-  httpCode=$(echo "$sonaTypeResponse" | grep -oP '(?<=HTTP/\d\.\d )\d+')
+  httpCode=$(GetHeadHttpCode "https://oss.sonatype.org/content/repositories/snapshots/de/gerdi-project/$checkedArtifactId/$checkedVersion/" "1")
   
   if [ $httpCode -eq 200 ]; then
     echo 0
   else
     echo 1
   fi
+}
+
+
+# FUNCTION THAT RETURNS THE PLAN_RESULT_KEY OF THE LATEST BUILD OF A BAMBOO PLAN
+GetLatestBambooPlan() {
+  planLabel="$1"
+  planBranchId="$2"
+  
+  # check latest finished build
+  bambooGetResponse=$(curl -sX GET -u $userName:$userPw -H "Content-Type: application/json"  https://ci.gerdi-project.de/rest/api/latest/result/$planLabel$planBranchId?max-results=1)
+  planResultKey=$(echo "$bambooGetResponse" | grep -oP '(?<=<buildResultKey>).+(?=</buildResultKey>)')
+  
+  # check if a build is in progress
+  if [ "$planResultKey" != "" ]; then
+    nextBuildNumber=${planResultKey##*-}
+	nextBuildNumber=$(expr $nextBuildNumber + 1)
+    nextPlanResultKey="${planResultKey%-*}-$nextBuildNumber"
+    httpCode=$(GetHeadHttpCode "https://ci.gerdi-project.de/rest/api/latest/result/status/$nextPlanResultKey" "0")
+	
+	if [ "$httpCode" = "200" ]; then
+	  planResultKey="$nextPlanResultKey"
+	fi
+  fi
+  
+  echo "$planResultKey"
+}
+
+
+# FUNCTION FOR RETRIEVING HTTP RESPONSE CODE
+GetHeadHttpCode() {
+  url="$1"
+  isUsingAuth="$2"
+  
+  if [ $isUsingAuth -eq 0 ]; then
+    sonaTypeResponse=$(curl -sI -X HEAD -u $userName:$userPw $url)
+  else
+    sonaTypeResponse=$(curl -sI -X HEAD $url)
+  fi
+  
+  httpCode=$(echo "$sonaTypeResponse" | grep -oP '(?<=HTTP/\d\.\d )\d+')
+  echo "$httpCode"
 }
 
 
@@ -686,10 +723,15 @@ WaitForPlanToBeDone() {
     sleep 3
   done
   
-  # check if the plan finished successfully
-  bambooGetResponse=$(curl -sX GET -u $userName:$userPw -H "Content-Type: application/json" https://ci.gerdi-project.de/rest/api/latest/result/$planResultKey)
-  buildState=$(echo "$bambooGetResponse" | grep -oP "(?<=\<buildState\>)\w+?(?=\</buildState\>)")
+  # there is a small transition period during which the build state is unknown, though the job is finished:
+  buildState="Unknown"
+  while [ "$buildState" = "Unknown" ]; do
+    bambooGetResponse=$(curl -sX GET -u $userName:$userPw -H "Content-Type: application/json" https://ci.gerdi-project.de/rest/api/latest/result/$planResultKey)
+	buildState=$(echo "$bambooGetResponse" | grep -oP "(?<=\<buildState\>)\w+?(?=\</buildState\>)")
+    sleep 3
+  done
     
+  # check if the plan finished successfully
   echo "Bamboo Plan $planResultKey finished with state '$buildState'!" >&2
   if [ "$buildState" = "Successful" ]; then
     echo 0
@@ -702,21 +744,17 @@ WaitForPlanToBeDone() {
 # FUNCTION THAT WAITS FOR A BAMBOO DEPLOYMENT TO FINISH
 WaitForDeploymentToBeDone() {
   deploymentResultId="$1"
-  lifeCycleState="IN_PROGRESS"
+  deploymentState="UNKNOWN"
   
   echo "Waiting for deployment $deploymentResultId to finish..." >&2
   
-  # wait 10 seconds and send a get-request to check if the plan is still running
-  while [ "$lifeCycleState" = "IN_PROGRESS" ]; do
+  # wait 5 seconds and send a get-request to check if the plan is still running
+  while [ "$deploymentState" = "UNKNOWN" ]; do
     bambooGetResponse=$(curl -sX GET -u $userName:$userPw -H "Content-Type: application/json" https://ci.gerdi-project.de/rest/api/latest/deploy/result/$deploymentResultId)
-  lifeCycleState=${bambooGetResponse#*\"lifeCycleState\":\"}
-    lifeCycleState=${lifeCycleState%%\"*}
-    sleep 10
+    deploymentState=${bambooGetResponse#*\"deploymentState\":\"}
+    deploymentState=${deploymentState%%\"*}
+    sleep 5
   done
-  
-  # check if the plan finished successfully
-  deploymentState=${bambooGetResponse#*\"deploymentState\":\"}
-  deploymentState=${deploymentState%%\"*}
   
   echo "Bamboo Deployment $deploymentResultId finished with state '$deploymentState'!" >&2
   if [ "$deploymentState" = "SUCCESS" ]; then
