@@ -791,13 +791,13 @@ if [ "$jiraKey" != "" ]; then
   ReviewJiraTask "$jiraKey"
   
   echo " " >&2
-  echo "---------------------------------------------------" >&2
-  echo "- FINISHED UPDATING! PLEASE, CHECK THE JIRA TICKET:" >&2
-  echo "- https://tasks.gerdi-project.de/browse/$jiraKey" >&2
-  echo "---------------------------------------------------" >&2
+  echo "-------------------------------------------------" >&2
+  echo "FINISHED UPDATING! PLEASE, CHECK THE JIRA TICKET:" >&2
+  echo "https://tasks.gerdi-project.de/browse/$jiraKey" >&2
+  echo "-------------------------------------------------" >&2
 else
   echo " " >&2
-  echo "---------------------------------------------------" >&2
-  echo "- NO PROJECTS HAD TO BE UPDATED!" >&2
-  echo "---------------------------------------------------" >&2
+  echo "------------------------------" >&2
+  echo "NO PROJECTS HAD TO BE UPDATED!" >&2
+  echo "------------------------------" >&2
   fi
