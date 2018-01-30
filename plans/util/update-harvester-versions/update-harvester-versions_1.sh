@@ -308,7 +308,7 @@ GetTargetVersionForUpdate(){
 QueueParentPomUpdate(){
   targetParentVersion="$1"
   
-  sourceParentVersion=$(mvn -q -Dexec.executable="echo" -Dexec.args='${project.parent.version}' --non-recursive org.codehaus.mojo:exec-maven-plugin:1.3.1:exec -f "$pomDirectory/pom.xml")
+  sourceParentVersion=$(mvn -q -Dexec.executable="echo" -Dexec.args='${project.parent.version}' --non-recursive org.codehaus.mojo:exec-maven-plugin:1.3.1:exec -f"$pomDirectory/pom.xml")
 
   if [ "$sourceParentVersion" != "$targetParentVersion" ]; then
     echo "Queueing to update parent-pom version of $artifactId from $sourceParentVersion to $targetParentVersion" >&2
