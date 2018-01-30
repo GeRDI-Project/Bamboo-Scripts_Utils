@@ -299,7 +299,7 @@ GetTargetVersionForUpdate(){
   if [ "$currentTargetVersion" \> "$newVersion" ]; then
     echo "$currentTargetVersion"
   else  
-  echo "$newVersion"
+    echo "$newVersion"
   fi
 }
 
@@ -398,7 +398,9 @@ PrepareUpdate() {
   # get version
   if [ -f "$pomDirectory/pom.xml" ]; then
     artifactId=$(mvn -q -Dexec.executable="echo" -Dexec.args='${project.artifactId}' --non-recursive org.codehaus.mojo:exec-maven-plugin:1.3.1:exec -f"$pomDirectory/pom.xml")
+	echo "artifactId: $artifactId" >&2
     sourceVersion=$(mvn -q -Dexec.executable="echo" -Dexec.args='${project.version}' --non-recursive org.codehaus.mojo:exec-maven-plugin:1.3.1:exec -f"$pomDirectory/pom.xml")
+	echo "current version: $sourceVersion" >&2
     targetVersion="$sourceVersion"
   else
     # if no pom.xml exists, we cannot update it
@@ -433,7 +435,6 @@ ExecuteUpdate() {
       echo $(git push -q --set-upstream origin $branchName) >&2
     
       # execute update queue
-      echo $(cat $updateQueue) >&2
       echo $($updateQueue) >&2
    
       # set major version
@@ -821,18 +822,18 @@ fi
 # update all other harvesters
 UpdateAllHarvesters "$harvesterParentPomVersion"
 
-# set main task to "Review"
+echo " " >&2
+
 if [ "$jiraKey" != "" ]; then
   ReviewJiraTask "$jiraKey"
-  
-  echo " " >&2
   echo "-------------------------------------------------" >&2
   echo "FINISHED UPDATING! PLEASE, CHECK THE JIRA TICKET:" >&2
   echo "https://tasks.gerdi-project.de/browse/$jiraKey" >&2
   echo "-------------------------------------------------" >&2
 else
-  echo " " >&2
   echo "------------------------------" >&2
   echo "NO PROJECTS HAD TO BE UPDATED!" >&2
   echo "------------------------------" >&2
-  fi
+fi
+
+echo " " >&2
