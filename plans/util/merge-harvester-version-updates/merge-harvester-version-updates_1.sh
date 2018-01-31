@@ -1,4 +1,5 @@
-#!/bin/sh
+#!/bin/bash
+
 
 # FUNCTION FOR SETTING UP GLOBAL VARIABLES
 InitVariables() {
@@ -66,10 +67,10 @@ MergeAllPullRequestsOfJiraIssue() {
   allCommits="$(curl -sX GET -u $userName:$userPw https://code.gerdi-project.de/rest/jira/latest/issues/$jiraKey/commits?maxChanges\=1)"
   
   # filter out all Merge commits
-  allCommits=$(echo "$allCommits" | grep -oP '{"fromCommit".*?"message":"'"$jiraKey"'.*?}}}')
+  allCommits=$(printf "%s" "$allCommits" | grep -oP '{"fromCommit".*?"message":"'"$jiraKey"'.*?}}}')
   
   # create set of instruction parameters: jiraKey, branchName, project, slug
-  instructionParamList=$(echo "$allCommits" | sed -e 's~.*"message":"'"$jiraKey"' \(.\+\?\) Updated.*"href":"http[^"]\+\?/\([^"]\+\?\)/\([^"]\+\?\).git".*~'"$jiraKey"' '"$jiraKey"'-\1-VersionUpdate \2 \3~g')
+  instructionParamList=$(printf "%s" "$allCommits" | sed -e 's~.*"message":"'"$jiraKey"' \(.\+\?\) Updated.*"href":"http[^"]\+\?/\([^"]\+\?\)/\([^"]\+\?\).git".*~'"$jiraKey"' '"$jiraKey"'-\1-VersionUpdate \2 \3~g')
   
   # execute merge of all pull-requests
   failedMerges=0
