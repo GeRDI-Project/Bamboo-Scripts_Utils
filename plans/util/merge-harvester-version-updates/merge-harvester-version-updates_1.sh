@@ -1,5 +1,4 @@
-#!/bin/bash
-
+#!/bin/sh
 
 # FUNCTION FOR SETTING UP GLOBAL VARIABLES
 InitVariables() {
