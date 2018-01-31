@@ -478,7 +478,7 @@ UpdateAllHarvesters() {
   printf '%s\n' "$harvesterUrls" | while IFS= read -r updateInstruction
   do 
     $updateInstruction
-  done #< < (harvesterUrls)
+  done
 }
 
 
