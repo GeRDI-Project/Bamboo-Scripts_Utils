@@ -74,13 +74,12 @@ MergeAllPullRequestsOfJiraIssue() {
   
   # execute merge of all pull-requests
   failedMerges=0
-  printf '%s\n' "$instructionParamList" | while IFS= read -r params
+  printf '%s\n' "$instructionParamList" | ( while IFS= read -r params
   do 
     isMerged=$(ProcessPullRequest $params)
 	failedMerges=$(expr $failedMerges + $isMerged)
   done
-  
-  echo $failedMerges
+  echo $failedMerges )
 }
 
 
