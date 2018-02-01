@@ -1,5 +1,17 @@
 #!/bin/bash
 
+# This script is being called by the Bamboo Job https://ci.gerdi-project.de/browse/UTIL-MHVU
+# It attempts to find the last successful build of the plan https://ci.gerdi-project.de/browse/UTIL-UHV that creates a JIRA ticket
+# with associated branches and pull requests for updating Maven Parent versions of Harvester projects.
+# This script attempts to merge all approved pull requests of said JIRA ticket and removes the feature branches afterwards.
+# If all branches were merged, the JIRA ticket is set to DONE.
+#
+# Bamboo Variables:
+#  bamboo_ManualBuildTriggerReason_userName - the login name of the current user
+#  bamboo_passwordGit - the Atlassian password of the current user
+#  bamboo_jiraIssueKey - the key of the JIRA ticket that is to be merged. If left blank, the ticket key 
+#                        will be retrieved from the last https://ci.gerdi-project.de/browse/UTIL-UHV build 
+
 
 # FUNCTION FOR SETTING UP GLOBAL VARIABLES
 InitVariables() {
@@ -108,7 +120,7 @@ ProcessPullRequest() {
     echo "Merging https://code.gerdi-project.de/projects/$project/repos/$slug/pull-requests/$pullRequestId/" >&2
 	  
     pullRequestVersion=$(GetPullRequestVersion "$pullRequestInfo")
-    echo 'MergePullRequest "$slug" "$project" "$pullRequestId" "$pullRequestVersion"' >&2
+    MergePullRequest "$slug" "$project" "$pullRequestId" "$pullRequestVersion" >&2
     DeleteBranch "$slug" "$project" "$branchName"
 	wasMerged=0
 	
