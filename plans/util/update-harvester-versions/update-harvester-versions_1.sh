@@ -1,5 +1,22 @@
 #!/bin/bash
 
+# This script is being called by the Bamboo Job https://ci.gerdi-project.de/browse/UTIL-UHV and does the following things:
+#  1. Retrieve the current version of the GeRDI Parent Pom (https://oss.sonatype.org/content/repositories/snapshots/de/gerdi-project/GeRDI-parent/)
+#  2. Update the Harvester Setup Archive, if needed (https://oss.sonatype.org/content/repositories/snapshots/de/gerdi-project/GeRDI-harvester-setup-archive/)
+#  3. Update the Harvester Setup, if needed (https://oss.sonatype.org/content/repositories/snapshots/de/gerdi-project/GeRDI-harvester-setup/)
+#  4. Update the Json Library, if needed (https://oss.sonatype.org/content/repositories/snapshots/de/gerdi-project/GSON/)
+#  5. Update the Harvester Base Library, if needed (https://oss.sonatype.org/content/repositories/snapshots/de/gerdi-project/RestfulHarvester-Library/)
+#  6. Update the Harvester Utilities, if needed (https://oss.sonatype.org/content/repositories/snapshots/de/gerdi-project/GeRDI-harvester-utilities-archive/)
+#  7. Update the Harvester Parent Pom, if needed (https://oss.sonatype.org/content/repositories/snapshots/de/gerdi-project/GeRDI-parent-harvester/)
+#  8. Update all Maven Harvester Projects
+# If any of the above updates are required, a JIRA ticket is created. All Pom changes are committed on a branch which is automatically created, along with a pull request,
+# and a sub-task in the JIRA ticket.
+#
+# Bamboo Variables:
+#  bamboo_ManualBuildTriggerReason_userName - the login name of the current user
+#  bamboo_passwordGit - the Atlassian password of the current user
+#  bamboo_reviewer - the user name of the person that has to review the pull requests
+
 
 # FUNCTION FOR SETTING UP GLOBAL VARIABLES
 InitVariables() {
