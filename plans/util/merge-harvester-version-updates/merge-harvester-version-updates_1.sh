@@ -149,7 +149,7 @@ DeleteBranch() {
     }' https://code.gerdi-project.de/rest/branch-utils/latest/projects/$project/repos/$slug/branches/)
     echo "$deleteResponse" >&2
   else
-    echo "Ignoring branch '$branchName' of '$project/$slug', because it no longer exists." >&2
+    echo "No need to delete branch '$branchName' of '$project/$slug', because it no longer exists." >&2
   fi
 }
 
