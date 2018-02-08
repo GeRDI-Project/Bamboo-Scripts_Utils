@@ -227,9 +227,6 @@ IsMajorVersionUpdated() {
 CreatePullRequest() {
   branch="$1"
   title="$2"
-  commitMessage="$3"
-  git commit -m ''"$commitMessage"''
-  git push -q
   
   # retrieve repository slug
   repoSlug=${repositoryAddress%.git}
@@ -454,32 +451,36 @@ ExecuteUpdate() {
     subTaskKey=$(CreateJiraSubTask "$jiraKey" "$artifactId" "$targetVersion" "$subTaskDescription")
     StartJiraTask "$subTaskKey"
   
-    # update and commit version if it is not major
+    # create git branch
+    branchName="$jiraKey-$subTaskKey-VersionUpdate"
+    echo $(git checkout -b $branchName) >&2
+    
+    # set GIT user
+    echo $(git config user.email "$userName") >&2
+    echo $(git config user.name "$userFullName") >&2
+  
+    echo $(git push -q --set-upstream origin $branchName) >&2
+    
+    # execute update queue
+    echo $($updateQueue) >&2
+   
+    # set version
+    echo $(mvn versions:set "-DnewVersion=$targetVersion" -DallowSnapshots=true -DgenerateBackupPoms=false -f"$pomDirectory/pom.xml") >&2
+    
+	# commit and push updates
+    echo $(git add -A) >&2
+    commitMessage="$jiraKey $subTaskKey Updated pom version to $targetVersion. $(cat $gitCommitDescription)"
+    git commit -m ''"$commitMessage"''
+    git push -q
+  
+    # create pull request if it is not major version update
     isMajorUpdate=$(IsMajorVersionUpdated "$sourceVersion" "$targetVersion")
     if [ "$isMajorUpdate" = "false" ]; then
-      # create git branch
-      branchName="$jiraKey-$subTaskKey-VersionUpdate"
-      echo $(git checkout -b $branchName) >&2
-    
-      # set GIT user
-      echo $(git config user.email "$userName") >&2
-      echo $(git config user.name "$userFullName") >&2
-  
-      echo $(git push -q --set-upstream origin $branchName) >&2
-    
-      # execute update queue
-      echo $($updateQueue) >&2
-   
-      # set major version
-      echo $(mvn versions:set "-DnewVersion=$targetVersion" -DallowSnapshots=true -DgenerateBackupPoms=false -f"$pomDirectory/pom.xml") >&2
-    
-      echo $(git add -A) >&2
-      echo $(CreatePullRequest "$branchName" "Update $artifactId" "$jiraKey $subTaskKey Updated pom version to $targetVersion. $(cat $gitCommitDescription)") >&2
-   
+      echo $(CreatePullRequest "$branchName" "Update $artifactId") >&2
       ReviewJiraTask "$subTaskKey"
       FinishJiraTask "$subTaskKey"
     else
-      AbortJiraTask "$subTaskKey" "Could not auto-update, because the major version would change. Please do it manually!"
+	  echo "Could not close JIRA task, because the major version changed! Please check the code!" >&2
     fi
   else
     echo "$artifactId is already up-to-date at version: $targetVersion" >&2
