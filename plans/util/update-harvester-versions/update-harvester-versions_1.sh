@@ -817,10 +817,19 @@ if [ "$sourceVersion" != "" ]; then
   harvesterSetupVersion=$(ExecuteUpdate)
 fi
 
+# update harvester utils
+PrepareUpdate "code.gerdi-project.de/scm/har/harvesterutils.git" "."
+if [ "$sourceVersion" != "" ]; then
+  QueueParentPomUpdate "$parentPomVersion"
+  harvesterUtilsVersion=$(ExecuteUpdate)
+  BuildAndDeployLibrary "CA-HU" "$harvesterUtilsVersion"
+fi
+
 # update json library
 PrepareUpdate "code.gerdi-project.de/scm/har/jsonlibraries.git" "."
 if [ "$sourceVersion" != "" ]; then
   QueueParentPomUpdate "$parentPomVersion"
+  QueuePropertyUpdate "harvesterutils.dependency.version" "$harvesterUtilsVersion"
   jsonLibVersion=$(ExecuteUpdate)
   BuildAndDeployLibrary "CA-JL" "$jsonLibVersion"
 fi
@@ -828,18 +837,10 @@ fi
 # update harvester base library
 PrepareUpdate "code.gerdi-project.de/scm/har/harvesterbaselibrary.git" "."
 if [ "$sourceVersion" != "" ]; then
-  QueuePropertyUpdate "gerdigson.dependency.version" "$jsonLibVersion"
   QueueParentPomUpdate "$parentPomVersion"
+  QueuePropertyUpdate "gerdigson.dependency.version" "$jsonLibVersion"
   harvesterLibVersion=$(ExecuteUpdate)
   BuildAndDeployLibrary "CA-HL" "$harvesterLibVersion"
-fi
-
-# update harvester utils
-PrepareUpdate "code.gerdi-project.de/scm/har/harvesterutils.git" "."
-if [ "$sourceVersion" != "" ]; then
-  QueueParentPomUpdate "$parentPomVersion"
-  harvesterUtilsVersion=$(ExecuteUpdate)
-  BuildAndDeployLibrary "CA-HU" "$harvesterUtilsVersion"
 fi
 
 # update harvester parent pom
