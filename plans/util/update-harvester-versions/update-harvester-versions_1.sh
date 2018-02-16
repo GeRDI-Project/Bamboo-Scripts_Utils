@@ -470,8 +470,8 @@ ExecuteUpdate() {
 	# commit and push updates
     echo $(git add -A) >&2
     commitMessage="$jiraKey $subTaskKey Updated pom version to $targetVersion. $(cat $gitCommitDescription)"
-    git commit -m ''"$commitMessage"''
-    git push -q
+    echo $(git commit -m ''"$commitMessage"'') >&2
+    echo $(git push -q) >&2
   
     # create pull request if it is not major version update
     isMajorUpdate=$(IsMajorVersionUpdated "$sourceVersion" "$targetVersion")
