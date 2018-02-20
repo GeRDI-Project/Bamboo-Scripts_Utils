@@ -66,12 +66,9 @@ InitAtlassianUserDetails() {
 # FUNCTION FOR RETRIEVING THE LATEST VERSION OF A GERDI MAVEN PROJECT
 GetGerdiMavenVersion () {
   metaData=$(curl -sX GET https://oss.sonatype.org/content/repositories/snapshots/de/gerdi-project/$1/maven-metadata.xml)
-  ver=${metaData#*<latest>}
-  ver=${ver%</latest>*}
-  if [ "$ver" = "$metaData" ]; then
-   ver=${metaData##*<version>}
-   ver=${ver%</version>*}
-  fi
+  ver=${metaData%</versions>*}
+  ver=${ver##*<version>}
+  ver=${ver%</version>*}
   echo "$ver"
 }
 
