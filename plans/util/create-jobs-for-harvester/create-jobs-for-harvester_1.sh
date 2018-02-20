@@ -205,6 +205,12 @@ echo "password=$bamboo_atlassianPassword" >> .credentials
 
 echo "Running Bamboo-Specs"
 mvn -Ppublish-specs -Dbamboo.specs.log.level=DEBUG
+returnCode=$?
+
+if [ $returnCode -ne 0 ]; then
+  echo "Could not generate Bamboo jobs!"
+  exit 1
+fi
 
 # clean up
 echo "Removing the temporary directory"
