@@ -30,23 +30,54 @@
 #                        will be retrieved from the last https://ci.gerdi-project.de/browse/UTIL-UHV build 
 
 
+# FUNCTION FOR SETTING UP ATLASSIAN LOGIN CREDENTIALS
+InitAtlassianUserDetails() {
+  # check if user is logged in
+  if [ "$bamboo_ManualBuildTriggerReason_userName" = "" ]; then
+    echo "You need to be logged in to run this job!" >&2
+    exit 1
+  fi
+  
+  # get user name
+  atlassianUserName="$bamboo_ManualBuildTriggerReason_userName"
+  echo "UserName: $atlassianUserName" >&2
+  
+  # check if password is set
+  if [ "$bamboo_atlassianPassword" = "" ]; then
+    echo "You need to specify your Atlassian password by setting the 'atlassianPassword' plan variable when running the plan customized!" >&2
+    exit 1
+  fi
+  
+  # assemble username+password for Atlassian REST requests
+  atlassianCredentials="$atlassianUserName:$bamboo_atlassianPassword"
+  
+  # assemble username+password for Git Clones
+  gitCredentials="$(echo "$atlassianUserName" | sed -e "s/@/%40/g"):$bamboo_atlassianPassword"
+  
+  # check if password is valid
+  response=$(curl -sI -X HEAD -u "$atlassianCredentials" https://code.gerdi-project.de/rest/api/latest/projects/)
+  httpCode=$(echo "$response" | grep -oP '(?<=HTTP/\d\.\d )\d+')
+  if [ "$httpCode" != "200" ]; then
+    echo "The 'atlassianPassword' plan variable is incorrect for user '$atlassianUserName'." >&2
+    exit 1
+  fi
+  
+  # get user profile
+  userProfile=$(curl -sX GET -u "$atlassianCredentials" https://tasks.gerdi-project.de/rest/api/2/user?username="$atlassianUserName")
+  
+  # retrieve email from user profile
+  atlassianUserEmail=$(echo "$userProfile" | grep -oP "(?<=\"emailAddress\":\")[^\"]+")
+  echo "UserEmail: $atlassianUserEmail" >&2
+  
+  # retrieve displayName from user profile
+  atlassianUserDisplayName=$(echo "$userProfile" | grep -oP "(?<=\"displayName\":\")[^\"]+")
+  echo "UserDisplayName: $atlassianUserDisplayName" >&2
+}
+
+
 # FUNCTION FOR SETTING UP GLOBAL VARIABLES
 InitVariables() {
-  # check login
-  userName="$bamboo_ManualBuildTriggerReason_userName"
-  if [ "$userName" = "" ]; then
-    echo "Please log in to Bamboo!" >&2
-    exit 1
-  fi
-  echo "User Email: $userName" >&2
-  encodedEmail=$(echo "$userName" | sed -e "s/@/%40/g")
-
-  # check if password exists
-  userPw="$bamboo_passwordGit"
-  if [ "$userPw" = "" ]; then
-    echo "You need to specify your BitBucket password by setting the 'passwordGit' variable when running the plan customized!" >&2
-    exit 1
-  fi
+  InitAtlassianUserDetails
 
   # check pull-request reviewers
   jiraKey="$bamboo_jiraIssueKey"
@@ -71,7 +102,7 @@ RetrieveJiraKeyFromPlan() {
   planLabel="UTIL-UHV"
   latestPlanId=$(GetLatestBambooPlan "$planLabel" "")
   
-  latestPlanLog=$(curl -sX GET -u $userName:$userPw https://ci.gerdi-project.de/download/$planLabel-JOB1/build_logs/$planLabel-JOB1-$latestPlanId.log)
+  latestPlanLog=$(curl -sX GET -u "$atlassianCredentials" https://ci.gerdi-project.de/download/$planLabel-JOB1/build_logs/$planLabel-JOB1-$latestPlanId.log)
   latestJiraKey=$(echo "$latestPlanLog" | grep -oP '(?<=Created JIRA task )\w+?-\d+')
   
   echo "$latestJiraKey"
@@ -83,7 +114,7 @@ FinishJiraTask() {
   taskKey="$1"
   
   echo "Setting $taskKey to 'Done'" >&2
-  jiraPostResponse=$(curl -sX POST -u $userName:$userPw -H "Content-Type: application/json" -d '{
+  jiraPostResponse=$(curl -sX POST -u "$atlassianCredentials" -H "Content-Type: application/json" -d '{
     "transition": {"id": 71}
   }' https://tasks.gerdi-project.de/rest/api/latest/issue/$taskKey/transitions?expand=transitions.fields)
 }
@@ -93,7 +124,7 @@ FinishJiraTask() {
 MergeAllPullRequestsOfJiraIssue() {
   jiraKey="$1"
   
-  allCommits="$(curl -sX GET -u $userName:$userPw https://code.gerdi-project.de/rest/jira/latest/issues/$jiraKey/commits?maxChanges\=1)"
+  allCommits="$(curl -sX GET -u "$atlassianCredentials" https://code.gerdi-project.de/rest/jira/latest/issues/$jiraKey/commits?maxChanges\=1)"
   
   # filter out all Merge commits
   allCommits=$(printf "%s" "$allCommits" | grep -oP '{"fromCommit".*?"message":"'"$jiraKey"'.*?}}}')
@@ -122,7 +153,7 @@ ProcessPullRequest() {
   pullRequestId=$(GetPullRequestIdForJiraIssue "$slug" "$project" "$jiraKey")
   
   if [ "$pullRequestId" != "" ]; then
-    pullRequestInfo=$(curl -sX GET -u $userName:$userPw https://code.gerdi-project.de/rest/api/latest/projects/$project/repos/$slug/pull-requests/$pullRequestId)
+    pullRequestInfo=$(curl -sX GET -u "$atlassianCredentials" https://code.gerdi-project.de/rest/api/latest/projects/$project/repos/$slug/pull-requests/$pullRequestId)
     pullRequestStatus=$(GetPullRequestStatus "$pullRequestInfo")
   else
     pullRequestStatus="MERGED"
@@ -157,7 +188,7 @@ MergePullRequest() {
   pullRequestId="$3"
   pullRequestVersion="$4"
   
-  mergeResponse=$(curl -sX POST -u $userName:$userPw -H "Content-Type:application/json" https://code.gerdi-project.de/rest/api/latest/projects/$project/repos/$slug/pull-requests/$pullRequestId/merge?version=$pullRequestVersion) >&2
+  mergeResponse=$(curl -sX POST -u "$atlassianCredentials" -H "Content-Type:application/json" https://code.gerdi-project.de/rest/api/latest/projects/$project/repos/$slug/pull-requests/$pullRequestId/merge?version=$pullRequestVersion) >&2
 }
 
 
@@ -167,12 +198,12 @@ DeleteBranch() {
   project="$2"
   branchName="$3"
   
-  branchInfo=$(curl -sX GET -u $userName:$userPw https://code.gerdi-project.de/rest/api/latest/projects/$project/repos/$slug/branches?filterText=$branchName)
+  branchInfo=$(curl -sX GET -u "$atlassianCredentials" https://code.gerdi-project.de/rest/api/latest/projects/$project/repos/$slug/branches?filterText=$branchName)
   wasBranchDeleted=$(echo "$branchInfo" | grep -o '{"size":0,')
   
   if [ "$wasBranchDeleted" = "" ]; then
     echo "Deleting branch '$branchName' of '$project/$slug'" >&2
-    deleteResponse=$(curl -sX DELETE -u $userName:$userPw -H "Content-Type: application/json" -d '{
+    deleteResponse=$(curl -sX DELETE -u "$atlassianCredentials" -H "Content-Type: application/json" -d '{
       "name": "refs/heads/'"$branchName"'",
       "dryRun": false
     }' https://code.gerdi-project.de/rest/branch-utils/latest/projects/$project/repos/$slug/branches/)
@@ -188,7 +219,7 @@ GetPullRequestIdForJiraIssue() {
   slug="$1"
   project="$2"
   jiraKey="$3"
-  allPullRequests=$(curl -sX GET -u $userName:$userPw https://code.gerdi-project.de/rest/api/latest/projects/$project/repos/$slug/pull-requests)
+  allPullRequests=$(curl -sX GET -u "$atlassianCredentials" https://code.gerdi-project.de/rest/api/latest/projects/$project/repos/$slug/pull-requests)
   
   hasNoOpenRequests=$(echo "$allPullRequests" | grep -o '{"size":0,')
   
@@ -250,7 +281,7 @@ GetLatestBambooPlan() {
   planBranchId="$2"
   
   # check latest finished build
-  bambooGetResponse=$(curl -sX GET -u $userName:$userPw -H "Content-Type: application/json"  https://ci.gerdi-project.de/rest/api/latest/result/$planLabel$planBranchId?max\-results=1)
+  bambooGetResponse=$(curl -sX GET -u "$atlassianCredentials" -H "Content-Type: application/json"  https://ci.gerdi-project.de/rest/api/latest/result/$planLabel$planBranchId?max\-results=1)
   planResultKey=$(echo "$bambooGetResponse" | grep -oP '(?<=<buildResultKey>).+(?=</buildResultKey>)')
   
   # check if a build is in progress
@@ -275,7 +306,7 @@ GetHeadHttpCode() {
   isUsingAuth="$2"
   
   if [ $isUsingAuth -eq 0 ]; then
-    sonaTypeResponse=$(curl -sI -X HEAD -u $userName:$userPw $url)
+    sonaTypeResponse=$(curl -sI -X HEAD -u "$atlassianCredentials" $url)
   else
     sonaTypeResponse=$(curl -sI -X HEAD $url)
   fi

@@ -35,42 +35,67 @@
 #  bamboo_reviewer - the user name of the person that has to review the pull requests
 
 
+# FUNCTION FOR SETTING UP ATLASSIAN LOGIN CREDENTIALS
+InitAtlassianUserDetails() {
+  # check if user is logged in
+  if [ "$bamboo_ManualBuildTriggerReason_userName" = "" ]; then
+    echo "You need to be logged in to run this job!" >&2
+    exit 1
+  fi
+  
+  # get user name
+  atlassianUserName="$bamboo_ManualBuildTriggerReason_userName"
+  echo "UserName: $atlassianUserName" >&2
+  
+  # check if password is set
+  if [ "$bamboo_atlassianPassword" = "" ]; then
+    echo "You need to specify your Atlassian password by setting the 'atlassianPassword' plan variable when running the plan customized!" >&2
+    exit 1
+  fi
+  
+  # assemble username+password for Atlassian REST requests
+  atlassianCredentials="$atlassianUserName:$bamboo_atlassianPassword"
+  
+  # assemble username+password for Git Clones
+  gitCredentials="$(echo "$atlassianUserName" | sed -e "s/@/%40/g"):$bamboo_atlassianPassword"
+  
+  # check if password is valid
+  response=$(curl -sI -X HEAD -u "$atlassianCredentials" https://code.gerdi-project.de/rest/api/latest/projects/)
+  httpCode=$(echo "$response" | grep -oP '(?<=HTTP/\d\.\d )\d+')
+  if [ "$httpCode" != "200" ]; then
+    echo "The 'atlassianPassword' plan variable is incorrect for user '$atlassianUserName'." >&2
+    exit 1
+  fi
+  
+  # get user profile
+  userProfile=$(curl -sX GET -u "$atlassianCredentials" https://tasks.gerdi-project.de/rest/api/2/user?username="$atlassianUserName")
+  
+  # retrieve email from user profile
+  atlassianUserEmail=$(echo "$userProfile" | grep -oP "(?<=\"emailAddress\":\")[^\"]+")
+  echo "UserEmail: $atlassianUserEmail" >&2
+  
+  # retrieve displayName from user profile
+  atlassianUserDisplayName=$(echo "$userProfile" | grep -oP "(?<=\"displayName\":\")[^\"]+")
+  echo "UserDisplayName: $atlassianUserDisplayName" >&2
+}
+
+
 # FUNCTION FOR SETTING UP GLOBAL VARIABLES
 InitVariables() {
-  # check login
-  userName="$bamboo_ManualBuildTriggerReason_userName"
-  if [ "$userName" = "" ]; then
-    echo "Please log in to Bamboo!" >&2
-    exit 1
-  fi
-  echo "User Email: $userName" >&2
-  encodedEmail=$(echo "$userName" | sed -e "s/@/%40/g")
-
-  # check if password exists
-  userPw="$bamboo_passwordGit"
-  if [ "$userPw" = "" ]; then
-    echo "You need to specify your BitBucket password by setting the 'passwordGit' variable when running the plan customized!" >&2
-    exit 1
-  fi
-
+  InitAtlassianUserDetails
+  
   # check pull-request reviewers
   reviewer1="$bamboo_reviewer"
   if [ "$reviewer1" = "" ]; then
     echo "You need to specify valid reviewers for your pull-request by setting the 'reviewer' variable when running the plan customized!" >&2
     exit 1
   fi
-  if [ "$reviewer1" = "$userName" ]; then
+  if [ "$reviewer1" = "$atlassianUserName" ]; then
     echo "You cannot be a reviewer yourself! Please set the 'reviewer' variable to a proper value when running the plan customized!" >&2
     exit 1
   fi
 
   echo "Reviewer: $reviewer1" >&2
-  
-  # Get User Full Name
-  userFullName=$(curl -sX GET -u $userName:$userPw https://ci.gerdi-project.de/browse/user/$encodedEmail)
-  userFullName=${userFullName#*<title>}
-  userFullName=${userFullName%%:*}
-  echo "User Full Name: $userFullName" >&2
 
   # get parent pom version
   topDir=$(pwd)
@@ -84,7 +109,7 @@ InitVariables() {
 
 # FUNCTION FOR CREATING A JIRA TICKET
 CreateJiraTicket() {
-  jiraPostResponse=$(curl -sX POST -u $userName:$userPw -H "Content-Type: application/json" -d '{
+  jiraPostResponse=$(curl -sX POST -u "$atlassianCredentials" -H "Content-Type: application/json" -d '{
     "fields": {
       "summary": "Update Harvester Maven Versions ",
     "description": "This ticket was created by a Bamboo job. The versions of Harvester Maven libraries and projects are to be updated.",
@@ -115,7 +140,7 @@ CreateJiraSubTask() {
   newVersion="$3"
   reasonForUpdate="$4"
   
-  jiraPostResponse=$(curl -sX POST -u $userName:$userPw -H "Content-Type: application/json" -d '{
+  jiraPostResponse=$(curl -sX POST -u "$atlassianCredentials" -H "Content-Type: application/json" -d '{
     "fields": {
       "summary": "Update '"$updatedProjectName"' to Version '"$newVersion"'",
     "description": "The Maven version of '"$updatedProjectName"' needs to be updated to version '"$newVersion"'.\n\n\n*Details:*\n'"$reasonForUpdate"'",
@@ -138,12 +163,12 @@ AddTicketToSprint() {
   jiraKeyToAdd="$1"    
     
   # retrieve active sprint name
-  jiraGetResponse=$(curl -sX GET -u $userName:$userPw -H "Content-Type: application/json" https://tasks.gerdi-project.de/rest/agile/latest/board/25/sprint)    
+  jiraGetResponse=$(curl -sX GET -u "$atlassianCredentials" -H "Content-Type: application/json" https://tasks.gerdi-project.de/rest/agile/latest/board/25/sprint)    
   sprintId=${jiraGetResponse##*\"id\":}
   sprintId=${sprintId%%,*}
    
   # add issue to sprint
-  curl --output '/dev/null' -sX PUT -u $userName:$userPw -H "Content-Type: application/json" -d '{
+  curl --output '/dev/null' -sX PUT -u "$atlassianCredentials" -H "Content-Type: application/json" -d '{
       "idOrKeys":["'"$jiraKeyToAdd"'"],
       "customFieldId":10005,
     "sprintId":'"$sprintId"',
@@ -159,12 +184,12 @@ StartJiraTask() {
   taskKey="$1"
   
   #echo "Setting $taskKey to 'Selected for Development'" >&2
-  jiraPostResponse=$(curl -sX POST -u $userName:$userPw -H "Content-Type: application/json" -d '{
+  jiraPostResponse=$(curl -sX POST -u "$atlassianCredentials" -H "Content-Type: application/json" -d '{
     "transition": {"id": 111}
   }' https://tasks.gerdi-project.de/rest/api/latest/issue/$taskKey/transitions?expand=transitions.fields)
   
   echo "Setting $taskKey to 'In Progress'" >&2
-  jiraPostResponse=$(curl -sX POST -u $userName:$userPw -H "Content-Type: application/json" -d '{
+  jiraPostResponse=$(curl -sX POST -u "$atlassianCredentials" -H "Content-Type: application/json" -d '{
     "transition": {"id": 81}
   }' https://tasks.gerdi-project.de/rest/api/latest/issue/$taskKey/transitions?expand=transitions.fields)
   
@@ -177,7 +202,7 @@ ReviewJiraTask() {
   
   # set to Review
   echo "Setting $taskKey to 'In Review'" >&2
-  jiraPostResponse=$(curl -sX POST -u $userName:$userPw -H "Content-Type: application/json" -d '{
+  jiraPostResponse=$(curl -sX POST -u "$atlassianCredentials" -H "Content-Type: application/json" -d '{
     "transition": {"id": 101}
   }' https://tasks.gerdi-project.de/rest/api/latest/issue/$taskKey/transitions?expand=transitions.fields)
 }
@@ -188,7 +213,7 @@ FinishJiraTask() {
   taskKey="$1"
   
   echo "Setting $taskKey to 'Done'" >&2
-  jiraPostResponse=$(curl -sX POST -u $userName:$userPw -H "Content-Type: application/json" -d '{
+  jiraPostResponse=$(curl -sX POST -u "$atlassianCredentials" -H "Content-Type: application/json" -d '{
     "transition": {"id": 71}
   }' https://tasks.gerdi-project.de/rest/api/latest/issue/$taskKey/transitions?expand=transitions.fields)
 }
@@ -201,7 +226,7 @@ AbortJiraTask() {
   
   # set to WNF
   echo "Setting $taskKey to 'Will not Fix'" >&2
-  jiraPostResponse=$(curl -sX POST -u $userName:$userPw -H "Content-Type: application/json" -d '{
+  jiraPostResponse=$(curl -sX POST -u "$atlassianCredentials" -H "Content-Type: application/json" -d '{
     "transition": {"id": 181},
   "update": {
         "comment": [{"add": {"body": "'"$reason"'"}}]
@@ -239,7 +264,7 @@ CreatePullRequest() {
   echo "Creating Pull-Request for repository '$repoSlug' in project '$projectKey'. Reviewer is $reviewer1" >&2
   
   # create pull-request
-  bitbucketPostResponse=$(curl -sX POST -u $userName:$userPw -H "Content-Type: application/json" -d '{
+  bitbucketPostResponse=$(curl -sX POST -u "$atlassianCredentials" -H "Content-Type: application/json" -d '{
     "title": "'"$title"'",
     "description": "Maven version update.",
     "state": "OPEN",
@@ -422,8 +447,8 @@ PrepareUpdate() {
   cd tempDir
   
   # clone JsonLibraries
-  echo "Cloning repository https://$encodedEmail@$repositoryAddress" >&2
-  cloneResponse=$(git clone -q https://$encodedEmail:$userPw@$repositoryAddress .)
+  echo "Cloning repository $repositoryAddress" >&2
+  cloneResponse=$(git clone -q https://"$gitCredentials"@$repositoryAddress .)
 
   # get version
   if [ -f "$pomDirectory/pom.xml" ]; then
@@ -456,8 +481,8 @@ ExecuteUpdate() {
     echo $(git checkout -b $branchName) >&2
     
     # set GIT user
-    echo $(git config user.email "$userName") >&2
-    echo $(git config user.name "$userFullName") >&2
+    echo $(git config user.email "$atlassianUserEmail") >&2
+    echo $(git config user.name "$atlassianUserDisplayName") >&2
   
     echo $(git push -q --set-upstream origin $branchName) >&2
     
@@ -497,7 +522,7 @@ UpdateAllHarvesters() {
   
   echo "Trying to update all Harvesters to parent version $newParentVersion!" >&2
   
-  harvesterUrls=$(curl -sX GET -u $userName:$userPw -H "Content-Type: application/json" https://code.gerdi-project.de/rest/api/latest/projects/HAR/repos | python -m json.tool) 
+  harvesterUrls=$(curl -sX GET -u "$atlassianCredentials" -H "Content-Type: application/json" https://code.gerdi-project.de/rest/api/latest/projects/HAR/repos | python -m json.tool) 
 
   # grep harvester clone URLs, except those of the libraries, and convert them to batch instructions
   harvesterUrls=$(echo "$harvesterUrls" \
@@ -591,7 +616,7 @@ BuildAndDeployLibrary() {
 # FUNCTION FOR RETRIEVING THE NUMBER SUFFIX THAT REPRESENTS THE PLAN BRANCH OF THE CURRENT BRANCH
 GetPlanBranchId() {
   planLabel="$1"
-  bambooGetResponse=$(curl -sX GET -u $userName:$userPw -H "Content-Type: application/json" https://ci.gerdi-project.de/rest/api/latest/plan/$planLabel/branch/$branch)
+  bambooGetResponse=$(curl -sX GET -u "$atlassianCredentials" -H "Content-Type: application/json" https://ci.gerdi-project.de/rest/api/latest/plan/$planLabel/branch/$branch)
   planBranchId=${bambooGetResponse#*key=\"$planLabel}
   planBranchId=${planBranchId%%\"*}
   
@@ -603,7 +628,7 @@ GetPlanBranchId() {
 GetDeploymentId() {
   planLabel="$1"
   
-  bambooGetResponse=$(curl -sX GET -u $userName:$userPw -H "Content-Type: application/json" https://ci.gerdi-project.de/rest/api/latest/deploy/project/all)
+  bambooGetResponse=$(curl -sX GET -u "$atlassianCredentials" -H "Content-Type: application/json" https://ci.gerdi-project.de/rest/api/latest/deploy/project/all)
   deploymentId=${bambooGetResponse%\"planKey\":\{\"key\":\"$planLabel\"\}*}
 
   if [ ${#deploymentId} -eq ${#bambooGetResponse} ]; then
@@ -620,7 +645,7 @@ GetDeploymentId() {
 # FUNCTION FOR RETRIEVING THE ID OF THE "MAVEN DEPLOY" ENVIRONMENT ON A SPECIFIED DEPLOYMENT JOB
 GetMavenDeployEnvironmentId() {
   deploymentId="$1"
-  bambooGetResponse=$(curl -sX GET -u $userName:$userPw -H "Content-Type: application/json" https://ci.gerdi-project.de/rest/api/latest/deploy/project/$deploymentId)
+  bambooGetResponse=$(curl -sX GET -u "$atlassianCredentials" -H "Content-Type: application/json" https://ci.gerdi-project.de/rest/api/latest/deploy/project/$deploymentId)
   bambooGetResponse=${bambooGetResponse#*\"environments\":\[}
   environmentId=$(echo "$bambooGetResponse" | grep -oP "(?<=\{\"id\":)\d+(?=,.*?\"name\":\"Maven Deploy\")")
   
@@ -652,7 +677,7 @@ GetLatestBambooPlan() {
   planBranchId="$2"
   
   # check latest finished build
-  bambooGetResponse=$(curl -sX GET -u $userName:$userPw -H "Content-Type: application/json"  https://ci.gerdi-project.de/rest/api/latest/result/$planLabel$planBranchId?max-results=1)
+  bambooGetResponse=$(curl -sX GET -u "$atlassianCredentials" -H "Content-Type: application/json"  https://ci.gerdi-project.de/rest/api/latest/result/$planLabel$planBranchId?max-results=1)
   planResultKey=$(echo "$bambooGetResponse" | grep -oP '(?<=<buildResultKey>).+(?=</buildResultKey>)')
   
   # check if a build is in progress
@@ -677,7 +702,7 @@ GetHeadHttpCode() {
   isUsingAuth="$2"
   
   if [ $isUsingAuth -eq 0 ]; then
-    sonaTypeResponse=$(curl -sI -X HEAD -u $userName:$userPw $url)
+    sonaTypeResponse=$(curl -sI -X HEAD -u "$atlassianCredentials" $url)
   else
     sonaTypeResponse=$(curl -sI -X HEAD $url)
   fi
@@ -691,7 +716,7 @@ GetHeadHttpCode() {
 StartBambooPlan() {
   planLabel="$1"
   
-  bambooPostResponse=$(curl -sX POST -u $userName:$userPw -H "Content-Type: application/json" -d '{}' https://ci.gerdi-project.de/rest/api/latest/queue/$planLabel?stage\&executeAllStages)
+  bambooPostResponse=$(curl -sX POST -u "$atlassianCredentials" -H "Content-Type: application/json" -d '{}' https://ci.gerdi-project.de/rest/api/latest/queue/$planLabel?stage\&executeAllStages)
   buildNumber=$(echo "$bambooPostResponse" | grep -oP '(?<=buildNumber=")\d+(?=")')
   
   # return plan result key
@@ -717,7 +742,7 @@ StartBambooDeployment() {
   
   # build a version. if it already exists, append _(1)
   while [ "$versionId" = "" ]; do  
-    bambooPostResponse=$(curl -sX POST -u $userName:$userPw -H "Content-Type: application/json" -d '{
+    bambooPostResponse=$(curl -sX POST -u "$atlassianCredentials" -H "Content-Type: application/json" -d '{
       "planResultKey":"'"$planResultKey"'",
       "name":"'"$deploymentVersion$requestSuffix"'"
     }' https://ci.gerdi-project.de/rest/api/latest/deploy/project/$deploymentId/version)
@@ -733,7 +758,7 @@ StartBambooDeployment() {
   fi
   done
   
-  bambooPostResponse=$(curl -sX POST -u $userName:$userPw -H "Content-Type: application/json" https://ci.gerdi-project.de/rest/api/latest/queue/deployment?environmentId=$environmentId\&versionId=$versionId)
+  bambooPostResponse=$(curl -sX POST -u "$atlassianCredentials" -H "Content-Type: application/json" https://ci.gerdi-project.de/rest/api/latest/queue/deployment?environmentId=$environmentId\&versionId=$versionId)
   deploymentResultId=$(echo "$bambooPostResponse" | grep -oP '(?<="deploymentResultId":)\d+(?=,)')
   
   # return plan result key
@@ -754,14 +779,14 @@ WaitForPlanToBeDone() {
   
   # wait 3 seconds and send a get-request to check if the plan is still running
   while [ ''"$bambooGetResponse"'' != ''"$finishedResponse"'' ]; do
-    bambooGetResponse=$(curl -sX GET -u $userName:$userPw -H "Content-Type: application/json" https://ci.gerdi-project.de/rest/api/latest/result/status/$planResultKey)
+    bambooGetResponse=$(curl -sX GET -u "$atlassianCredentials" -H "Content-Type: application/json" https://ci.gerdi-project.de/rest/api/latest/result/status/$planResultKey)
     sleep 3
   done
   
   # there is a small transition period during which the build state is unknown, though the job is finished:
   buildState="Unknown"
   while [ "$buildState" = "Unknown" ]; do
-    bambooGetResponse=$(curl -sX GET -u $userName:$userPw -H "Content-Type: application/json" https://ci.gerdi-project.de/rest/api/latest/result/$planResultKey)
+    bambooGetResponse=$(curl -sX GET -u "$atlassianCredentials" -H "Content-Type: application/json" https://ci.gerdi-project.de/rest/api/latest/result/$planResultKey)
 	buildState=$(echo "$bambooGetResponse" | grep -oP "(?<=\<buildState\>)\w+?(?=\</buildState\>)")
     sleep 3
   done
@@ -785,7 +810,7 @@ WaitForDeploymentToBeDone() {
   
   # wait 5 seconds and send a get-request to check if the plan is still running
   while [ "$deploymentState" = "UNKNOWN" ]; do
-    bambooGetResponse=$(curl -sX GET -u $userName:$userPw -H "Content-Type: application/json" https://ci.gerdi-project.de/rest/api/latest/deploy/result/$deploymentResultId)
+    bambooGetResponse=$(curl -sX GET -u "$atlassianCredentials" -H "Content-Type: application/json" https://ci.gerdi-project.de/rest/api/latest/deploy/result/$deploymentResultId)
     deploymentState=${bambooGetResponse#*\"deploymentState\":\"}
     deploymentState=${deploymentState%%\"*}
     sleep 5

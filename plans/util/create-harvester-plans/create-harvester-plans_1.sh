@@ -17,38 +17,96 @@
 # specific language governing permissions and limitations
 # under the License.
  
-# check login
-authorEmail="$bamboo_ManualBuildTriggerReason_userName"
-if [ "$authorEmail" = "" ]; then
-  echo "Please log in to Bamboo!"
-  exit 1
-fi
-encodedEmail=$(echo "$authorEmail" | sed -e "s/@/%40/g")
 
-# check if password exists
-userPw="$bamboo_gitPassword"
-if [ "$userPw" = "" ]; then
-  echo "You need to specify your BitBucket password by setting the 'gitPassword' variable when running the plan customized!"
-  exit 1
-fi
+# FUNCTION FOR SETTING UP ATLASSIAN LOGIN CREDENTIALS
+InitAtlassianUserDetails() {
+  # check if user is logged in
+  if [ "$bamboo_ManualBuildTriggerReason_userName" = "" ]; then
+    echo "You need to be logged in to run this job!" >&2
+    exit 1
+  fi
+  
+  # get user name
+  atlassianUserName="$bamboo_ManualBuildTriggerReason_userName"
+  echo "UserName: $atlassianUserName" >&2
+  
+  # check if password is set
+  if [ "$bamboo_atlassianPassword" = "" ]; then
+    echo "You need to specify your Atlassian password by setting the 'atlassianPassword' plan variable when running the plan customized!" >&2
+    exit 1
+  fi
+  
+  # assemble username+password for Atlassian REST requests
+  atlassianCredentials="$atlassianUserName:$bamboo_atlassianPassword"
+  
+  # assemble username+password for Git Clones
+  gitCredentials="$(echo "$atlassianUserName" | sed -e "s/@/%40/g"):$bamboo_atlassianPassword"
+  
+  # check if password is valid
+  response=$(curl -sI -X HEAD -u "$atlassianCredentials" https://code.gerdi-project.de/rest/api/latest/projects/)
+  httpCode=$(echo "$response" | grep -oP '(?<=HTTP/\d\.\d )\d+')
+  if [ "$httpCode" != "200" ]; then
+    echo "The 'atlassianPassword' plan variable is incorrect for user '$atlassianUserName'." >&2
+    exit 1
+  fi
+  
+  # get user profile
+  userProfile=$(curl -sX GET -u "$atlassianCredentials" https://tasks.gerdi-project.de/rest/api/2/user?username="$atlassianUserName")
+  
+  # retrieve email from user profile
+  atlassianUserEmail=$(echo "$userProfile" | grep -oP "(?<=\"emailAddress\":\")[^\"]+")
+  echo "UserEmail: $atlassianUserEmail" >&2
+  
+  # retrieve displayName from user profile
+  atlassianUserDisplayName=$(echo "$userProfile" | grep -oP "(?<=\"displayName\":\")[^\"]+")
+  echo "UserDisplayName: $atlassianUserDisplayName" >&2
+}
 
-repositoryUrl="$bamboo_gitCloneLink"
-if [ "$repositoryUrl" = "" ]; then
-  echo "You need to specify a clone link of an existing harvester repository!"
-  exit 1
-fi
 
-overwriteFlag="$bamboo_replacePlans"
+# FUNCTION FOR INITIALIZING GLOBAL SCRIPT VARIABLES
+InitVariables() {
+  InitAtlassianUserDetails
 
-projectAbbrev=${repositoryUrl%/*}
-projectAbbrev=${projectAbbrev##*/}
+  overwriteFlag="$bamboo_replacePlans"
 
-repositorySlug=${repositoryUrl##*/}
-repositorySlug=${repositorySlug%.git}
+  repositoryUrl="$bamboo_gitCloneLink"
+  if [ "$repositoryUrl" = "" ]; then
+    echo "You need to specify a clone link of an existing harvester repository!"
+    exit 1
+  fi
 
-echo "Bitbucket Project: '$projectAbbrev'"
-echo "Slug: '$repositorySlug'"
+  # retrieve Project ID from repository URL
+  projectAbbrev=${repositoryUrl%/*}
+  projectAbbrev=${projectAbbrev##*/}
+  echo "Bitbucket Project: '$projectAbbrev'" >&2
 
+  # retrieve Repository Slug from repository URL
+  repositorySlug=${repositoryUrl##*/}
+  repositorySlug=${repositorySlug%.git}
+  echo "Slug: '$repositorySlug'" >&2
+}
+
+
+# FUNCTION FOR RETRIEVING THE LATEST VERSION OF A GERDI MAVEN PROJECT
+GetGerdiMavenVersion () {
+  metaData=$(curl -sX GET https://oss.sonatype.org/content/repositories/snapshots/de/gerdi-project/$1/maven-metadata.xml)
+  ver=${metaData#*<latest>}
+  ver=${ver%</latest>*}
+  if [ "$ver" = "$metaData" ]; then
+    ver=${metaData##*<version>}
+    ver=${ver%</version>*}
+  fi
+  echo "$ver"
+}
+
+
+
+#############################
+# START OF SCRIPT EXECUTION #
+#############################
+
+# create global variables
+InitVariables
 
 # clear, create and navigate to a temporary folder
 echo "Setting up a temporary folder"
@@ -56,22 +114,19 @@ rm -fr harvesterSetupTemp
 mkdir harvesterSetupTemp
 cd harvesterSetupTemp
 
-
-echo "Cloning repository https://$encodedEmail@code.gerdi-project.de/scm/$projectAbbrev/$repositorySlug.git"
-cloneResponse=$(git clone -q https://$encodedEmail:$userPw@code.gerdi-project.de/scm/$projectAbbrev/$repositorySlug.git .)
+echo "Cloning repository code.gerdi-project.de/scm/$projectAbbrev/$repositorySlug.git"
+cloneResponse=$(git clone -q https://"$gitCredentials"@code.gerdi-project.de/scm/$projectAbbrev/$repositorySlug.git .)
 returnCode=$?
 if [ $returnCode -ne 0 ]; then
   echo "Could not clone GIT repository!"
   exit 1
 fi
 
-
 # get class name of the provider
 providerClassName=$(ls src/main/java/de/gerdiproject/harvest/*ContextListener.java)
 providerClassName=${providerClassName%ContextListener.java}
 providerClassName=${providerClassName##*/}
 echo "Provider Class Name: '$providerClassName'"
-
 
 # check if such plans already exist and should be overridden
 if [ "$overwriteFlag" != "true" ] && [ "$overwriteFlag" != "yes" ] && [ "$overwriteFlag" != "1" ]; then
@@ -80,7 +135,7 @@ if [ "$overwriteFlag" != "true" ] && [ "$overwriteFlag" != "yes" ] && [ "$overwr
   
   echo "Checking Bamboo Plans"
 
-  response=$(curl -sX GET -u $authorEmail:$userPw https://ci.gerdi-project.de/browse/CA-$planKey)
+  response=$(curl -sX GET -u "$atlassianCredentials" https://ci.gerdi-project.de/browse/CA-$planKey)
   cutResponse=${response%<title>Bamboo error reporting - GeRDI Bamboo</title>*}
   if [ "$response" != "" ] && [ "$cutResponse" = "$response" ]; then
     doPlansExist=1
@@ -93,19 +148,6 @@ if [ "$overwriteFlag" != "true" ] && [ "$overwriteFlag" != "yes" ] && [ "$overwr
 else
   echo "Overriding any existing plans"
 fi
-
-
-# define function for retrieving the latest version of a gerdi maven project
-GetGerdiMavenVersion () {
-  metaData=$(curl -sX GET https://oss.sonatype.org/content/repositories/snapshots/de/gerdi-project/$1/maven-metadata.xml)
-  ver=${metaData#*<latest>}
-  ver=${ver%</latest>*}
-  if [ "$ver" = "$metaData" ]; then
-    ver=${metaData##*<version>}
-    ver=${ver%</version>*}
-  fi
-  echo "$ver"
-}
 
 # get the latest version of the Harvester Parent Pom
 harvesterSetupVersion=$(GetGerdiMavenVersion "GeRDI-harvester-setup")
@@ -140,7 +182,6 @@ if [ $returnCode -ne 0 ]; then
   exit 1
 fi
 
-
 # rename placeholders for the unpacked files
 chmod o+rw scripts/renameSetup.sh
 chmod +x scripts/renameSetup.sh
@@ -156,12 +197,11 @@ chmod +x scripts/renameSetup.sh
 # restore old pom 
 mv -f backup-pom.xml pom.xml
 
-
 echo "Creating temporary Bamboo-Specs credentials"
 cd bamboo-specs
 touch .credentials
-echo "username=$authorEmail" >> .credentials
-echo "password=$userPw" >> .credentials
+echo "username=$atlassianUserName" >> .credentials
+echo "password=$bamboo_atlassianPassword" >> .credentials
 
 echo "Running Bamboo-Specs"
 mvn -Ppublish-specs

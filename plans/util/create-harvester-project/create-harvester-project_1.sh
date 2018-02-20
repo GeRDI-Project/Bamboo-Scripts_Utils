@@ -17,19 +17,72 @@
 # specific language governing permissions and limitations
 # under the License.
  
-# check login
-authorEmail="$bamboo_ManualBuildTriggerReason_userName"
-if [ "$authorEmail" = "" ]; then
-echo "Please log in to Bamboo!"
-exit 1
-fi
+ 
+# FUNCTION FOR SETTING UP ATLASSIAN LOGIN CREDENTIALS
+InitAtlassianUserDetails() {
+  # check if user is logged in
+  if [ "$bamboo_ManualBuildTriggerReason_userName" = "" ]; then
+    echo "You need to be logged in to run this job!" >&2
+    exit 1
+  fi
+  
+  # get user name
+  atlassianUserName="$bamboo_ManualBuildTriggerReason_userName"
+  echo "UserName: $atlassianUserName" >&2
+  
+  # check if password is set
+  if [ "$bamboo_atlassianPassword" = "" ]; then
+    echo "You need to specify your Atlassian password by setting the 'atlassianPassword' plan variable when running the plan customized!" >&2
+    exit 1
+  fi
+  
+  # assemble username+password for Atlassian REST requests
+  atlassianCredentials="$atlassianUserName:$bamboo_atlassianPassword"
+  
+  # assemble username+password for Git Clones
+  gitCredentials="$(echo "$atlassianUserName" | sed -e "s/@/%40/g"):$bamboo_atlassianPassword"
+  
+  # check if password is valid
+  response=$(curl -sI -X HEAD -u "$atlassianCredentials" https://code.gerdi-project.de/rest/api/latest/projects/)
+  httpCode=$(echo "$response" | grep -oP '(?<=HTTP/\d\.\d )\d+')
+  if [ "$httpCode" != "200" ]; then
+    echo "The 'atlassianPassword' plan variable is incorrect for user '$atlassianUserName'." >&2
+    exit 1
+  fi
+  
+  # get user profile
+  userProfile=$(curl -sX GET -u "$atlassianCredentials" https://tasks.gerdi-project.de/rest/api/2/user?username="$atlassianUserName")
+  
+  # retrieve email from user profile
+  atlassianUserEmail=$(echo "$userProfile" | grep -oP "(?<=\"emailAddress\":\")[^\"]+")
+  echo "UserEmail: $atlassianUserEmail" >&2
+  
+  # retrieve displayName from user profile
+  atlassianUserDisplayName=$(echo "$userProfile" | grep -oP "(?<=\"displayName\":\")[^\"]+")
+  echo "UserDisplayName: $atlassianUserDisplayName" >&2
+}
 
-# check if password exists
-userPw="$bamboo_passwordGit"
-if [ "$userPw" = "" ]; then
-echo "You need to specify your BitBucket password by setting the 'passwordGit' variable when running the plan customized!"
-exit 1
-fi
+
+# FUNCTION FOR RETRIEVING THE LATEST VERSION OF A GERDI MAVEN PROJECT
+GetGerdiMavenVersion () {
+  metaData=$(curl -sX GET https://oss.sonatype.org/content/repositories/snapshots/de/gerdi-project/$1/maven-metadata.xml)
+  ver=${metaData#*<latest>}
+  ver=${ver%</latest>*}
+  if [ "$ver" = "$metaData" ]; then
+   ver=${metaData##*<version>}
+   ver=${ver%</version>*}
+  fi
+  echo "$ver"
+}
+
+
+
+#############################
+# START OF SCRIPT EXECUTION #
+#############################
+
+# set up global variables
+InitAtlassianUserDetails
 
 # check if all required variables exist
 if [ "$bamboo_providerName" = "" ] \
@@ -42,7 +95,7 @@ exit 1
 fi
 
 # create repository
-response=$(curl -sX POST -u "$authorEmail:$userPw" -H "Content-Type: application/json" -d '{
+response=$(curl -sX POST -u "$atlassianCredentials" -H "Content-Type: application/json" -d '{
     "name": "'"$bamboo_providerName"'",
     "scmId": "git",
     "forkable": true
@@ -71,35 +124,14 @@ mkdir harvesterSetupTemp
 cd harvesterSetupTemp
 
 # clone newly created repository
-encodedEmail=$(echo "$authorEmail" | sed -e "s/@/%40/g")
-echo "Cloning repository https://$encodedEmail@code.gerdi-project.de/scm/har/$encodedRepositoryName.git"
-#echo "PW: $userPw"
-cloneResponse=$(git clone -q "https://$encodedEmail:$userPw@code.gerdi-project.de/scm/har/$encodedRepositoryName.git")
+echo "Cloning repository code.gerdi-project.de/scm/har/$encodedRepositoryName.git"
+cloneResponse=$(git clone -q "https://"$gitCredentials"@code.gerdi-project.de/scm/har/$encodedRepositoryName.git")
 returnCode=$?
 if [ $returnCode -ne 0 ]; then
  echo "Could not clone GIT repository!"
  exit 1
 fi
 cd $encodedRepositoryName
-
-
-# Get Author Full Name
-authorFullName=$(curl -sX GET -u $authorEmail:$userPw https://ci.gerdi-project.de/browse/user/$encodedEmail)
-authorFullName=${authorFullName#*<title>}
-authorFullName=${authorFullName%%:*}
-
-
-# define function for retrieving the latest version of a gerdi maven project
-GetGerdiMavenVersion () {
-  metaData=$(curl -sX GET https://oss.sonatype.org/content/repositories/snapshots/de/gerdi-project/$1/maven-metadata.xml)
-  ver=${metaData#*<latest>}
-  ver=${ver%</latest>*}
-  if [ "$ver" = "$metaData" ]; then
-   ver=${metaData##*<version>}
-   ver=${ver%</version>*}
-  fi
-  echo "$ver"
-}
 
 # get the latest version of the Harvester Parent Pom
 harvesterSetupVersion=$(GetGerdiMavenVersion "GeRDI-harvester-setup")
@@ -143,8 +175,8 @@ chmod +x scripts/renameSetup.sh
 ./scripts/renameSetup.sh\
  "$bamboo_providerName"\
  "$bamboo_providerUrl"\
- "$authorFullName"\
- "$authorEmail"\
+ "$atlassianUserDisplayName"\
+ "$atlassianUserEmail"\
  "$bamboo_authorOrganization"\
  "$bamboo_authorOrganizationUrl"\
  "$parentPomVersion"
@@ -158,7 +190,7 @@ planKey=$( echo "$providerClassName" | sed -e "s~[a-z]~~g")HAR
 doPlansExist=0
   
 echo "Checking Bamboo Plans"
-response=$(curl -sX GET -u $authorEmail:$userPw https://ci.gerdi-project.de/browse/CA-$planKey)
+response=$(curl -sX GET -u "$atlassianCredentials" https://ci.gerdi-project.de/browse/CA-$planKey)
 cutResponse=${response%<title>Bamboo error reporting - GeRDI Bamboo</title>*}
 if [ "$response" != "" ] && [ "$cutResponse" = "$response" ]; then
   doPlansExist=1
@@ -167,7 +199,7 @@ if [ $doPlansExist -ne 0 ]; then
   echo "Plans with the key '$planKey' already exist!"
   
   # delete repository
-  response=$(curl -sX DELETE -u $authorEmail:$userPw https://code.gerdi-project.de/rest/api/1.0/projects/HAR/repos/$encodedRepositoryName)
+  response=$(curl -sX DELETE -u "$atlassianCredentials" https://code.gerdi-project.de/rest/api/1.0/projects/HAR/repos/$encodedRepositoryName)
   exit 1
 fi
  
@@ -180,8 +212,8 @@ echo "Adding files to GIT"
 git add -A ${PWD}
 
 echo "Committing files to GIT"
-git config user.email "$authorEmail"
-git config user.name "$authorFullName"
+git config user.email "$atlassianUserEmail"
+git config user.name "$atlassianUserDisplayName"
 git commit -m "Bamboo: Created harvester repository for the provider '$bamboo_providerName'."
 
 echo "Pushing files to GIT"
@@ -191,8 +223,8 @@ git push -q
 echo "Creating temporary Bamboo-Specs credentials"
 cd bamboo-specs
 touch .credentials
-echo "username=$authorEmail" >> .credentials
-echo "password=$userPw" >> .credentials
+echo "username=$atlassianUserName" >> .credentials
+echo "password=$bamboo_atlassianPassword" >> .credentials
 
 echo "Running Bamboo-Specs"
 mvn -Ppublish-specs
