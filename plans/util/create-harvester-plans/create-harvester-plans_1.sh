@@ -67,7 +67,7 @@ InitAtlassianUserDetails() {
 InitVariables() {
   InitAtlassianUserDetails
 
-  overwriteFlag="$bamboo_replacePlans"
+  overwriteFlag="$bamboo_overwriteExistingJobs"
 
   repositoryUrl="$bamboo_gitCloneLink"
   if [ "$repositoryUrl" = "" ]; then
