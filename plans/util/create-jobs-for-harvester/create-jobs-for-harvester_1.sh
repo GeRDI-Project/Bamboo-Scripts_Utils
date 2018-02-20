@@ -204,7 +204,7 @@ echo "username=$atlassianUserName" >> .credentials
 echo "password=$bamboo_atlassianPassword" >> .credentials
 
 echo "Running Bamboo-Specs"
-mvn -Ppublish-specs
+mvn -Ppublish-specs -Dbamboo.specs.log.level=DEBUG
 
 # clean up
 echo "Removing the temporary directory"
