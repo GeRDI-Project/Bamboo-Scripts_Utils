@@ -125,7 +125,7 @@ cd harvesterSetupTemp
 
 # clone newly created repository
 echo "Cloning repository code.gerdi-project.de/scm/har/$encodedRepositoryName.git"
-cloneResponse=$(git clone -q "https://"$gitCredentials"@code.gerdi-project.de/scm/har/$encodedRepositoryName.git")
+cloneResponse=$(git clone -q "https://$gitCredentials@code.gerdi-project.de/scm/har/$encodedRepositoryName.git")
 returnCode=$?
 if [ $returnCode -ne 0 ]; then
  echo "Could not clone GIT repository!"

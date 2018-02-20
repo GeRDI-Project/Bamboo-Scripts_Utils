@@ -448,7 +448,7 @@ PrepareUpdate() {
   
   # clone JsonLibraries
   echo "Cloning repository $repositoryAddress" >&2
-  cloneResponse=$(git clone -q https://"$gitCredentials"@$repositoryAddress .)
+  cloneResponse=$(git clone -q "https://$gitCredentials@$repositoryAddress" .)
 
   # get version
   if [ -f "$pomDirectory/pom.xml" ]; then
