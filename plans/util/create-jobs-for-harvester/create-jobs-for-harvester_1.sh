@@ -17,6 +17,14 @@
 # specific language governing permissions and limitations
 # under the License.
 
+# This script is being called by the Bamboo Job https://ci.gerdi-project.de/browse/UTIL-CHPL which creates/overwrites
+# Bamboo jobs for an existing harvester project.
+#
+# Bamboo Plan Variables:
+#  ManualBuildTriggerReason_userName - the login name of the current user
+#  atlassianPassword - the Atlassian password of the current user
+#  gitCloneLink - the clone link of a git repository
+#  overwriteExistingJobs - if true, overwrites jobs if they already exist for the harvester
 
 # load helper scripts
 source scripts/helper-scripts/atlassian-utils.sh

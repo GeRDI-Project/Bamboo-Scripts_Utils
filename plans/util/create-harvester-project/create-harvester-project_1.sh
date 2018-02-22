@@ -17,6 +17,25 @@
 # specific language governing permissions and limitations
 # under the License.
 
+# This script is being called by the Bamboo Job https://ci.gerdi-project.de/browse/UTIL-CHP which creates
+# a harvester project and Bamboo jobs:
+#  1. Creates a Git repository in the harvester project (HAR)
+#  2. Creates a pom derived from the latest version of the HarvesterSetup (https://oss.sonatype.org/content/repositories/snapshots/de/gerdi-project/GeRDI-harvester-setup/)
+#  3. Executes the setup, creating a bare minimum harvester project that has placeholders within files and file names
+#  4. The placeholders are replaced by the plan variables of the Bamboo job (see below)
+#  5. All files are formatted with AStyle
+#  6. All files are committed and pushed to the remote Git repository.
+#  7. Bamboo Plans and Deployment jobs for the project are created.
+#
+# Bamboo Plan Variables:
+#  ManualBuildTriggerReason_userName - the login name of the current user
+#  atlassianPassword - the Atlassian password of the current user
+#  providerName - the human readable name of the data provider that is to be harvested
+#  providerUrl - the url to the data provider home page
+#  authorOrganization - the organization of the user that executes the job
+#  authorOrganizationUrl - the url to the homepage of the user's organization
+
+
 # load helper scripts
 source scripts/helper-scripts/atlassian-utils.sh
 source scripts/helper-scripts/bamboo-utils.sh

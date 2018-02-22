@@ -16,6 +16,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+
+# This script offers helper functions that concern GeRDI's Atlassian tools in general.
  
 
 GetAtlassianUserEmailAddress() {

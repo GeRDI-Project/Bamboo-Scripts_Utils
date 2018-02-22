@@ -17,6 +17,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
+# This script offers helper functions that concern Git and Atlassian Bitbucket of GeRDI.
 
 GetRepositorySlugFromCloneLink() {
   cloneLink="$1"
@@ -310,9 +311,11 @@ MergeAllPullRequestsOfJiraTicket() {
     jiraBranchJson=$(curl -sX GET -u "$userName:$password" https://code.gerdi-project.de/rest/api/latest/projects/$project/repos/$repositorySlug/branches?filterText=$jiraKey)
 	branchName=$(echo $jiraBranchJson | grep -oP "(?<=\"id\":\"refs/heads/)[^\"]+")
 	
-    $(MergeAndCleanPullRequest "$userName" "$password" "$project" "$repositorySlug" "$branchName")
-	isMerged=$?
-	failedMerges=$(expr $failedMerges + $isMerged)
+	if [ "$branchName" != "" ]; then
+      $(MergeAndCleanPullRequest "$userName" "$password" "$project" "$repositorySlug" "$branchName")
+	  isMerged=$?
+	  failedMerges=$(expr $failedMerges + $isMerged)
+	fi
   done
   echo $failedMerges )
 }

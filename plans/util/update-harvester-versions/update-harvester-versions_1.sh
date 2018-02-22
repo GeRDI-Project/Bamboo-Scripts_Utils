@@ -29,10 +29,10 @@
 # If any of the above updates are required, a JIRA ticket is created. All Pom changes are committed on a branch which is automatically created, along with a pull request,
 # and a sub-task in the JIRA ticket.
 #
-# Bamboo Variables:
-#  bamboo_ManualBuildTriggerReason_userName - the login name of the current user
-#  bamboo_passwordGit - the Atlassian password of the current user
-#  bamboo_reviewer - the user name of the person that has to review the pull requests
+# Bamboo Plan Variables:
+#  ManualBuildTriggerReason_userName - the login name of the current user
+#  atlassianPassword - the Atlassian password of the current user
+#  reviewer - the user name of the person that has to review the pull requests
 
 
 # FUNCTION FOR SETTING UP GLOBAL VARIABLES

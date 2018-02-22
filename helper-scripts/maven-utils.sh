@@ -17,6 +17,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
+# This script offers helper functions that concern GeRDI Maven projects.
 
 # FUNCTION FOR RETRIEVING THE LATEST VERSION OF A GERDI MAVEN PROJECT
 GetGerdiMavenVersion () {

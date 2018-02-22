@@ -17,6 +17,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
+# This script offers helper functions that concern Atlassian Bamboo of GeRDI.
 
 ExitIfNotLoggedIn() {
   if [ "$bamboo_ManualBuildTriggerReason_userName" = "" ]; then

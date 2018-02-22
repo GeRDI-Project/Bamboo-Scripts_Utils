@@ -23,13 +23,14 @@
 # This script attempts to merge all approved pull requests of said JIRA ticket and removes the feature branches afterwards.
 # If all branches were merged, the JIRA ticket is set to DONE.
 #
-# Bamboo Variables:
-#  bamboo_ManualBuildTriggerReason_userName - the login name of the current user
-#  bamboo_passwordGit - the Atlassian password of the current user
-#  bamboo_jiraIssueKey - the key of the JIRA ticket that is to be merged. If left blank, the ticket key 
-#                        will be retrieved from the last https://ci.gerdi-project.de/browse/UTIL-UHV build 
+# Bamboo Plan Variables:
+#  ManualBuildTriggerReason_userName - the login name of the current user
+#  atlassianPassword - the Atlassian password of the current user
+#  jiraIssueKey - the key of the JIRA ticket that is to be merged. If left blank, the ticket key 
+#                 will be retrieved from the last https://ci.gerdi-project.de/browse/UTIL-UHV build 
 
 
+# load helper scripts
 source scripts/helper-scripts/atlassian-utils.sh
 source scripts/helper-scripts/bamboo-utils.sh
 source scripts/helper-scripts/jira-utils.sh

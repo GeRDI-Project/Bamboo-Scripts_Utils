@@ -17,6 +17,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
+# This script offers helper functions that concern the GeRDI JIRA.
 
 # FUNCTION FOR STARTING A JIRA ISSUE
 StartJiraTask() {
