@@ -17,21 +17,6 @@
 # This script offers helper functions that concern GeRDI Maven projects.
 
 
-# Returns the latest version (SNAPSHOT included) of a specified GeRDI Maven project.
-#  Arguments:
-#  1 - the artifact identifier of the GeRDI Maven project
-#
-GetGerdiMavenVersion() {
-  artifactId="$1"
-  
-  metaData=$(curl -sX GET https://oss.sonatype.org/content/repositories/snapshots/de/gerdi-project/$artifactId/maven-metadata.xml)
-  ver=${metaData%</versions>*}
-  ver=${ver##*<version>}
-  ver=${ver%</version>*}
-  echo "$ver"
-}
-
-
 # Returns true if a specified version and artifact of a specified GeRDI Maven project exist in Sonatype.
 #  Arguments:
 #  1 - the artifact identifier of the GeRDI Maven project
@@ -48,6 +33,21 @@ IsMavenVersionInSonatype() {
   else
     echo false
   fi
+}
+
+
+# Returns the latest version (SNAPSHOT included) of a specified GeRDI Maven project.
+#  Arguments:
+#  1 - the artifact identifier of the GeRDI Maven project
+#
+GetGerdiMavenVersion() {
+  artifactId="$1"
+  
+  metaData=$(curl -sX GET https://oss.sonatype.org/content/repositories/snapshots/de/gerdi-project/$artifactId/maven-metadata.xml)
+  ver=${metaData%</versions>*}
+  ver=${ver##*<version>}
+  ver=${ver%</version>*}
+  echo "$ver"
 }
 
 

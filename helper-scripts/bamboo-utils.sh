@@ -16,38 +16,31 @@
 
 # This script offers helper functions that concern Atlassian Bamboo of GeRDI.
 
-ExitIfNotLoggedIn() {
-  if [ "$bamboo_ManualBuildTriggerReason_userName" = "" ]; then
-    echo "You need to be logged in to run this job!" >&2
-	exit 1
-  fi
-}
 
-
-ExitIfPlanVariableIsMissing() {
-  frontEndVarName="$1"
-  internalVarName="bamboo_$frontEndVarName"
-  internalVarValue="${!internalVarName}"
-
-  if [ "$internalVarValue" = "" ]; then
-    echo "You need to run the plan customized and overwrite the '$frontEndVarName' plan variable!" >&2
-	exit 1
-  fi
-}
-
-
+# Returns the value of a specified plan variable.
+#  Arguments:
+#  1 - the name of the plan variable as it appears in the Bamboo front-end
+#
 GetValueOfPlanVariable() {
   internalVarName="bamboo_$1"
   echo "${!internalVarName}"
 }
 
 
+# Returns the user name of the one who has triggered this Bamboo job.
+#
 GetBambooUserName() {
   echo "$bamboo_ManualBuildTriggerReason_userName"
 }
 
 
-# FUNCTION FOR RETRIEVING THE NUMBER SUFFIX THAT REPRESENTS THE PLAN BRANCH OF THE CURRENT BRANCH
+# Returns a numerical identifier of a plan branch.
+#  Arguments:
+#  1 - the identifier of the plan
+#  2 - the string identifier of the git branch
+#  3 - a Bamboo user name that has the necessary permissions for this operation
+#  4 - a password for argument 3
+#
 GetPlanBranchId() {
   planLabel="$1"
   branch="$2"
@@ -62,7 +55,12 @@ GetPlanBranchId() {
 }
 
 
-# FUNCTION THAT RETRIEVES THE ID OF THE DEPLOYMENT JOB THAT IS LINKED TO A SPECIFIED BRANCH
+# Returns a numerical identifier of a deployment job which is linked to a specified plan.
+#  Arguments:
+#  1 - the identifier of the linked plan
+#  2 - a Bamboo user name that has the necessary permissions for this operation
+#  3 - a password for argument 3
+#
 GetDeploymentId() {
   planLabel="$1"
   userName="$2"
@@ -82,7 +80,13 @@ GetDeploymentId() {
 }
 
 
-# FUNCTION THAT RETURNS THE PLAN_RESULT_KEY OF THE LATEST BUILD OF A BAMBOO PLAN
+# Returns the number of the latest build of a specified plan.
+#  Arguments:
+#  1 - the identifier of the plan
+#  2 - the numerical identifier of the plan branch
+#  3 - a Bamboo user name that has the necessary permissions for this operation
+#  4 - a password for argument 3
+#
 GetLatestBambooPlanResultKey() {
   planLabel="$1"
   planBranchId="$2"
@@ -111,14 +115,19 @@ GetLatestBambooPlanResultKey() {
 }
 
 
-# FUNCTION FOR RETRIEVING THE ID OF THE "MAVEN DEPLOY" ENVIRONMENT OF A SPECIFIED DEPLOYMENT JOB
+# Returns the environment identifier of the "Maven Deploy" environment of a specified deployment job.
+#  Arguments:
+#  1 - the identifier of the deployment job
+#  2 - a Bamboo user name that has the necessary permissions for this operation
+#  3 - a password for argument 3
+#
 GetMavenDeployEnvironmentId() {
   deploymentId="$1"
   userName="$2"
   password="$3"
   
   response=$(curl -sX GET -u "$userName:$password" -H "Content-Type: application/json" https://ci.gerdi-project.de/rest/api/latest/deploy/project/$deploymentId)
-  response=${bambooGetResponse#*\"environments\":\[}
+  response=${response#*\"environments\":\[}
   environmentId=$(echo "$response" | grep -oP "(?<=\{\"id\":)\d+(?=,.*?\"name\":\"Maven Deploy\")")
   
   if [ "$environmentId" = "" ]; then
@@ -128,7 +137,13 @@ GetMavenDeployEnvironmentId() {
 }
 
 
-# FUNCTION THAT STARTS A BAMBOO PLAN
+# Runs a specified Bamboo plan and returns the plan result key which serves as an identifier
+# of the plan execution.
+#  Arguments:
+#  1 - the identifier of the plan
+#  2 - a Bamboo user name that has the necessary permissions for this operation
+#  3 - a password for argument 3
+#
 StartBambooPlan() {
   planLabel="$1"
   userName="$2"
@@ -147,7 +162,13 @@ StartBambooPlan() {
 }
 
 
-# FUNCTION THAT WAITS FOR A BAMBOO PLAN TO FINISH
+# Waits for a specified Bamboo plan execution to be finished.
+# Fails with exit code 1 if the plan failed.
+#  Arguments:
+#  1 - the plan result key of the execution
+#  2 - a Bamboo user name that has the necessary permissions for this operation
+#  3 - a password for argument 3
+#
 WaitForPlanToBeDone() {
   planResultKey="$1"
   userName="$2"
@@ -180,7 +201,16 @@ WaitForPlanToBeDone() {
 }
 
 
-# FUNCTION THAT DEPLOYS A BAMBOO PROJECT
+# Runs a specified Bamboo deployment job and returns the deployment result id which serves as an identifier
+# of the deployment.
+#  Arguments:
+#  1 - the identifier of the deployment
+#  2 - the identifier of the executed deployment environment
+#  3 - the deployment version
+#  4 - the plan result key of the plan from which should be deployed
+#  5 - a Bamboo user name that has the necessary permissions for this operation
+#  6 - a password for argument 3
+#
 StartBambooDeployment() {
   deploymentId="$1"
   environmentId="$2"
@@ -221,7 +251,13 @@ StartBambooDeployment() {
 }
 
 
-# FUNCTION THAT WAITS FOR A BAMBOO DEPLOYMENT TO FINISH
+# Waits for a specified Bamboo deployment job to be finished.
+# Fails with exit code 1 if the deployment failed.
+#  Arguments:
+#  1 - the deployment result id of the execution
+#  2 - a Bamboo user name that has the necessary permissions for this operation
+#  3 - a password for argument 3
+#
 WaitForDeploymentToBeDone() {
   deploymentResultId="$1"
   userName="$2"
@@ -243,5 +279,31 @@ WaitForDeploymentToBeDone() {
   echo "Bamboo Deployment $deploymentResultId finished with state '$deploymentState'!" >&2
   if [ "$deploymentState" != "SUCCESS" ]; then
     exit 1
+  fi
+}
+
+
+# Fails with exit code 1 if the Bamboo user is not logged in.
+#
+ExitIfNotLoggedIn() {
+  if [ "$bamboo_ManualBuildTriggerReason_userName" = "" ]; then
+    echo "You need to be logged in to run this job!" >&2
+	exit 1
+  fi
+}
+
+
+# Fails with exit code 1 if a specified plan variable is missing or empty.
+#  Arguments:
+#  1 - the name of the plan variable as it appears in the Bamboo front-end
+#
+ExitIfPlanVariableIsMissing() {
+  frontEndVarName="$1"
+  internalVarName="bamboo_$frontEndVarName"
+  internalVarValue="${!internalVarName}"
+
+  if [ "$internalVarValue" = "" ]; then
+    echo "You need to run the plan customized and overwrite the '$frontEndVarName' plan variable!" >&2
+	exit 1
   fi
 }
