@@ -253,8 +253,8 @@ ExecuteUpdate() {
     # create sub-task
     subTaskKey=$(CreateJiraSubTask \
 	  "$jiraKey" \
-	  "Update $updatedProjectName to Version $newVersion" \
-      'The Maven version of '"$updatedProjectName"' needs to be updated to version '"$newVersion"'.\n\n\n*Details:*\n'"$subTaskDescription" \
+	  "Update $artifactId to Version $targetVersion" \
+      'The Maven version of '"$artifactId"' needs to be updated to version '"$targetVersion"'.\n\n\n*Details:*\n'"$subTaskDescription" \
 	  "$atlassianUserName" \
 	  "$atlassianPassword")
 	  
@@ -287,12 +287,13 @@ ExecuteUpdate() {
     isMajorUpdate=$(IsMajorVersionDifferent "$sourceVersion" "$targetVersion")
     if [ "$isMajorUpdate" = "false" ]; then
       echo $(CreatePullRequest
+        "$atlassianUserName" \
+        "$atlassianPassword" \
+		"HAR"
+        "$repositorySlug" \
 	    "$branchName" \
         "Update $artifactId" \
         "Maven version update." \
-        "$repositoryAddress" \
-        "$atlassianUserName" \
-        "$atlassianPassword" \
         "$reviewer1" \
         "") >&2
       ReviewJiraTask "$subTaskKey" "$atlassianUserName" "$atlassianPassword"

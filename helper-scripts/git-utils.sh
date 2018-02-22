@@ -16,6 +16,12 @@
 
 # This script offers helper functions that concern Git and Atlassian Bitbucket of GeRDI.
 
+
+# Returns the repository slug of a Git repository.
+# The slug is a HTTP encoded identifier of a repository.
+#  Arguments:
+#  1 - a link to the repository
+#
 GetRepositorySlugFromCloneLink() {
   cloneLink="$1"
   
@@ -26,6 +32,10 @@ GetRepositorySlugFromCloneLink() {
 }
 
 
+# Returns the project identifier of a Git repository.
+#  Arguments:
+#  1 - a link to the repository
+#
 GetProjectIdFromCloneLink() {
   cloneLink="$1"
   
@@ -36,6 +46,13 @@ GetProjectIdFromCloneLink() {
 }
 
 
+# Clones a Git repository to disk.
+#  Arguments:
+#  1 - a Bitbucket user name
+#  2 - the login password that belongs to argument 1
+#  3 - the ID of the project to which the repository belongs
+#  4 - the identifier of the repository
+#
 CloneGitRepository() {
   userName="$1"
   password="$2"
@@ -55,6 +72,13 @@ CloneGitRepository() {
 }
 
 
+# Creates a new empty Git repository.
+#  Arguments:
+#  1 - a Bitbucket user name
+#  2 - the login password that belongs to argument 1
+#  3 - the ID of the project in which the repository is created
+#  4 - a human readable name of the repository
+#
 CreateGitRepository() {
   userName="$1"
   password="$2"
@@ -86,6 +110,13 @@ CreateGitRepository() {
 }
 
 
+# Deletes a Git repository.
+#  Arguments:
+#  1 - a Bitbucket user name
+#  2 - the login password that belongs to argument 1
+#  3 - the ID of the project to which the repository belongs
+#  4 - the identifier of the repository that is to be deleted
+#
 DeleteGitRepository() {
   userName="$1"
   password="$2"
@@ -96,7 +127,14 @@ DeleteGitRepository() {
 }
 
 
-# FUNCTION FOR REMOVING A REMOTE BRANCH
+# Removes a branch from a Git repository.
+#  Arguments:
+#  1 - a Bitbucket user name
+#  2 - the login password that belongs to argument 1
+#  3 - the ID of the project to which the repository belongs
+#  4 - the identifier of the repository
+#  5 - the identifier of the branch that is to be deleted
+#
 DeleteBranch() {
   userName="$1"
   password="$2"
@@ -119,7 +157,12 @@ DeleteBranch() {
   fi
 }
 
-
+# Adds, commits, and pushes all files to Git.
+#  Arguments:
+#  1 - the full name of the user that pushes the files
+#  2 - the email address of the user that pushes the files
+#  3 - the commit message
+#
 PushAllFilesToGitRepository() {
   userDisplayName="$1"
   userEmailAddress="$2"
@@ -138,27 +181,31 @@ PushAllFilesToGitRepository() {
 }
 
 
-# FUNCTION FOR CREATING A PULL REQUEST
+# Creates a pull request to merge a branch to the master branch.
+#  Arguments:
+#  1 - a Bitbucket user name
+#  2 - the login password that belongs to argument 1
+#  3 - the ID of the project to which the repository belongs
+#  4 - the identifier of the repository
+#  5 - the identifier of the branch that is to be merged
+#  6 - the title of the pull request
+#  7 - the description of the pull request
+#  8 - the Atlassian user name of a pull request reviewer (recommended)
+#  8 - the Atlassian user name of another pull request reviewer (optional)
+#
 CreatePullRequest() {
-  branch="$1"
-  title="$2"
-  description="$3"
-  repositoryAddress="$4"
-  userName="$5"
-  password="$6"
-  reviewer1="$7"
-  reviewer2="$8"
-  
-  # retrieve repository slug
-  repositorySlug=${repositoryAddress%.git}
-  repositorySlug=${repositorySlug##*/}
-  
-  # retrieve project key
-  projectKey=${repositoryAddress%/*}
-  projectKey=${projectKey##*/}
+  userName="$1"
+  password="$2"
+  project="$3"
+  repositorySlug="$4"
+  branch="$5"
+  title="$6"
+  description="$7"
+  reviewer1="$8"
+  reviewer2="$9"
   
   # print some debug log about the repository and reviewer(s)
-  echo "Creating Pull-Request for repository '$repositorySlug' in project '$projectKey'." >&2
+  echo "Creating Pull-Request for repository '$repositorySlug' in project '$project'." >&2
   
   if ["$reviewer1" != "" ] && ["$reviewer1" != "" ] ; then
     echo "Reviewers are $reviewer1 and $reviewer2." >&2
@@ -186,7 +233,7 @@ CreatePullRequest() {
             "slug": "'"$repositorySlug"'",
             "name": null,
             "project": {
-                "key": "'"$projectKey"'"
+                "key": "'"$project"'"
             }
         }
     },
@@ -196,7 +243,7 @@ CreatePullRequest() {
             "slug": "'"$repositorySlug"'",
             "name": null,
             "project": {
-                "key": "'"$projectKey"'"
+                "key": "'"$project"'"
             }
         }
     },
@@ -209,17 +256,25 @@ CreatePullRequest() {
             null
         ]
     }
-  }' https://code.gerdi-project.de/rest/api/latest/projects/$projectKey/repos/$repositorySlug/pull-requests)
+  }' https://code.gerdi-project.de/rest/api/latest/projects/$project/repos/$repositorySlug/pull-requests)
 }
 
 
-# FUNCTION THAT RETURNS THE PULL-REQUEST ID OF A SPECIFIED REPOSITORY AND SOURCE BRANCH
+# Returns the pull request identifier of a specified repository and source branch.
+#  Arguments:
+#  1 - a Bitbucket user name
+#  2 - the login password that belongs to argument 1
+#  3 - the ID of the project to which the repository belongs
+#  4 - the identifier of the repository
+#  5 - the identifier of the source branch
+#
 GetPullRequestIdOfSourceBranch() {
   userName="$1"
   password="$2"
   project="$3"
   repositorySlug="$4"
   branchName="$5"
+  
   allPullRequests=$(curl -sX GET -u "$userName:$password" https://code.gerdi-project.de/rest/api/latest/projects/$project/repos/$repositorySlug/pull-requests)
   
   hasNoOpenRequests=$(echo "$allPullRequests" | grep -o '{"size":0,')
@@ -236,7 +291,14 @@ GetPullRequestIdOfSourceBranch() {
 }
 
 
-# FUNCTION THAT MERGES A PULL-REQUEST
+# Merges a pull request.
+#  Arguments:
+#  1 - a Bitbucket user name
+#  2 - the login password that belongs to argument 1
+#  3 - the ID of the project to which the repository belongs
+#  4 - the identifier of the pull request
+#  5 - the version of the pull request
+#
 MergePullRequest() {
   userName="$1"
   password="$2"
@@ -249,7 +311,15 @@ MergePullRequest() {
 }
 
 
-# MERGES A SINGLE PULL REQUEST AND REMOVES THE BRANCH
+# Merges a pull request, if it exists, is approved and not merged.
+# The corresponding feature branch is deleted if the merge was successful at any point.
+#  Arguments:
+#  1 - a Bitbucket user name
+#  2 - the login password that belongs to argument 1
+#  3 - the ID of the project to which the repository belongs
+#  4 - the identifier of the repository
+#  5 - the identifier of the source branch
+#
 MergeAndCleanPullRequest() {
   userName="$1"
   password="$2"
@@ -283,7 +353,14 @@ MergeAndCleanPullRequest() {
 }
 
 
-# FUNCTION FOR MERGING ALL PULL REQUEST OF A JIRA TICKET
+# Checks all commits of a JIRA ticket and attempts to merge all corresponding branches
+# that have open pull requests and a matching name.
+# Returns the number of pull requests that could not be merged due to errors or non-approval.
+#  Arguments:
+#  1 - a Bitbucket user name
+#  2 - the login password that belongs to argument 1
+#  3 - the identifier of the JIRA ticket of which all pull requests are merged
+#
 MergeAllPullRequestsOfJiraTicket() {
   userName="$1"
   password="$2"
@@ -318,6 +395,14 @@ MergeAllPullRequestsOfJiraTicket() {
 }
 
 
+# Requests and returns a JSON object containing information about a pull request.
+#  Arguments:
+#  1 - a Bitbucket user name
+#  2 - the login password that belongs to argument 1
+#  3 - the ID of the project to which the repository belongs
+#  4 - the identifier of the repository
+#  5 - the identifier of the pull request
+#
 GetPullRequestInfoJson() {
   userName="$1"
   password="$2"
@@ -329,14 +414,20 @@ GetPullRequestInfoJson() {
 }
 
 
-# FUNCTION THAT RETURNS THE LATEST VERSION OF A PULL-REQUEST
+# Returns the version of a pull request by parsing a JSON object of pull request information.
+#  Arguments:
+#  1 - a JSON string created by calling GetPullRequestInfoJson()
+#
 GetVersionFromPullRequestInfoJson() {
   pullRequestInfo="$1"
   echo "$pullRequestInfo" | grep -oP '(?<="version":)\d+'
 }
 
 
-# FUNCTION THAT RETURNS A STATUS STRING OF A PULL-REQUEST
+# Returns the current status of a pull request by parsing a JSON object of pull request information.
+#  Arguments:
+#  1 - a JSON string created by calling GetPullRequestInfoJson()
+#
 GetStatusFromPullRequestInfoJson() {
   pullRequestInfo="$1"
   
