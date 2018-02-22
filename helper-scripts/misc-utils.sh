@@ -14,19 +14,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-
-ExitIfLastOperationFailed() {
-  errorMessage="$1"
-  
-  if [ $? -ne 0 ]; then
-    if [ "$errorMessage" != "" ]; then
-      echo "$errorMessage" >&2
-	fi
-    exit 1
-  fi
-}
+# This script offers some generic utility functions.
 
 
+# Returns true, if a HEAD request to a specified URL returned 200.
+# Otherwise, false is returned.
+#  Arguments:
+#  1 - the URL that is tested
+#  2 - a username for Basic Authentication (optional)
+#  3 - a password for Basic Authentication (optional)
+#
 IsUrlReachable() {
   url="$1"
   userName="$2"
@@ -34,7 +31,7 @@ IsUrlReachable() {
 
   httpCode=$(GetHeadHttpCode "$url" "$userName" "$password")
   
-  if [ httpCode -eq 200 ]; then
+  if [ $httpCode -eq 200 ]; then
     echo true
   else
     echo false
@@ -42,6 +39,30 @@ IsUrlReachable() {
 }
 
 
+# This function echos true if the major version between two versions 
+# of the schema 'major.minor.bugfix' differs.
+#  Arguments:
+#  1 - the first version that is compared
+#  2 - the second version that is compared
+#
+IsMajorVersionDifferent() {
+  majorVersionA=${1%%.*}
+  majorVersionB=${2%%.*}
+  
+  if [ "$majorVersionA" != "$majorVersionB" ]; then
+    echo "true"
+  else
+    echo "false"
+  fi
+}
+
+
+# Returns the HTTP response code of a HEAD request to a specified URL.
+#  Arguments:
+#  1 - the URL that is tested
+#  2 - a username for Basic Authentication (optional)
+#  3 - a password for Basic Authentication (optional)
+#
 GetHeadHttpCode() {
   url="$1"
   userName="$2"
@@ -58,14 +79,18 @@ GetHeadHttpCode() {
 }
 
 
-# FUNCTION FOR CHECKING IF TWO MAJOR VERSIONS DIFFER
-IsMajorVersionDifferent() {
-  sourceMajorVersion=${1%%.*}
-  targetMajorVersion=${2%%.*}
+# This function fails with exit code 1, if the preceding operation did not exit with exit code 0.
+#  Arguments:
+#  1 - An optional error message that is printed only when the preceding operation failed
+#
+ExitIfLastOperationFailed() {
+  lastOpReturnCode=$?
+  errorMessage="$1"
   
-  if [ $targetMajorVersion -ne $sourceMajorVersion ]; then
-    echo "true"
-  else
-    echo "false"
+  if [ $lastOpReturnCode -ne 0 ]; then
+    if [ "$errorMessage" != "" ]; then
+      echo "$errorMessage" >&2
+	fi
+    exit 1
   fi
 }
