@@ -53,8 +53,8 @@ InitVariables() {
   ExitIfAtlassianCredentialsWrong "$atlassianUserName" "$atlassianPassword"
   
   # get more Atlassian user details
-  atlassianUserEmail=$(GetAtlassianUserEmailAddress "$atlassianUserName" "$atlassianPassword")
-  atlassianUserDisplayName=$(GetAtlassianUserDisplayName "$atlassianUserName" "$atlassianPassword")
+  atlassianUserEmail=$(GetAtlassianUserEmailAddress "$atlassianUserName" "$atlassianPassword" "$atlassianUserName")
+  atlassianUserDisplayName=$(GetAtlassianUserDisplayName "$atlassianUserName" "$atlassianPassword" "$atlassianUserName")
   
   # check pull-request reviewer
   reviewer1=$(GetValueOfPlanVariable reviewer)

@@ -29,9 +29,10 @@
 #  atlassianPassword - the Atlassian password of the current user
 #  providerName - the human readable name of the data provider that is to be harvested
 #  providerUrl - the url to the data provider home page
-#  authorOrganization - the organization of the user that executes the job
-#  authorOrganizationUrl - the url to the homepage of the user's organization
-
+#  authorOrganization - the organization of the harvester developer
+#  authorOrganizationUrl - the url to the homepage of the harvester developer's organization
+#  optionalAuthorName - the full name of the harvester developer, if not specified the executing user's name will be used
+#  optionalAuthorEmail - the email address of the harvester developer, if not specified the executing user's email address will be used
 
 # load helper scripts
 source scripts/helper-scripts/atlassian-utils.sh
@@ -53,6 +54,10 @@ atlassianPassword=$(GetValueOfPlanVariable "atlassianPassword")
 
 # test Atlassian credentials
 ExitIfAtlassianCredentialsWrong "$atlassianUserName" "$atlassianPassword"
+
+# get details of bamboo user
+atlassianUserEmail=$(GetAtlassianUserEmailAddress "$atlassianUserName" "$atlassianPassword" "$atlassianUserName")
+atlassianUserDisplayName=$(GetAtlassianUserDisplayName "$atlassianUserName" "$atlassianPassword" "$atlassianUserName")
 
 # clear, create and navigate to a temporary folder
 echo "Setting up a temporary folder" >&2
@@ -78,12 +83,21 @@ ExitIfLastOperationFailed "Could not generate Maven resources!"
 
 # get strings to replace placeholders
 parentPomVersion=$(GetGerdiMavenVersion "GeRDI-parent-harvester")
+
 providerName=$(GetValueOfPlanVariable providerName)
 providerUrl=$(GetValueOfPlanVariable providerUrl)
 authorOrganization=$(GetValueOfPlanVariable authorOrganization)
 authorOrganizationUrl=$(GetValueOfPlanVariable authorOrganizationUrl)
-atlassianUserEmail=$(GetAtlassianUserEmailAddress "$atlassianUserName" "$atlassianPassword")
-atlassianUserDisplayName=$(GetAtlassianUserDisplayName "$atlassianUserName" "$atlassianPassword")
+
+authorFullName=$(GetValueOfPlanVariable optionalAuthorName)
+if [ "$authorFullName" = "" ]; then
+  authorFullName="$atlassianUserDisplayName"
+fi
+
+authorEmail=$(GetValueOfPlanVariable optionalAuthorEmail)
+if [ "$authorEmail" = "" ]; then
+  authorEmail="$atlassianUserEmail"
+fi
 
 # rename placeholders for the unpacked files
 chmod o+rw scripts/renameSetup.sh
@@ -91,8 +105,8 @@ chmod +x scripts/renameSetup.sh
 ./scripts/renameSetup.sh\
  "$providerName"\
  "$providerUrl"\
- "$atlassianUserDisplayName"\
- "$atlassianUserEmail"\
+ "$authorFullName"\
+ "$authorEmail"\
  "$authorOrganization"\
  "$authorOrganizationUrl"\
  "$parentPomVersion"
