@@ -16,9 +16,15 @@
 
 # This script offers helper functions that concern GeRDI Maven projects.
 
-# FUNCTION FOR RETRIEVING THE LATEST VERSION OF A GERDI MAVEN PROJECT
-GetGerdiMavenVersion () {
-  metaData=$(curl -sX GET https://oss.sonatype.org/content/repositories/snapshots/de/gerdi-project/$1/maven-metadata.xml)
+
+# Returns the latest version (SNAPSHOT included) of a specified GeRDI Maven project.
+#  Arguments:
+#  1 - the artifact identifier of the GeRDI Maven project
+#
+GetGerdiMavenVersion() {
+  artifactId="$1"
+  
+  metaData=$(curl -sX GET https://oss.sonatype.org/content/repositories/snapshots/de/gerdi-project/$artifactId/maven-metadata.xml)
   ver=${metaData%</versions>*}
   ver=${ver##*<version>}
   ver=${ver%</version>*}
@@ -26,12 +32,16 @@ GetGerdiMavenVersion () {
 }
 
 
-# FUNCTION FOR CHECKING IF A VERSION IS IN SONATYPE
+# Returns true if a specified version and artifact of a specified GeRDI Maven project exist in Sonatype.
+#  Arguments:
+#  1 - the artifact identifier of the GeRDI Maven project
+#  2 - the version of the GeRDI Maven project
+#
 IsMavenVersionInSonatype() {
-  checkedArtifactId="$1"
-  checkedVersion="$2"
+  artifactId="$1"
+  version="$2"
   
-  response=$(curl -sI -X HEAD https://oss.sonatype.org/content/repositories/snapshots/de/gerdi-project/$checkedArtifactId/$checkedVersion/)
+  response=$(curl -sI -X HEAD https://oss.sonatype.org/content/repositories/snapshots/de/gerdi-project/$artifactId/$version/)
   httpCode=$(echo "$response" | grep -oP '(?<=HTTP/\d\.\d )\d+')
   if [ $httpCode -eq 200 ]; then
     echo true
@@ -41,7 +51,11 @@ IsMavenVersionInSonatype() {
 }
 
 
-CreateHarvesterSetupPom () {
+# Creates a pom.xml that extends the GeRDI-harvester-setup project with either a specified or the latest version.
+#  Arguments:
+#  1 - a version of GeRDI-harvester-setup (optional)
+#
+CreateHarvesterSetupPom() {
   harvesterSetupVersion="$1"
   
   # get the latest version of the Harvester Parent Pom, if no version was specified
@@ -80,6 +94,12 @@ CreateHarvesterSetupPom () {
 }
 
 
+# Creates a temporary credentials file and runs Bamboo Specs from a pom.xml,
+# which creates Bamboo jobs.
+#  Arguments:
+#  1 - a Bamboo user name of a user that is allowed to create jobs
+#  2 - the login password that belongs to argument 1
+#
 RunBambooSpecs() {
   userName="$1"
   password="$2"
