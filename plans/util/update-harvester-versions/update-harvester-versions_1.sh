@@ -138,7 +138,7 @@ QueueParentPomUpdate(){
   
   sourceParentVersion=$(mvn -q -Dexec.executable="echo" -Dexec.args='${project.parent.version}' --non-recursive org.codehaus.mojo:exec-maven-plugin:$mavenExecVersion:exec -f"$pomDirectory/pom.xml")
 
-  if [ "$sourceParentVersion" != "$targetParentVersion" ]; then
+  if [ "$sourceParentVersion" != "" ] && [ "$sourceParentVersion" != "$targetParentVersion" ]; then
     echo "Queueing to update parent-pom version of $artifactId from $sourceParentVersion to $targetParentVersion" >&2
   
     # create main task if does not exist
@@ -171,11 +171,9 @@ QueuePropertyUpdate(){
   targetPropertyName="$1"
   targetPropertyVersion="$2"
   
-  sourcePropertyVersion=$(cat "$pomDirectory/pom.xml")
-  sourcePropertyVersion=${sourcePropertyVersion#*<$targetPropertyName>}
-  sourcePropertyVersion=${sourcePropertyVersion%</$targetPropertyName>*}
+  sourcePropertyVersion=$(cat "arcgis/pom.xml" | grep -oP "(?<=\<$targetPropertyName\>)[^\<]*")
   
-  if [ "$sourcePropertyVersion" != "$targetPropertyVersion" ]; then
+  if [ "$sourcePropertyVersion" != "" ] && [ "$sourcePropertyVersion" != "$targetPropertyVersion" ]; then
     echo "Queueing to update <$targetPropertyName> property of $artifactId from $sourcePropertyVersion to $targetPropertyVersion" >&2
   
     # create main task if does not exist
