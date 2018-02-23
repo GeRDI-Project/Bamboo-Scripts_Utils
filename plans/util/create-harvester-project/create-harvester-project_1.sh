@@ -112,10 +112,9 @@ chmod +x scripts/renameSetup.sh
  "$authorOrganization"\
  "$authorOrganizationUrl"\
  "$parentPomVersion"
- 
-providerClassName=$(ls src/main/java/de/gerdiproject/harvest/*ContextListener.java)
-providerClassName=${providerClassName%ContextListener.java}
-providerClassName=${providerClassName##*/}
+
+# retrieve name of the provider from the file name of the context listener
+providerClassName=$(basename -s ContextListener.java src/main/java/de/gerdiproject/harvest/*ContextListener.java)
 
 # check if a plan with the same ID already exists in CodeAnalysis
 planKey="$(echo "$providerClassName" | sed -e "s~[a-z]~~g")HAR"

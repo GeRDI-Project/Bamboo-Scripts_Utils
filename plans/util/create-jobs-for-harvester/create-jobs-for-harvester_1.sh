@@ -61,10 +61,8 @@ cd harvesterSetupTemp
 CloneGitRepository "$atlassianUserName" "$atlassianPassword" "$projectAbbrev" "$repositorySlug"
 cd "$repositorySlug"
 
-# get class name of the provider
-providerClassName=$(ls src/main/java/de/gerdiproject/harvest/*ContextListener.java)
-providerClassName=${providerClassName%ContextListener.java}
-providerClassName=${providerClassName##*/}
+# retrieve name of the provider from the file name of the context listener
+providerClassName=$(basename -s ContextListener.java src/main/java/de/gerdiproject/harvest/*ContextListener.java)
 echo "Provider Class Name: '$providerClassName'" >&2
 
 # check if Bamboo plans already exist and should be overridden
