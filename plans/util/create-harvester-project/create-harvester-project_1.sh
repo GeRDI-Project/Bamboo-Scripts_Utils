@@ -59,6 +59,24 @@ ExitIfAtlassianCredentialsWrong "$atlassianUserName" "$atlassianPassword"
 atlassianUserEmail=$(GetAtlassianUserEmailAddress "$atlassianUserName" "$atlassianPassword" "$atlassianUserName")
 atlassianUserDisplayName=$(GetAtlassianUserDisplayName "$atlassianUserName" "$atlassianPassword" "$atlassianUserName")
 
+# get plan variables
+providerName=$(GetValueOfPlanVariable providerName)
+providerUrl=$(GetValueOfPlanVariable providerUrl)
+authorOrganization=$(GetValueOfPlanVariable authorOrganization)
+authorOrganizationUrl=$(GetValueOfPlanVariable authorOrganizationUrl)
+
+# get name of author. if not present, use bamboo user name
+authorFullName=$(GetValueOfPlanVariable optionalAuthorName)
+if [ "$authorFullName" = "" ]; then
+  authorFullName="$atlassianUserDisplayName"
+fi
+
+# get email address of author. if not present, use bamboo user email address
+authorEmail=$(GetValueOfPlanVariable optionalAuthorEmail)
+if [ "$authorEmail" = "" ]; then
+  authorEmail="$atlassianUserEmail"
+fi
+
 # clear, create and navigate to a temporary folder
 echo "Setting up a temporary folder" >&2
 rm -fr harvesterSetupTemp
@@ -81,23 +99,8 @@ echo "Generating harvester setup files" >&2
 mvn generate-resources -Psetup
 ExitIfLastOperationFailed "Could not generate Maven resources!"
 
-# get strings to replace placeholders
+# get latest version of the Harvester Parent Pom
 parentPomVersion=$(GetGerdiMavenVersion "GeRDI-parent-harvester")
-
-providerName=$(GetValueOfPlanVariable providerName)
-providerUrl=$(GetValueOfPlanVariable providerUrl)
-authorOrganization=$(GetValueOfPlanVariable authorOrganization)
-authorOrganizationUrl=$(GetValueOfPlanVariable authorOrganizationUrl)
-
-authorFullName=$(GetValueOfPlanVariable optionalAuthorName)
-if [ "$authorFullName" = "" ]; then
-  authorFullName="$atlassianUserDisplayName"
-fi
-
-authorEmail=$(GetValueOfPlanVariable optionalAuthorEmail)
-if [ "$authorEmail" = "" ]; then
-  authorEmail="$atlassianUserEmail"
-fi
 
 # rename placeholders for the unpacked files
 chmod o+rw scripts/renameSetup.sh
