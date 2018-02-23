@@ -46,7 +46,7 @@ GetProjectIdFromCloneLink() {
 }
 
 
-# Clones a Git repository to disk.
+# Clones a Git repository to the current directory.
 #  Arguments:
 #  1 - a Bitbucket user name
 #  2 - the login password that belongs to argument 1
@@ -62,7 +62,7 @@ CloneGitRepository() {
   gitCredentials="$userName:$password"
   
   echo "Cloning repository code.gerdi-project.de/scm/$projectId/$repositorySlug.git" >&2
-  response=$(git clone -q "https://$gitCredentials@code.gerdi-project.de/scm/$projectId/$repositorySlug.git")
+  response=$(git clone -q "https://$gitCredentials@code.gerdi-project.de/scm/$projectId/$repositorySlug.git" .)
 
   if [ $?  -ne 0 ]; then
     echo "Could not clone repository:" >&2

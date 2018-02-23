@@ -91,7 +91,6 @@ ExitIfLastOperationFailed
 CloneGitRepository "$atlassianUserName" "$atlassianPassword" "HAR" "$repositorySlug"
 
 # create a setup pom.xml in cloned repository directory
-cd $repositorySlug
 CreateHarvesterSetupPom
 
 # retrieve and unpack the harvester setup files
@@ -141,5 +140,5 @@ RunBambooSpecs "$atlassianUserName" "$atlassianPassword"
 
 # clean up temporary folders
 echo "Removing the temporary directory"
-cd ../../
+cd ../
 rm -fr harvesterSetupTemp

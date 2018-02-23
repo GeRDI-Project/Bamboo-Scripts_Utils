@@ -59,6 +59,7 @@ cd harvesterSetupTemp
 
 # clone newly created repository
 CloneGitRepository "$atlassianUserName" "$atlassianPassword" "$projectAbbrev" "$repositorySlug"
+cd "$repositorySlug"
 
 # get class name of the provider
 providerClassName=$(ls src/main/java/de/gerdiproject/harvest/*ContextListener.java)
@@ -111,5 +112,5 @@ RunBambooSpecs "$atlassianUserName" "$atlassianPassword"
 
 # clean up temporary folder
 echo "Removing the temporary directory"
-cd ../
+cd ..
 rm -fr harvesterSetupTemp
