@@ -128,9 +128,8 @@ if [ "$doPlansExist" = true ]; then
   exit 1
 fi
  
-# run AStyle without changing the files
-echo "Formatting files with AStyle"
-astyleResult=$(astyle --options="/usr/lib/astyle/file/kr.ini" --recursive --formatted "src/*")
+# run file formatter
+./scripts/formatting/astyle-format.sh
 
 # commit and push all files
 PushAllFilesToGitRepository "$atlassianUserDisplayName" "$atlassianUserEmail" "Bamboo: Created harvester repository for the provider '$bamboo_providerName'."

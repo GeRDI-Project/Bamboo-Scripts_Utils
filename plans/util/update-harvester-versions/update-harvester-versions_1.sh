@@ -414,6 +414,14 @@ BuildAndDeployLibrary() {
 # set up some variables
 InitVariables
 
+# update harvester utils
+PrepareUpdate "harvesterutils" "."
+if [ "$sourceVersion" != "" ]; then
+  QueueParentPomUpdate "$parentPomVersion"
+  harvesterUtilsVersion=$(ExecuteUpdate)
+  BuildAndDeployLibrary "CA-HU" "$harvesterUtilsVersion"
+fi
+
 # update harvester setup /archive
 PrepareUpdate "harvestersetup" "archive"
 if [ "$sourceVersion" != "" ]; then
@@ -425,16 +433,9 @@ fi
 PrepareUpdate "harvestersetup" "."
 if [ "$sourceVersion" != "" ]; then
   QueueParentPomUpdate "$parentPomVersion"
+  QueuePropertyUpdate "harvesterutils.dependency.version" "$harvesterUtilsVersion"
   QueuePropertyUpdate "setup.archive.dependency.version" "$harvesterSetupArchiveVersion"
   harvesterSetupVersion=$(ExecuteUpdate)
-fi
-
-# update harvester utils
-PrepareUpdate "harvesterutils" "."
-if [ "$sourceVersion" != "" ]; then
-  QueueParentPomUpdate "$parentPomVersion"
-  harvesterUtilsVersion=$(ExecuteUpdate)
-  BuildAndDeployLibrary "CA-HU" "$harvesterUtilsVersion"
 fi
 
 # update json library
