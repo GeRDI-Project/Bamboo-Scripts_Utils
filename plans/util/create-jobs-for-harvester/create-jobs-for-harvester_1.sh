@@ -24,11 +24,11 @@
 #  overwriteExistingJobs - if true, overwrites jobs if they already exist for the harvester
 
 # load helper scripts
-source scripts/helper-scripts/atlassian-utils.sh
-source scripts/helper-scripts/bamboo-utils.sh
-source scripts/helper-scripts/git-utils.sh
-source scripts/helper-scripts/maven-utils.sh
-source scripts/helper-scripts/misc-utils.sh
+source ./scripts/helper-scripts/atlassian-utils.sh
+source ./scripts/helper-scripts/bamboo-utils.sh
+source ./scripts/helper-scripts/git-utils.sh
+source ./scripts/helper-scripts/maven-utils.sh
+source ./scripts/helper-scripts/misc-utils.sh
 
 # check early exit conditions
 ExitIfNotLoggedIn

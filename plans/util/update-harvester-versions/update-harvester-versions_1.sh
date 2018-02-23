@@ -34,12 +34,12 @@
 
 # FUNCTION FOR SETTING UP GLOBAL VARIABLES
 InitVariables() {
-  source scripts/helper-scripts/atlassian-utils.sh
-  source scripts/helper-scripts/bamboo-utils.sh
-  source scripts/helper-scripts/jira-utils.sh
-  source scripts/helper-scripts/git-utils.sh
-  source scripts/helper-scripts/maven-utils.sh
-  source scripts/helper-scripts/misc-utils.sh
+  source ./scripts/helper-scripts/atlassian-utils.sh
+  source ./scripts/helper-scripts/bamboo-utils.sh
+  source ./scripts/helper-scripts/jira-utils.sh
+  source ./scripts/helper-scripts/git-utils.sh
+  source ./scripts/helper-scripts/maven-utils.sh
+  source ./scripts/helper-scripts/misc-utils.sh
 
   # check early exit conditions
   ExitIfNotLoggedIn
