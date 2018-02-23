@@ -34,6 +34,23 @@
 #  optionalAuthorName - the full name of the harvester developer, if not specified the executing user's name will be used
 #  optionalAuthorEmail - the email address of the harvester developer, if not specified the executing user's email address will be used
 
+source ./scripts/helper-scripts/atlassian-utils.sh
+echo "source ./scripts failed? $?"
+GetBambooUserName
+
+source ./../../../helper-scripts/atlassian-utils.sh
+echo "source ./../../../scripts failed? $?"
+GetBambooUserName
+
+(cd ../../../helper-scripts; ./atlassian-utils.sh)
+echo "subshell failed? $?"
+GetBambooUserName
+
+(cd ../../../helper-scripts; source ./atlassian-utils.sh)
+echo "subshell with source failed? $?"
+GetBambooUserName
+
+exit 0
 
 # load helper scripts
 ./scripts/helper-scripts/atlassian-utils.sh
