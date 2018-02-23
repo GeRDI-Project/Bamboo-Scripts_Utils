@@ -88,9 +88,7 @@ CreateHarvesterSetupPom() {
   </repositories>
 </project>' >> pom.xml
 
-    echo "Successfully created file '$PWD/pom.xml'." >&2
-
-  exit 0
+  echo "Successfully created file '$PWD/pom.xml'." >&2
 }
 
 
