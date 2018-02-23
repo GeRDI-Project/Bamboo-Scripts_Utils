@@ -107,7 +107,7 @@ mv -f backup-pom.xml pom.xml
 
 # create Bamboo jobs
 cd bamboo-specs
-CreateBambooSpecs "$atlassianUserName" "$atlassianPassword"
+RunBambooSpecs "$atlassianUserName" "$atlassianPassword"
 
 # clean up temporary folder
 echo "Removing the temporary directory"

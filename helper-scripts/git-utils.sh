@@ -54,12 +54,12 @@ GetProjectIdFromCloneLink() {
 #  4 - the identifier of the repository
 #
 CloneGitRepository() {
-  userName="$1"
+  userName="$(echo "$1" | sed -e "s/@/%40/g")"
   password="$2"
   projectId="$3"
   repositorySlug="$4"
   
-  gitCredentials= "$(echo "$userName" | sed -e "s/@/%40/g"):$password"
+  gitCredentials="$userName:$password"
   
   echo "Cloning repository code.gerdi-project.de/scm/$projectId/$repositorySlug.git" >&2
   response=$(git clone -q "https://$gitCredentials@code.gerdi-project.de/scm/$projectId/$repositorySlug.git")

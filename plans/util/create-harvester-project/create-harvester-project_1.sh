@@ -134,10 +134,11 @@ astyleResult=$(astyle --options="/usr/lib/astyle/file/kr.ini" --recursive --form
 
 # commit and push all files
 PushAllFilesToGitRepository "$atlassianUserDisplayName" "$atlassianUserEmail" "Bamboo: Created harvester repository for the provider '$bamboo_providerName'."
+ExitIfLastOperationFailed
 
 # create Bamboo jobs
 cd bamboo-specs
-CreateBambooSpecs "$atlassianUserName" "$atlassianPassword"
+RunBambooSpecs "$atlassianUserName" "$atlassianPassword"
 
 # clean up temporary folders
 echo "Removing the temporary directory"
