@@ -59,7 +59,7 @@ GetPlanBranchId() {
 #  Arguments:
 #  1 - the identifier of the linked plan
 #  2 - a Bamboo user name that has the necessary permissions for this operation
-#  3 - a password for argument 3
+#  3 - a password for argument 2
 #
 GetDeploymentId() {
   planLabel="$1"
@@ -119,7 +119,7 @@ GetLatestBambooPlanResultKey() {
 #  Arguments:
 #  1 - the identifier of the deployment job
 #  2 - a Bamboo user name that has the necessary permissions for this operation
-#  3 - a password for argument 3
+#  3 - a password for argument 2
 #
 GetMavenDeployEnvironmentId() {
   deploymentId="$1"
@@ -142,7 +142,7 @@ GetMavenDeployEnvironmentId() {
 #  Arguments:
 #  1 - the identifier of the plan
 #  2 - a Bamboo user name that has the necessary permissions for this operation
-#  3 - a password for argument 3
+#  3 - a password for argument 2
 #
 StartBambooPlan() {
   planLabel="$1"
@@ -167,7 +167,7 @@ StartBambooPlan() {
 #  Arguments:
 #  1 - the plan result key of the execution
 #  2 - a Bamboo user name that has the necessary permissions for this operation
-#  3 - a password for argument 3
+#  3 - a password for argument 2
 #
 WaitForPlanToBeDone() {
   planResultKey="$1"
@@ -209,7 +209,7 @@ WaitForPlanToBeDone() {
 #  3 - the deployment version
 #  4 - the plan result key of the plan from which should be deployed
 #  5 - a Bamboo user name that has the necessary permissions for this operation
-#  6 - a password for argument 3
+#  6 - a password for argument 5
 #
 StartBambooDeployment() {
   deploymentId="$1"
@@ -256,7 +256,7 @@ StartBambooDeployment() {
 #  Arguments:
 #  1 - the deployment result id of the execution
 #  2 - a Bamboo user name that has the necessary permissions for this operation
-#  3 - a password for argument 3
+#  3 - a password for argument 2
 #
 WaitForDeploymentToBeDone() {
   deploymentResultId="$1"

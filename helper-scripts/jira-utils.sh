@@ -16,7 +16,13 @@
 
 # This script offers helper functions that concern the GeRDI JIRA.
 
-# FUNCTION FOR STARTING A JIRA ISSUE
+
+# Sets a JIRA ticket from "Selected for Development" to "In Progress".
+#  Arguments:
+#  1 - the JIRA ticket id of the ticket that is to be started
+#  2 - a JIRA user name
+#  3 - a password for argument 2
+#
 StartJiraTask() {
   taskKey="$1"
   userName="$2"
@@ -35,7 +41,12 @@ StartJiraTask() {
 }
 
 
-# FUNCTION FOR SETTING A JIRA ISSUE TO REVIEW
+# Sets a JIRA ticket from "In Progress" to "In Review".
+#  Arguments:
+#  1 - the JIRA ticket id of the ticket that is to be reviewed
+#  2 - a JIRA user name
+#  3 - a password for argument 2
+#
 ReviewJiraTask() {
   taskKey="$1"
   userName="$2"
@@ -49,7 +60,12 @@ ReviewJiraTask() {
 }
 
 
-# FUNCTION FOR SETTING A JIRA ISSUE TO DONE
+# Sets a JIRA ticket from "In Review" to "Done".
+#  Arguments:
+#  1 - the JIRA ticket id of the ticket that is to be started
+#  2 - a JIRA user name
+#  3 - a password for argument 2
+#
 FinishJiraTask() {
   taskKey="$1"
   userName="$2"
@@ -62,7 +78,13 @@ FinishJiraTask() {
 }
 
 
-# FUNCTION FOR ABORTING A JIRA ISSUE IN PROGRESS
+# Sets a JIRA ticket from "In Progress" to "Will not fix" .
+#  Arguments:
+#  1 - the JIRA ticket id of the ticket that is to be started
+#  2 - a message that will be posted as a comment to the JIRA ticket
+#  3 - a JIRA user name
+#  4 - a password for argument 3
+#
 AbortJiraTask() {
   taskKey="$1"
   reason="$2"
@@ -80,7 +102,13 @@ AbortJiraTask() {
 }
 
 
-# FUNCTION FOR CREATING A JIRA TICKET
+# Creates a JIRA ticket in the System Architecture and Integration project.
+#  Arguments:
+#  1 - the title of the JIRA ticket
+#  2 - the description of the JIRA ticket
+#  3 - a JIRA user name
+#  4 - a password for argument 3
+#
 CreateJiraTicket() {
   title="$1"
   description="$2"
@@ -106,7 +134,14 @@ CreateJiraTicket() {
 }
 
 
-# FUNCTION FOR CREATING A JIRA SUB-TASK
+# Creates a sub-task in a JIRA ticket of the System Architecture and Integration project.
+#  Arguments:
+#  1 - the identifier of the JIRA ticket for which the sub-task is created
+#  2 - the title of the sub-task
+#  3 - the description of the sub-task
+#  4 - a JIRA user name
+#  5 - a password for argument 4
+#
 CreateJiraSubTask() {
   jiraParentKey="$1"
   title="$2"
@@ -132,11 +167,17 @@ CreateJiraSubTask() {
   echo "$subTaskKey"
 }
 
-# FUNCTION FOR ADDING AN ISSUE TO THE CURRENT SPRINT
+
+# Adds a JIRA ticket to the ongoing Sprint of the System Architecture and Integration project.
+#  Arguments:
+#  1 - the identifier of the JIRA ticket which is to be added
+#  2 - a JIRA user name
+#  3 - a password for argument 3
+#
 AddJiraTicketToCurrentSprint() {
   jiraKeyToAdd="$1"
-  userName="$4"
-  password="$5"
+  userName="$2"
+  password="$3"
     
   # retrieve active sprint name
   response=$(curl -sX GET -u "$userName:$password" -H "Content-Type: application/json" https://tasks.gerdi-project.de/rest/agile/latest/board/25/sprint)    
