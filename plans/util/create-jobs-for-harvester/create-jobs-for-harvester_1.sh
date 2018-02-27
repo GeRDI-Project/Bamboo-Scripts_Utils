@@ -23,6 +23,10 @@
 #  gitCloneLink - the clone link of a git repository
 #  overwriteExistingJobs - if true, overwrites jobs if they already exist for the harvester
 
+
+# treat unset variables as an error when substituting
+set -u
+
 # load helper scripts
 source ./scripts/helper-scripts/atlassian-utils.sh
 source ./scripts/helper-scripts/bamboo-utils.sh

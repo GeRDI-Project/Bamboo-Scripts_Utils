@@ -34,6 +34,9 @@
 #  optionalAuthorName - the full name of the harvester developer, if not specified the executing user's name will be used
 #  optionalAuthorEmail - the email address of the harvester developer, if not specified the executing user's email address will be used
 
+# treat unset variables as an error when substituting
+set -u
+
 # load helper scripts
 source ./scripts/helper-scripts/atlassian-utils.sh
 source ./scripts/helper-scripts/bamboo-utils.sh

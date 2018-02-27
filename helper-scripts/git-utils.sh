@@ -285,7 +285,6 @@ GetPullRequestIdOfSourceBranch() {
   branchName="$5"
   
   allPullRequests=$(curl -sX GET -u "$userName:$password" https://code.gerdi-project.de/rest/api/latest/projects/$project/repos/$repositorySlug/pull-requests)
-  
   hasNoOpenRequests=$(echo "$allPullRequests" | grep -o '{"size":0,')
   
   if [ "$hasNoOpenRequests" != "" ]; then

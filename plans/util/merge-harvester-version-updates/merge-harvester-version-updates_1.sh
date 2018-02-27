@@ -26,6 +26,8 @@
 #  jiraIssueKey - the key of the JIRA ticket that is to be merged. If left blank, the ticket key 
 #                 will be retrieved from the last https://ci.gerdi-project.de/browse/UTIL-UHV build 
 
+# treat unset variables as an error when substituting
+set -u
 
 # load helper scripts
 source ./scripts/helper-scripts/atlassian-utils.sh

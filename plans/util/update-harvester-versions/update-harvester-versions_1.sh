@@ -31,6 +31,8 @@
 #  atlassianPassword - the Atlassian password of the current user
 #  reviewer - the user name of the person that has to review the pull requests
 
+# treat unset variables as an error when substituting
+set -u
 
 # FUNCTION FOR SETTING UP GLOBAL VARIABLES
 InitVariables() {
@@ -63,6 +65,10 @@ InitVariables() {
     echo "You cannot be a reviewer yourself! Please set the 'reviewer' variable to a proper value when running the plan customized!" >&2
     exit 1
   fi
+  
+  # init global variables
+  sourceVersion=""
+  jiraKey=""
 
   # get parent pom version
   topDir=$(pwd)

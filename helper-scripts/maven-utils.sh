@@ -51,6 +51,7 @@ GetLatestMavenVersion() {
   artifactId="$1"
   includeSnapshots="$2"
   
+  releaseVersion=""
   metaData=$(curl -sX GET http://central.maven.org/maven2/de/gerdi-project/$artifactId/maven-metadata.xml)
   if [ "$metaData" != "" ]; then
     releaseVersion=${metaData%</versions>*}
@@ -58,6 +59,7 @@ GetLatestMavenVersion() {
     releaseVersion=${releaseVersion%</version>*}
   fi
   
+  snapshotVersion=""
   if [ "$includeSnapshots" = true ]; then
     metaData=$(curl -sX GET https://oss.sonatype.org/content/repositories/snapshots/de/gerdi-project/$artifactId/maven-metadata.xml)
     if [ "$metaData" != "" ]; then
