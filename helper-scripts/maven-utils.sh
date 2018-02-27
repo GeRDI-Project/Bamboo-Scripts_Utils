@@ -17,16 +17,22 @@
 # This script offers helper functions that concern GeRDI Maven projects.
 
 
-# Returns true if a specified version and artifact of a specified GeRDI Maven project exist in Sonatype.
+# Returns true if a specified version and artifact of a specified GeRDI Maven project exist in Sonatype or in Maven Central.
 #  Arguments:
 #  1 - the artifact identifier of the GeRDI Maven project
 #  2 - the version of the GeRDI Maven project
 #
-IsMavenVersionInSonatype() {
+IsMavenVersionDeployed() {
   artifactId="$1"
   version="$2"
   
-  response=$(curl -sI -X HEAD https://oss.sonatype.org/content/repositories/snapshots/de/gerdi-project/$artifactId/$version/)
+  # check Ssonatype if it is a snapshot version
+  if [ "${version%-SNAPSHOT}" != "$version" ]; then
+    response=$(curl -sI -X HEAD https://oss.sonatype.org/content/repositories/snapshots/de/gerdi-project/$artifactId/$version/)
+  else
+    response=$(curl -sI -X HEAD http://central.maven.org/maven2/de/gerdi-project/$artifactId/$version/)
+  fi
+  
   httpCode=$(echo "$response" | grep -oP '(?<=HTTP/\d\.\d )\d+')
   if [ $httpCode -eq 200 ]; then
     echo true
@@ -36,18 +42,36 @@ IsMavenVersionInSonatype() {
 }
 
 
-# Returns the latest version (SNAPSHOT included) of a specified GeRDI Maven project.
+# Returns the latest version of a specified GeRDI Maven project.
 #  Arguments:
 #  1 - the artifact identifier of the GeRDI Maven project
+#  2 - if true, also the versions in the Sonatype repository are checked
 #
-GetGerdiMavenVersion() {
+GetLatestMavenVersion() {
   artifactId="$1"
+  includeSnapshots="$2"
   
-  metaData=$(curl -sX GET https://oss.sonatype.org/content/repositories/snapshots/de/gerdi-project/$artifactId/maven-metadata.xml)
-  ver=${metaData%</versions>*}
-  ver=${ver##*<version>}
-  ver=${ver%</version>*}
-  echo "$ver"
+  metaData=$(curl -sX GET http://central.maven.org/maven2/de/gerdi-project/$artifactId/maven-metadata.xml)
+  if [ "$metaData" != "" ]; then
+    releaseVersion=${metaData%</versions>*}
+    releaseVersion=${releaseVersion##*<version>}
+    releaseVersion=${releaseVersion%</version>*}
+  fi
+  
+  if [ "$includeSnapshots" = true ]; then
+    metaData=$(curl -sX GET https://oss.sonatype.org/content/repositories/snapshots/de/gerdi-project/$artifactId/maven-metadata.xml)
+    if [ "$metaData" != "" ]; then
+	  snapshotVersion=${metaData%</versions>*}
+      snapshotVersion=${snapshotVersion##*<version>}
+      snapshotVersion=${snapshotVersion%</version>*}
+	fi
+  fi
+  
+  if [ "$snapshotVersion" = "" ] || [ "$releaseVersion" \> "$snapshotVersion" ]; then
+    echo "$releaseVersion"
+  else  
+    echo "$snapshotVersion"
+  fi
 }
 
 
@@ -60,7 +84,7 @@ CreateHarvesterSetupPom() {
   
   # get the latest version of the Harvester Parent Pom, if no version was specified
   if [ "$harvesterSetupVersion" = "" ]; then
-    harvesterSetupVersion=$(GetGerdiMavenVersion "GeRDI-harvester-setup")
+    harvesterSetupVersion=$(GetLatestMavenVersion "GeRDI-harvester-setup" true)
   fi
   
   # create a basic pom.xml that will fetch the harvester setup

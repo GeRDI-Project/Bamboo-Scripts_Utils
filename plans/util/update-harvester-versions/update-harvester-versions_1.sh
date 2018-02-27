@@ -343,7 +343,7 @@ UpdateHarvester() {
 BuildAndDeployLibrary() {  
   planLabel="$1"
   deploymentVersion="$2"
-  isVersionAlreadyBuilt=$(IsMavenVersionInSonatype "$artifactId" "$deploymentVersion")
+  isVersionAlreadyBuilt=$(IsMavenVersionDeployed "$artifactId" "$deploymentVersion")
   
   if [ "$isVersionAlreadyBuilt" = false ]; then
     isEverythingSuccessful=1

@@ -99,7 +99,7 @@ mvn generate-resources -Psetup
 ExitIfLastOperationFailed "Could not generate Maven resources!"
 
 # get latest version of the Harvester Parent Pom
-parentPomVersion=$(GetGerdiMavenVersion "GeRDI-parent-harvester")
+parentPomVersion=$(GetLatestMavenVersion "GeRDI-parent-harvester" true)
 
 # rename placeholders for the unpacked files
 chmod o+rw scripts/renameSetup.sh
