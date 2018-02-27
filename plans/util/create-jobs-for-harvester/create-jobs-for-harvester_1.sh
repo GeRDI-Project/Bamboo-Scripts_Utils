@@ -86,7 +86,7 @@ fi
 mv pom.xml backup-pom.xml
 
 # create a setup pom.xml in cloned repository directory
-CreateHarvesterSetupPom
+CreateHarvesterSetupPom ""
 
 # retrieve and unpack the harvester setup files
 echo "Generating harvester setup files"

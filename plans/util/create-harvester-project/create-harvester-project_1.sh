@@ -88,13 +88,13 @@ cd harvesterSetupTemp
 
 # create repository
 repositorySlug=$(CreateGitRepository "$atlassianUserName" "$atlassianPassword" "HAR" "$providerName")
-ExitIfLastOperationFailed
+ExitIfLastOperationFailed ""
 
 # clone newly created repository
 CloneGitRepository "$atlassianUserName" "$atlassianPassword" "HAR" "$repositorySlug"
 
 # create a setup pom.xml in cloned repository directory
-CreateHarvesterSetupPom
+CreateHarvesterSetupPom ""
 
 # retrieve and unpack the harvester setup files
 echo "Generating harvester setup files" >&2
@@ -134,7 +134,7 @@ fi
 
 # commit and push all files
 PushAllFilesToGitRepository "$atlassianUserDisplayName" "$atlassianUserEmail" "Bamboo: Created harvester repository for the provider '$bamboo_providerName'."
-ExitIfLastOperationFailed
+ExitIfLastOperationFailed ""
 
 # create Bamboo jobs
 cd bamboo-specs
