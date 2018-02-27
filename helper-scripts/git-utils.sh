@@ -127,6 +127,17 @@ DeleteGitRepository() {
 }
 
 
+# Creates a remote Git branch of the current repository.
+#  Arguments:
+#  1 - the name of the branch
+#
+CreateBranch() {
+  branchName="$1"
+  echo $(git checkout -b $branchName) >&2
+  echo $(git push -q --set-upstream origin $branchName) >&2
+}
+
+
 # Removes a branch from a Git repository.
 #  Arguments:
 #  1 - a Bitbucket user name
@@ -172,9 +183,7 @@ PushAllFilesToGitRepository() {
   git add -A ${PWD}
 
   echo "Committing files to Git" >&2
-  git config user.email "$userDisplayName"
-  git config user.name "$userEmailAddress"
-  git commit -m "$commitMessage"
+  git commit -m "$commitMessage" --author="$userDisplayName <$userEmailAddress>"
 
   echo "Pushing files to Git" >&2
   git push -q

@@ -261,13 +261,7 @@ ExecuteUpdate() {
   
     # create git branch
     branchName="$jiraKey-$subTaskKey-VersionUpdate"
-    echo $(git checkout -b $branchName) >&2
-    
-    # set GIT user
-    echo $(git config user.email "$atlassianUserEmail") >&2
-    echo $(git config user.name "$atlassianUserDisplayName") >&2
-  
-    echo $(git push -q --set-upstream origin $branchName) >&2
+	CreateBranch "$branchName"
     
     # execute update queue
     echo $($updateQueue) >&2
@@ -276,10 +270,7 @@ ExecuteUpdate() {
     echo $(mvn versions:set "-DnewVersion=$targetVersion" -DallowSnapshots=true -DgenerateBackupPoms=false -f"$pomDirectory/pom.xml") >&2
     
 	# commit and push updates
-    echo $(git add -A) >&2
-    commitMessage="$jiraKey $subTaskKey Updated pom version to $targetVersion. $(cat $gitCommitDescription)"
-    echo $(git commit -m ''"$commitMessage"'') >&2
-    echo $(git push -q) >&2
+	echo $(PushAllFilesToGitRepository "$atlassianUserDisplayName" "$atlassianUserEmail" "$commitMessage") >&2
   
     # create pull request if it is not major version update
     isMajorUpdate=$(IsMajorVersionDifferent "$sourceVersion" "$targetVersion")
