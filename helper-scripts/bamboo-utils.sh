@@ -47,7 +47,7 @@ GetPlanBranchId() {
   userName="$3"
   password="$4"
   
-  response=$(curl -sX GET -u "$userName:$password" -H "Content-Type: application/json" https://ci.gerdi-project.de/rest/api/latest/plan/$planLabel/branch/$branch)
+  response=$(curl -sX GET -u "$userName:$password" https://ci.gerdi-project.de/rest/api/latest/plan/$planLabel/branch/$branch)
   planBranchId=${response#*key=\"$planLabel}
   planBranchId=${planBranchId%%\"*}
   
