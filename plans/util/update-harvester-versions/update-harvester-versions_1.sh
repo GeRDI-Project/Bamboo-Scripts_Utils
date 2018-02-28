@@ -281,7 +281,7 @@ ExecuteUpdate() {
     # create pull request if it is not major version update
     isMajorUpdate=$(IsMajorVersionDifferent "$sourceVersion" "$targetVersion")
     if [ "$isMajorUpdate" = "false" ]; then
-      echo $(CreatePullRequest
+      echo $(CreatePullRequest \
         "$atlassianUserName" \
         "$atlassianPassword" \
 		"HAR"
@@ -367,7 +367,7 @@ BuildAndDeployLibrary() {
         echo "environmentId: $environmentId" >&2
        
         # get branch number of the plan
-        planBranchId=$(GetPlanBranchId "$planLabel" "$branch" "$atlassianUserName" "$atlassianPassword")
+        planBranchId=$(GetPlanBranchId "$planLabel" "$branchName" "$atlassianUserName" "$atlassianPassword")
        
         if [ "$planBranchId" != "" ]; then
           echo "planLabel: $planLabel$planBranchId" >&2  
