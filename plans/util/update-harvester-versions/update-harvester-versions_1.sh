@@ -177,7 +177,7 @@ QueuePropertyUpdate(){
   targetPropertyName="$1"
   targetPropertyVersion="$2"
   
-  sourcePropertyVersion=$(cat "arcgis/pom.xml" | grep -oP "(?<=\<$targetPropertyName\>)[^\<]*")
+  sourcePropertyVersion=$(cat "$pomDirectory/pom.xml" | grep -oP "(?<=\<$targetPropertyName\>)[^\<]*")
   
   if [ "$sourcePropertyVersion" != "" ] && [ "$sourcePropertyVersion" != "$targetPropertyVersion" ]; then
     echo "Queueing to update <$targetPropertyName> property of $artifactId from $sourcePropertyVersion to $targetPropertyVersion" >&2
