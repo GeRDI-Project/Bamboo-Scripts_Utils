@@ -284,7 +284,7 @@ ExecuteUpdate() {
       echo $(CreatePullRequest \
         "$atlassianUserName" \
         "$atlassianPassword" \
-		"HAR"
+		"HAR" \
         "$repositorySlug" \
 	    "$branchName" \
         "Update $artifactId" \
