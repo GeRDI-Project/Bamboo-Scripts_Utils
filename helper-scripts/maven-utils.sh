@@ -128,19 +128,11 @@ RunBambooSpecs() {
   userName="$1"
   password="$2"
   
-  echo "Creating Bamboo-Specs credentials file" >&2
-
-  touch .credentials
-  echo "username=$userName" >> .credentials
-  echo "password=$password" >> .credentials
-
   echo "Running Bamboo-Specs" >&2
-  mvn -Ppublish-specs
+  mvn -e compile -Dexec.args="'$userName' '$password'" 
   
   if [ $?  -ne 0 ]; then
-    echo "Could not create Bamboo Jobs!" >&2
+    echo "Error creating Bamboo Jobs!" >&2
     exit 1
   fi
-  
-  rm -f .credentials
 }
