@@ -174,23 +174,25 @@ WaitForPlanToBeDone() {
   userName="$2"
   password="$3"
   
-  finishedResponse="{\"message\":\"Result $planResultKey not building.\",\"status-code\":404}"
-  response=""
-  
   echo "Waiting for plan $planResultKey to finish..." >&2
   
-  # wait 3 seconds and send a get-request to check if the plan is still running
-  while [ ''"$response"'' != ''"$finishedResponse"'' ]; do
-    response=$(curl -sX GET -u "$userName:$password" -H "Content-Type: application/json" https://ci.gerdi-project.de/rest/api/latest/result/status/$planResultKey)
-    sleep 3
+  # send a head-request to check if a plan result page exists
+  resultsUrl="https://ci.gerdi-project.de/rest/api/latest/result/$planResultKey"
+  $(curl -sfX HEAD -u "$userName:$password" $resultsUrl)
+  responseCode=$?
+  
+  # wait 3 seconds and re-send the head-request if needed
+  while [ $responseCode -ne 0 ]; do
+	sleep 3
+    $(curl -sfX HEAD -u "$userName:$password" $resultsUrl)
+    responseCode=$?
   done
   
   # there is a small transition period during which the build state is unknown, though the job is finished:
-  buildState="Unknown"
-  while [ "$buildState" = "Unknown" ]; do
-    response=$(curl -sX GET -u "$userName:$password" -H "Content-Type: application/json" https://ci.gerdi-project.de/rest/api/latest/result/$planResultKey)
-	buildState=$(echo "$response" | grep -oP "(?<=\<buildState\>)\w+?(?=\</buildState\>)")
+  buildState=$(curl -sX GET -u "$userName:$password" $resultsUrl | grep -oP "(?<=\<buildState\>)\w+?(?=\</buildState\>)")
+  while [ "$buildState" = "Unknown" ] || [ "$buildState" = "" ]; do
     sleep 3
+	buildState=$(curl -sX GET -u "$userName:$password" $resultsUrl | grep -oP "(?<=\<buildState\>)\w+?(?=\</buildState\>)")
   done
     
   # check if the plan finished successfully
