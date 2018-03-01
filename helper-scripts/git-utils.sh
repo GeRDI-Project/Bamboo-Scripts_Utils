@@ -218,7 +218,7 @@ CreatePullRequest() {
   # print some debug log about the repository and reviewer(s)
   echo "Creating Pull-Request for repository '$repositorySlug' in project '$project'." >&2
   
-  if [ "$reviewer1" != "" ] && [ "$reviewer1" != "" ]; then
+  if [ "$reviewer1" != "" ] && [ "$reviewer2" != "" ]; then
     echo "Reviewers are $reviewer1 and $reviewer2." >&2
 	
   elif [ "$reviewer1" != "" ]; then
