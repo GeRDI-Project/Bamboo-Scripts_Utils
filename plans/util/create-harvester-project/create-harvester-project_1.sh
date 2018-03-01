@@ -1,203 +1,146 @@
 #!/bin/bash
 
-# Licensed to the Apache Software Foundation (ASF) under one
-# or more contributor license agreements.  See the NOTICE file
-# distributed with this work for additional information
-# regarding copyright ownership.  The ASF licenses this file
-# to you under the Apache License, Version 2.0 (the
-# "License"); you may not use this file except in compliance
-# with the License.  You may obtain a copy of the License at
+# Copyright © 2018 Robin Weiss (http://www.gerdi-project.de/)
 #
-#   http://www.apache.org/licenses/LICENSE-2.0
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
 #
-# Unless required by applicable law or agreed to in writing,
-# software distributed under the License is distributed on an
-# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-# KIND, either express or implied.  See the License for the
-# specific language governing permissions and limitations
-# under the License.
- 
-# check login
-authorEmail="$bamboo_ManualBuildTriggerReason_userName"
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# This script is being called by the Bamboo Job https://ci.gerdi-project.de/browse/UTIL-CHP which creates
+# a harvester project and Bamboo jobs:
+#  1. Creates a Git repository in the harvester project (HAR)
+#  2. Creates a pom derived from the latest version of the HarvesterSetup (https://oss.sonatype.org/content/repositories/snapshots/de/gerdi-project/GeRDI-harvester-setup/)
+#  3. Executes the setup, creating a bare minimum harvester project that has placeholders within files and file names
+#  4. The placeholders are replaced by the plan variables of the Bamboo job (see below)
+#  5. All files are formatted with AStyle
+#  6. All files are committed and pushed to the remote Git repository.
+#  7. Bamboo Plans and Deployment jobs for the project are created.
+#
+# Bamboo Plan Variables:
+#  ManualBuildTriggerReason_userName - the login name of the current user
+#  atlassianPassword - the Atlassian password of the current user
+#  providerName - the human readable name of the data provider that is to be harvested
+#  providerUrl - the url to the data provider home page
+#  authorOrganization - the organization of the harvester developer
+#  authorOrganizationUrl - the url to the homepage of the harvester developer's organization
+#  optionalAuthorName - the full name of the harvester developer, if not specified the executing user's name will be used
+#  optionalAuthorEmail - the email address of the harvester developer, if not specified the executing user's email address will be used
+
+# treat unset variables as an error when substituting
+set -u
+
+# load helper scripts
+source ./scripts/helper-scripts/atlassian-utils.sh
+source ./scripts/helper-scripts/bamboo-utils.sh
+source ./scripts/helper-scripts/git-utils.sh
+source ./scripts/helper-scripts/maven-utils.sh
+source ./scripts/helper-scripts/misc-utils.sh
+
+# check early exit conditions
+ExitIfNotLoggedIn
+ExitIfPlanVariableIsMissing "atlassianPassword"
+ExitIfPlanVariableIsMissing "providerName"
+ExitIfPlanVariableIsMissing "providerUrl"
+ExitIfPlanVariableIsMissing "authorOrganization"
+ExitIfPlanVariableIsMissing "authorOrganizationUrl"
+
+atlassianUserName=$(GetBambooUserName)
+atlassianPassword=$(GetValueOfPlanVariable "atlassianPassword")
+
+# test Atlassian credentials
+ExitIfAtlassianCredentialsWrong "$atlassianUserName" "$atlassianPassword"
+
+# get details of bamboo user
+atlassianUserEmail=$(GetAtlassianUserEmailAddress "$atlassianUserName" "$atlassianPassword" "$atlassianUserName")
+atlassianUserDisplayName=$(GetAtlassianUserDisplayName "$atlassianUserName" "$atlassianPassword" "$atlassianUserName")
+
+# get plan variables
+providerName=$(GetValueOfPlanVariable providerName)
+providerUrl=$(GetValueOfPlanVariable providerUrl)
+authorOrganization=$(GetValueOfPlanVariable authorOrganization)
+authorOrganizationUrl=$(GetValueOfPlanVariable authorOrganizationUrl)
+
+# get name of author. if not present, use bamboo user name
+authorFullName=$(GetValueOfPlanVariable optionalAuthorName)
+if [ "$authorFullName" = "" ]; then
+  authorFullName="$atlassianUserDisplayName"
+fi
+
+# get email address of author. if not present, use bamboo user email address
+authorEmail=$(GetValueOfPlanVariable optionalAuthorEmail)
 if [ "$authorEmail" = "" ]; then
-echo "Please log in to Bamboo!"
-exit 1
+  authorEmail="$atlassianUserEmail"
 fi
-
-# check if password exists
-userPw="$bamboo_passwordGit"
-if [ "$userPw" = "" ]; then
-echo "You need to specify your BitBucket password by setting the 'passwordGit' variable when running the plan customized!"
-exit 1
-fi
-
-# check if all required variables exist
-if [ "$bamboo_providerName" = "" ] \
-|| [ "$bamboo_providerUrl" = "" ] \
-|| [ "$bamboo_authorOrganization" = "" ] \
-|| [ "$bamboo_authorOrganizationUrl" = "" ]
-then
-echo "Some Variables are missing! Make sure to fill out all variables and to run the plan customized!"
-exit 1
-fi
-
-# create repository
-response=$(curl -sX POST -u "$authorEmail:$userPw" -H "Content-Type: application/json" -d '{
-    "name": "'"$bamboo_providerName"'",
-    "scmId": "git",
-    "forkable": true
-}' https://code.gerdi-project.de/rest/api/1.0/projects/HAR/repos/)
-
-# check for BitBucket errors
-errorsPrefix="\{\"errors\""
-if [ "${response%$errorsPrefix*}" = "" ]
-then
-echo "Could not create repository for the Harvester:"
-echo "$response"
-exit 1
-fi
-
-# retrieve the urlencoded repository name from the curl response
-encodedRepositoryName="$response"
-encodedRepositoryName=${encodedRepositoryName#*\{\"slug\":\"}
-encodedRepositoryName=${encodedRepositoryName%%\"*}
-
-echo "Created repository '$encodedRepositoryName'."
 
 # clear, create and navigate to a temporary folder
-echo "Setting up a temporary folder"
+echo "Setting up a temporary folder" >&2
 rm -fr harvesterSetupTemp
 mkdir harvesterSetupTemp
 cd harvesterSetupTemp
 
+# create repository
+repositorySlug=$(CreateGitRepository "$atlassianUserName" "$atlassianPassword" "HAR" "$providerName")
+ExitIfLastOperationFailed ""
+
 # clone newly created repository
-encodedEmail=$(echo "$authorEmail" | sed -e "s/@/%40/g")
-echo "Cloning repository https://$encodedEmail@code.gerdi-project.de/scm/har/$encodedRepositoryName.git"
-#echo "PW: $userPw"
-cloneResponse=$(git clone -q "https://$encodedEmail:$userPw@code.gerdi-project.de/scm/har/$encodedRepositoryName.git")
-returnCode=$?
-if [ $returnCode -ne 0 ]; then
- echo "Could not clone GIT repository!"
- exit 1
-fi
-cd $encodedRepositoryName
+CloneGitRepository "$atlassianUserName" "$atlassianPassword" "HAR" "$repositorySlug"
 
-
-# Get Author Full Name
-authorFullName=$(curl -sX GET -u $authorEmail:$userPw https://ci.gerdi-project.de/browse/user/$encodedEmail)
-authorFullName=${authorFullName#*<title>}
-authorFullName=${authorFullName%%:*}
-
-
-# define function for retrieving the latest version of a gerdi maven project
-GetGerdiMavenVersion () {
-  metaData=$(curl -sX GET https://oss.sonatype.org/content/repositories/snapshots/de/gerdi-project/$1/maven-metadata.xml)
-  ver=${metaData#*<latest>}
-  ver=${ver%</latest>*}
-  if [ "$ver" = "$metaData" ]; then
-   ver=${metaData##*<version>}
-   ver=${ver%</version>*}
-  fi
-  echo "$ver"
-}
-
-# get the latest version of the Harvester Parent Pom
-harvesterSetupVersion=$(GetGerdiMavenVersion "GeRDI-harvester-setup")
-echo "Latest version of the HarvesterSetup is: $harvesterSetupVersion"
-
-# create a basic pom.xml that will fetch the harvester setup
-echo "Creating temporary pom.xml"
-echo "<project>" >> pom.xml
-echo " <modelVersion>4.0.0</modelVersion>" >> pom.xml
-echo " <parent>" >> pom.xml
-echo "  <groupId>de.gerdi-project</groupId>" >> pom.xml
-echo "  <artifactId>GeRDI-harvester-setup</artifactId>" >> pom.xml
-echo "  <version>$harvesterSetupVersion</version>" >> pom.xml
-echo " </parent>" >> pom.xml
-echo " <artifactId>temporary-harvester-setup</artifactId>" >> pom.xml
-echo " <repositories>" >> pom.xml
-echo "  <repository>" >> pom.xml
-echo "   <id>Sonatype</id>" >> pom.xml
-echo "   <url>https://oss.sonatype.org/content/repositories/snapshots/</url>" >> pom.xml
-echo "  </repository>" >> pom.xml
-echo " </repositories>" >> pom.xml
-echo "</project>" >> pom.xml
+# create a setup pom.xml in cloned repository directory
+CreateHarvesterSetupPom ""
 
 # retrieve and unpack the harvester setup files
-echo "Generating harvester setup files"
-response=$(mvn generate-resources -Psetup)
-returnCode=$?
-if [ $returnCode -ne 0 ]; then
- echo "$response"
- echo "Could not generate Maven resources!"
- exit 1
-fi
+echo "Generating harvester setup files" >&2
+mvn generate-resources -Psetup
+ExitIfLastOperationFailed "Could not generate Maven resources!"
 
-# get the latest version of the Harvester Parent Pom
-parentPomVersion=$(GetGerdiMavenVersion "GeRDI-parent-harvester")
-echo "Latest version of the Harvester Parent Pom is: $parentPomVersion"
+# get latest version of the Harvester Parent Pom
+parentPomVersion=$(GetLatestMavenVersion "GeRDI-parent-harvester" true)
 
 # rename placeholders for the unpacked files
 chmod o+rw scripts/renameSetup.sh
 chmod +x scripts/renameSetup.sh
 ./scripts/renameSetup.sh\
- "$bamboo_providerName"\
- "$bamboo_providerUrl"\
+ "$providerName"\
+ "$providerUrl"\
  "$authorFullName"\
  "$authorEmail"\
- "$bamboo_authorOrganization"\
- "$bamboo_authorOrganizationUrl"\
+ "$authorOrganization"\
+ "$authorOrganizationUrl"\
  "$parentPomVersion"
- 
-# check if bamboo plans already exist
-providerClassName=$(ls src/main/java/de/gerdiproject/harvest/*ContextListener.java)
-providerClassName=${providerClassName%ContextListener.java}
-providerClassName=${providerClassName##*/}
 
-planKey=$( echo "$providerClassName" | sed -e "s~[a-z]~~g")HAR
-doPlansExist=0
-  
-echo "Checking Bamboo Plans"
-response=$(curl -sX GET -u $authorEmail:$userPw https://ci.gerdi-project.de/browse/CA-$planKey)
-cutResponse=${response%<title>Bamboo error reporting - GeRDI Bamboo</title>*}
-if [ "$response" != "" ] && [ "$cutResponse" = "$response" ]; then
-  doPlansExist=1
-fi
-if [ $doPlansExist -ne 0 ]; then
-  echo "Plans with the key '$planKey' already exist!"
-  
-  # delete repository
-  response=$(curl -sX DELETE -u $authorEmail:$userPw https://code.gerdi-project.de/rest/api/1.0/projects/HAR/repos/$encodedRepositoryName)
+# retrieve name of the provider from the file name of the context listener
+providerClassName=$(basename -s ContextListener.java src/main/java/de/gerdiproject/harvest/*ContextListener.java)
+
+# check if a plan with the same ID already exists in CodeAnalysis
+planKey="$(echo "$providerClassName" | sed -e "s~[a-z]~~g")HAR"
+doPlansExist=$(IsUrlReachable "https://ci.gerdi-project.de/rest/api/latest/plan/CA-$planKey" "$atlassianUserName" "$atlassianPassword")
+
+if [ "$doPlansExist" = true ]; then
+  echo "Plans with the key '$planKey' already exist!" >&2
+  DeleteGitRepository "$atlassianUserName" "$atlassianPassword" "HAR" "$repositorySlug"
   exit 1
 fi
  
-# run AStyle without changing the files
-echo "Formatting files with AStyle"
-astyleResult=$(astyle --options="/usr/lib/astyle/file/kr.ini" --recursive --formatted "src/*")
+# run file formatter
+./scripts/formatting/astyle-format.sh
 
 # commit and push all files
-echo "Adding files to GIT"
-git add -A ${PWD}
+PushAllFilesToGitRepository "$atlassianUserDisplayName" "$atlassianUserEmail" "Bamboo: Created harvester repository for the provider '$bamboo_providerName'."
+ExitIfLastOperationFailed ""
 
-echo "Committing files to GIT"
-git config user.email "$authorEmail"
-git config user.name "$authorFullName"
-git commit -m "Bamboo: Created harvester repository for the provider '$bamboo_providerName'."
-
-echo "Pushing files to GIT"
-git push -q
-
-
-echo "Creating temporary Bamboo-Specs credentials"
+# create Bamboo jobs
 cd bamboo-specs
-touch .credentials
-echo "username=$authorEmail" >> .credentials
-echo "password=$userPw" >> .credentials
+RunBambooSpecs "$atlassianUserName" "$atlassianPassword"
 
-echo "Running Bamboo-Specs"
-mvn -Ppublish-specs
-
-# clean up
+# clean up temporary folders
 echo "Removing the temporary directory"
-cd ../../
+cd ../
 rm -fr harvesterSetupTemp
