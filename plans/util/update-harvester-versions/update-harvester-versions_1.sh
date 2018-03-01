@@ -300,9 +300,6 @@ ExecuteUpdate() {
   else
     echo "$artifactId is already up-to-date at version: $targetVersion" >&2
   fi
-  
-  #rm -rf tempDir
-  echo "$targetVersion"
 }
 
 
@@ -349,8 +346,7 @@ UpdateHarvester() {
 # FUNCTION FOR BUILDING AND DEPLOYING A HARVESTER RELATED LIBRARY VIA THE BAMBOO REST API
 BuildAndDeployLibrary() {  
   planLabel="$1"
-  deploymentVersion="$2"
-  isVersionAlreadyBuilt=$(IsMavenVersionDeployed "$artifactId" "$deploymentVersion")
+  isVersionAlreadyBuilt=$(IsMavenVersionDeployed "$artifactId" "$targetVersion")
   
   if [ "$isVersionAlreadyBuilt" = false ]; then
     isEverythingSuccessful=1
@@ -384,7 +380,7 @@ BuildAndDeployLibrary() {
             deploymentResultId=$(StartBambooDeployment \
 			  "$deploymentId" \
 			  "$environmentId" \
-			  "$deploymentVersion($planResultKey)" \
+			  "$targetVersion($planResultKey)" \
 			  "$planResultKey" \
 			  "$atlassianUserName" \
 			  "$atlassianPassword")
@@ -414,15 +410,17 @@ InitVariables
 PrepareUpdate "harvesterutils" "."
 if [ "$sourceVersion" != "" ]; then
   QueueParentPomUpdate "$parentPomVersion"
-  harvesterUtilsVersion=$(ExecuteUpdate)
-  BuildAndDeployLibrary "CA-HU" "$harvesterUtilsVersion"
+  ExecuteUpdate
+  harvesterUtilsVersion="$targetVersion"
+  BuildAndDeployLibrary "CA-HU"
 fi
 
 # update harvester setup /archive
 PrepareUpdate "harvestersetup" "archive"
 if [ "$sourceVersion" != "" ]; then
   QueueParentPomUpdate "$parentPomVersion"
-  harvesterSetupArchiveVersion=$(ExecuteUpdate)
+  ExecuteUpdate
+  harvesterSetupArchiveVersion="$targetVersion"
 fi
 
 # update harvester setup
@@ -431,7 +429,8 @@ if [ "$sourceVersion" != "" ]; then
   QueueParentPomUpdate "$parentPomVersion"
   QueuePropertyUpdate "harvesterutils.dependency.version" "$harvesterUtilsVersion"
   QueuePropertyUpdate "setup.archive.dependency.version" "$harvesterSetupArchiveVersion"
-  harvesterSetupVersion=$(ExecuteUpdate)
+  ExecuteUpdate
+  harvesterSetupVersion="$targetVersion"
 fi
 
 # update json library
@@ -439,8 +438,9 @@ PrepareUpdate "jsonlibraries" "."
 if [ "$sourceVersion" != "" ]; then
   QueueParentPomUpdate "$parentPomVersion"
   QueuePropertyUpdate "harvesterutils.dependency.version" "$harvesterUtilsVersion"
-  jsonLibVersion=$(ExecuteUpdate)
-  BuildAndDeployLibrary "CA-JL" "$jsonLibVersion"
+  ExecuteUpdate
+  jsonLibVersion="$targetVersion"
+  BuildAndDeployLibrary "CA-JL"
 fi
 
 # update harvester base library
@@ -448,8 +448,9 @@ PrepareUpdate "harvesterbaselibrary" "."
 if [ "$sourceVersion" != "" ]; then
   QueueParentPomUpdate "$parentPomVersion"
   QueuePropertyUpdate "gerdigson.dependency.version" "$jsonLibVersion"
-  harvesterLibVersion=$(ExecuteUpdate)
-  BuildAndDeployLibrary "CA-HL" "$harvesterLibVersion"
+  ExecuteUpdate
+  harvesterLibVersion="$targetVersion"
+  BuildAndDeployLibrary "CA-HL"
 fi
 
 # update harvester parent pom
@@ -458,8 +459,9 @@ if [ "$sourceVersion" != "" ]; then
   QueueParentPomUpdate "$parentPomVersion"
   QueuePropertyUpdate "restfulharvester.dependency.version" "$harvesterLibVersion"
   QueuePropertyUpdate "harvesterutils.dependency.version" "$harvesterUtilsVersion"
-  harvesterParentPomVersion=$(ExecuteUpdate)
-  BuildAndDeployLibrary "CA-HPPSA" "$harvesterParentPomVersion"
+  ExecuteUpdate
+  harvesterParentPomVersion="$targetVersion"
+  BuildAndDeployLibrary "CA-HPPSA"
 fi
 
 # update all other harvesters
