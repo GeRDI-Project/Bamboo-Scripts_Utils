@@ -65,20 +65,23 @@ if [ "$jiraKey" = "" ]; then
 fi
 
 # merge all pull-requests
-failedMerges=$(MergeAllPullRequestsOfJiraTicket "$jiraKey" "$atlassianUserName" "$atlassianPassword")
+failedMerges=$(MergeAllPullRequestsOfJiraTicket "$atlassianUserName" "$atlassianPassword" "$jiraKey")
 
-echo " " >&2
-if [ $failedMerges -eq 0 ]; then
-  FinishJiraTask "$jiraKey" "$atlassianUserName" "$atlassianPassword"
+if [ $? -eq 0 ]; then
+  if [ $failedMerges -eq 0 ]; then
+    echo " " >&2
+    FinishJiraTask "$jiraKey" "$atlassianUserName" "$atlassianPassword"
 
-  echo "----------------------------------------" >&2
-  echo "FINISHED MERGING ALL OPEN PULL_REQUESTS!" >&2
-  echo "----------------------------------------" >&2
+    echo "----------------------------------------" >&2
+    echo "FINISHED MERGING ALL OPEN PULL_REQUESTS!" >&2
+    echo "----------------------------------------" >&2
+  else
+    echo "-----------------------------------------------------------------" >&2
+    echo "UNABLE TO MERGE $failedMerges PULL_REQUEST(S)! PLEASE, CHECK THE JIRA TICKET:" >&2
+    echo "https://tasks.gerdi-project.de/browse/$jiraKey" >&2
+    echo "-----------------------------------------------------------------" >&2
+  fi
+  echo " " >&2
 else
-  echo "-----------------------------------------------------------------" >&2
-  echo "UNABLE TO MERGE $failedMerges PULL_REQUEST(S)! PLEASE, CHECK THE JIRA TICKET:" >&2
-  echo "https://tasks.gerdi-project.de/browse/$jiraKey" >&2
-  echo "-----------------------------------------------------------------" >&2
+  exit 1  
 fi
-
-echo " " >&2
