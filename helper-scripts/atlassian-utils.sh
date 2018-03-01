@@ -58,11 +58,8 @@ ExitIfAtlassianCredentialsWrong() {
   userName="$1"
   password="$2"
   
-  response=$(curl -sIX HEAD -u "$userName:$password" https://code.gerdi-project.de/rest/api/latest/projects/)
-  httpCode=$(echo "$response" | grep -oP '(?<=HTTP/\d\.\d )\d+')
-  isBitbucketReachable=$(IsUrlReachable "https://code.gerdi-project.de/rest/api/latest/projects/" "$userName" "$password" )
-  
-  if [ $httpCode -ne 200 ]; then
+  $(curl -sfX HEAD -u "$userName:$password" "https://code.gerdi-project.de/rest/api/latest/projects/")
+  if [ $? -ne 0 ]; then
     echo "Incorrect Atlassian credentials!" >&2
     exit 1
   fi
