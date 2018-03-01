@@ -276,6 +276,7 @@ ExecuteUpdate() {
     echo $(mvn versions:set "-DnewVersion=$targetVersion" -DallowSnapshots=true -DgenerateBackupPoms=false -f"$pomDirectory/pom.xml") >&2
     
 	# commit and push updates
+    commitMessage="$jiraKey $subTaskKey Updated pom.xml version to $targetVersion. $(cat $gitCommitDescription)"
 	echo $(PushAllFilesToGitRepository "$atlassianUserDisplayName" "$atlassianUserEmail" "$commitMessage") >&2
   
     # create pull request if it is not major version update
