@@ -378,11 +378,18 @@ MergeAllPullRequestsOfJiraTicket() {
   
   # get all commits of JIRA ticket
   allCommits=$(curl -sX GET -u "$userName:$password" https://code.gerdi-project.de/rest/jira/latest/issues/$jiraKey/commits?maxChanges\=1)
-    
+  
   # extract clone links from commits with messages that start with the JIRA ticket number
   cloneLinkList=$(printf "%s" "$allCommits" \
   | grep -oP '{"fromCommit".*?"message":"'"$jiraKey"'.*?}}}' \
   | sed -e 's~.*"message":"'"$jiraKey"'.*\?"href":"\(http[^"]\+\?git\)".*~\1~g')
+  
+  # check if we have a list of clone links
+  if [ "$cloneLinkList" = "" ]; then
+    echo "Could not retrieve commits from JIRA ticket $jiraKey:" >&2
+	echo "$allCommits" >&2
+    exit 1
+  fi
   
   # execute merge of all pull-requests
   failedMerges=0
