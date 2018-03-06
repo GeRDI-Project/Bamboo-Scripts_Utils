@@ -58,39 +58,39 @@ UpdateAllLicenseHeaders() {
 # FUNCTION THAT UPDATES A SINGLE HARVESTER'S PARENT POM
 UpdateLicenseHeadersOfProject() {
   cloneLink="$1"
-  
+
   repositorySlug=$(GetRepositorySlugFromCloneLink "$cloneLink")
   projectId=$(GetProjectIdFromCloneLink "$cloneLink")
-  
+
   cd "$topDir"
 
   # remove and (re-)create a temporary folder
   rm -rf tempDir
   mkdir tempDir
   cd tempDir
-  
+
   # clone repository
   CloneGitRepository "$atlassianUserName" "$atlassianPassword" "$projectId" "$repositorySlug"
-  
+
   # check if a pom XML with the correct parent exists
-  if [ -f "$pomDirectory/pom.xml" ]; then
+  if [ ! -f "pom.xml" ]; then
     echo "Cannot update $projectId/$repositorySlug, because it is missing a pom.xml" >&2
-  
-  elif [ "$(GetPomValue "project.parent.artifactId" "")" != "GeRDI-parent-harvester"] || [ "$(GetPomValue "project.parent.version" "")" \< "6.2.0-SNAPSHOT" ]; then
-    echo "Cannot update $projectId/$repositorySlug. The parent pom must 'GeRDI-parent-harvester' of version '6.2.0-SNAPSHOT' or higher!" >&2
-  
+
+  elif [ "$(GetPomValue "project.parent.artifactId" "")" != "GeRDI-parent-harvester" ] || [ "$(GetPomValue "project.parent.version" "")" \< "6.2.0-SNAPSHOT" ]; then
+    echo "Cannot update $projectId/$repositorySlug. The parent pom must be 'GeRDI-parent-harvester' of version '6.2.0-SNAPSHOT' or higher!" >&2
+
   else
     # generate maven resources
     mvn generate-resources
-  
+
     # execute script for updating license headers
     ./scripts/addLicenses.sh
-  
+
     # continue if the script was successful
     if [ $? -eq 0 ]; then
       PushLicenseHeaderUpdate "$projectId" "$repositorySlug"
     fi
-  fi 
+  fi
 }
 
 
@@ -149,6 +149,10 @@ PushLicenseHeaderUpdate() {
   fi
 }
 
+
+###########################
+#  BEGINNING OF EXECUTION #
+###########################
 
 # check early exit conditions
 ExitIfNotLoggedIn
