@@ -46,6 +46,14 @@ GetProjectIdFromCloneLink() {
 }
 
 
+# Returns the number of unstaged files of the current git directory.
+#  Arguments: -
+#
+GetNumberOfUnstagedChanges() {
+  git diff --numstat | wc -l
+}
+
+
 # Clones a Git repository to the current directory.
 #  Arguments:
 #  1 - a Bitbucket user name
