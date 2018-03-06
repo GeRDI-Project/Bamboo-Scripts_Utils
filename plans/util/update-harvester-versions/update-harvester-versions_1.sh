@@ -73,8 +73,7 @@ InitVariables() {
   # get parent pom version
   topDir=$(pwd)
   cd parentPoms
-  mavenExecVersion="1.6.0"
-  parentPomVersion=$(mvn -q -Dexec.executable="echo" -Dexec.args='${project.version}' --non-recursive org.codehaus.mojo:exec-maven-plugin:$mavenExecVersion:exec)
+  parentPomVersion=$(GetPomValue "project.version" "")
   echo "ParentPom Version: $parentPomVersion" >&2
   cd $topDir
 }
@@ -142,7 +141,7 @@ GetTargetVersionForUpdate(){
 QueueParentPomUpdate(){
   targetParentVersion="$1"
   
-  sourceParentVersion=$(mvn -q -Dexec.executable="echo" -Dexec.args='${project.parent.version}' --non-recursive org.codehaus.mojo:exec-maven-plugin:$mavenExecVersion:exec -f"$pomDirectory/pom.xml")
+  sourceParentVersion=$(GetPomValue "project.parent.version" "$pomDirectory/pom.xml")
 
   if [ "$sourceParentVersion" != "" ] && [ "$sourceParentVersion" != "$targetParentVersion" ]; then
     echo "Queueing to update parent-pom version of $artifactId from $sourceParentVersion to $targetParentVersion" >&2
@@ -234,9 +233,9 @@ PrepareUpdate() {
   
   # get version from pom
   if [ -f "$pomDirectory/pom.xml" ]; then
-    artifactId=$(mvn -q -Dexec.executable="echo" -Dexec.args='${project.artifactId}' --non-recursive org.codehaus.mojo:exec-maven-plugin:$mavenExecVersion:exec -f"$pomDirectory/pom.xml")
+    artifactId=$(GetPomValue "project.artifactId" "$pomDirectory/pom.xml") 
 	echo "artifactId: $artifactId" >&2
-    sourceVersion=$(mvn -q -Dexec.executable="echo" -Dexec.args='${project.version}' --non-recursive org.codehaus.mojo:exec-maven-plugin:$mavenExecVersion:exec -f"$pomDirectory/pom.xml")
+    sourceVersion=$(GetPomValue "project.version" "$pomDirectory/pom.xml")
 	echo "current version: $sourceVersion" >&2
     targetVersion="$sourceVersion"
   else
