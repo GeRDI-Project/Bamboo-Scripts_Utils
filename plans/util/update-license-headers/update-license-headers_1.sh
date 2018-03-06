@@ -33,6 +33,10 @@ source ./scripts/helper-scripts/maven-utils.sh
 source ./scripts/helper-scripts/misc-utils.sh
 
 
+#########################
+#  FUNCTION DEFINITIONS #
+#########################
+
 # FUNCTION THAT UPDATES THE LICENSE HEADERS OF ALL HARVESTERS
 UpdateAllLicenseHeaders() {
   
