@@ -55,7 +55,7 @@ UpdateAllLicenseHeaders() {
   
   # clean up temporary folder
   cd "$topDir"
-  rm -rf tempDir
+  rm -rf "$tempDir"
 }
 
 
@@ -69,9 +69,11 @@ UpdateLicenseHeadersOfProject() {
   cd "$topDir"
 
   # remove and (re-)create a temporary folder
-  rm -rf tempDir
-  mkdir tempDir
-  cd tempDir
+  if [ "$tempDir" != "" ]; then
+    rm -rf "$tempDir"
+  fi
+  tempDir=$(mktemp -d)
+  cd "$tempDir"
 
   # clone repository
   CloneGitRepository "$atlassianUserName" "$atlassianPassword" "$projectId" "$repositorySlug"
@@ -183,7 +185,8 @@ fi
   
 # init global variables
 jiraKey=""
-topDir=$(pwd)
+tempDir=""
+topDir="$PWD"
 
 # fire in the hole!
 UpdateAllLicenseHeaders

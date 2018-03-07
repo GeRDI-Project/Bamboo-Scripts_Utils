@@ -27,7 +27,7 @@ IsMavenVersionDeployed() {
   artifactId="$1"
   version="$2"
   
-  # check Ssonatype if it is a snapshot version
+  # check Sonatype if it is a snapshot version
   if [ "${version%-SNAPSHOT}" != "$version" ]; then
     response=$(curl -sI -X HEAD https://oss.sonatype.org/content/repositories/snapshots/de/gerdi-project/$artifactId/$version/)
   else
