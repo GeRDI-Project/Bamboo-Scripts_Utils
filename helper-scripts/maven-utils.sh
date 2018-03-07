@@ -16,7 +16,8 @@
 
 # This script offers helper functions that concern GeRDI Maven projects.
 
-
+mavenExecVersion="1.6.0"
+  
 # Returns true if a specified version and artifact of a specified GeRDI Maven project exist in Sonatype or in Maven Central.
 #  Arguments:
 #  1 - the artifact identifier of the GeRDI Maven project
@@ -26,7 +27,7 @@ IsMavenVersionDeployed() {
   artifactId="$1"
   version="$2"
   
-  # check Ssonatype if it is a snapshot version
+  # check Sonatype if it is a snapshot version
   if [ "${version%-SNAPSHOT}" != "$version" ]; then
     response=$(curl -sI -X HEAD https://oss.sonatype.org/content/repositories/snapshots/de/gerdi-project/$artifactId/$version/)
   else
@@ -73,6 +74,23 @@ GetLatestMavenVersion() {
     echo "$releaseVersion"
   else  
     echo "$snapshotVersion"
+  fi
+}
+
+
+# Returns a specified value of a pom.xml.
+#  Arguments:
+#  1 - the path to the tag of which the value is retrieved (e.g. project.version)
+#  2 - the path to the pom.xml (optional)
+#
+GetPomValue() {
+  valueKey="$1"
+  pomPath="$2"
+  
+  if [ "$pomPath" = "" ]; then
+    echo $(mvn -q -Dexec.executable="echo" -Dexec.args='${'"$valueKey"'}' --non-recursive org.codehaus.mojo:exec-maven-plugin:$mavenExecVersion:exec)
+  else
+    echo $(mvn -q -Dexec.executable="echo" -Dexec.args='${'"$valueKey"'}' --non-recursive org.codehaus.mojo:exec-maven-plugin:$mavenExecVersion:exec -f"$pomPath")
   fi
 }
 
