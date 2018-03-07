@@ -69,9 +69,7 @@ UpdateLicenseHeadersOfProject() {
   cd "$topDir"
 
   # remove and (re-)create a temporary folder
-  if [ "$tempDir" != "" ]; then
-    rm -rf "$tempDir"
-  fi
+  rm -rf "$tempDir"
   tempDir=$(mktemp -d)
   cd "$tempDir"
 
