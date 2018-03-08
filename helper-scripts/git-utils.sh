@@ -300,7 +300,7 @@ GetPullRequestIdOfSourceBranch() {
   if [ "$hasNoOpenRequests" != "" ]; then
     pullRequestId=""
   else
-    pullRequestId=${allPullRequests%\"fromRef\":\{\"id\":\"refs/heads/$branchName}
+    pullRequestId=${allPullRequests%\"fromRef\":\{\"id\":\"refs/heads/$branchName*}
     pullRequestId=${pullRequestId##*\"id\":}
     pullRequestId=${pullRequestId%%,*}
   fi
