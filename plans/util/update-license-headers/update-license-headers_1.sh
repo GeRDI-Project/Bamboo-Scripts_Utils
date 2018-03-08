@@ -88,11 +88,13 @@ UpdateLicenseHeadersOfProject() {
     mvn generate-resources
 
     # execute script for updating license headers
-    ./scripts/addLicenses.sh
+    $(./scripts/addLicenses.sh)
 
     # continue if the script was successful
     if [ $? -eq 0 ]; then
       PushLicenseHeaderUpdate "$projectId" "$repositorySlug"
+	else
+	  echo "Could not add license headers to $projectId/$repositorySlug!" >&2
     fi
   fi
 }
