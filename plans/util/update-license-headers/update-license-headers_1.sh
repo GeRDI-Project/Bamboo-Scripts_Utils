@@ -40,18 +40,20 @@ source ./scripts/helper-scripts/misc-utils.sh
 # FUNCTION THAT UPDATES THE LICENSE HEADERS OF ALL HARVESTERS
 UpdateAllLicenseHeaders() {
   
-  harvesterUrls=$(curl -sX GET -u "$atlassianUserName:$atlassianPassword" -H "Content-Type: application/json" https://code.gerdi-project.de/rest/api/latest/projects/HAR/repos | python -m json.tool) 
-
   # grep harvester clone URLs, and convert them to batch instructions
-  harvesterUrls=$(echo "$harvesterUrls" \
+  cloneLinks=$(curl -sX GET -u "$atlassianUserName:$atlassianPassword" https://code.gerdi-project.de/rest/api/latest/projects/HAR/repos \
+  | python -m json.tool \
   | grep -oE '"http.*?git"' \
-  | sed -e "s~\"http.*@\(.*\)\"~UpdateLicenseHeadersOfProject \\1~")
+  | sed -e "s~\"http.*@\(.*\)\"~\\1~")
 
+  echo -e "Checking the following repositories:\n$cloneLinks\n" >&2
+  
   # execute update of all harvesters
-  while read updateInstruction
-  do 
-    $updateInstruction
-  done <<< "$(echo -e "$harvesterUrls")"
+  while read cloneLink
+  do
+    echo "Checking project: $cloneLink"
+    UpdateLicenseHeadersOfProject "$cloneLink"
+  done <<< "$(echo -e "$cloneLinks")"
   
   # clean up temporary folder
   cd "$topDir"
@@ -80,7 +82,10 @@ UpdateLicenseHeadersOfProject() {
   if [ ! -f "pom.xml" ]; then
     echo "Cannot update $projectId/$repositorySlug, because it is missing a pom.xml" >&2
 
-  elif [ "$(GetPomValue "project.parent.artifactId" "")" != "GeRDI-parent-harvester" ] || [ "$(GetPomValue "project.parent.version" "")" \< "6.2.0-SNAPSHOT" ]; then
+  elif [ "$(GetPomValue "project.parent.artifactId" "")" != "GeRDI-parent-harvester" ]; then
+    echo "Skipping $projectId/$repositorySlug, because the parent pom is not GeRDI-parent-harvester." >&2
+	
+  elif [ "$(GetPomValue "project.parent.version" "")" \< "6.2.0-SNAPSHOT" ]; then
     echo "Cannot update $projectId/$repositorySlug. The parent pom must be 'GeRDI-parent-harvester' of version '6.2.0-SNAPSHOT' or higher!" >&2
 
   else
