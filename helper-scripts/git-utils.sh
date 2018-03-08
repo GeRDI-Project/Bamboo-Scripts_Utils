@@ -345,7 +345,7 @@ MergeAndCleanPullRequest() {
   repositorySlug="$4"
   branchName="$5"
   
-  pullRequestId=$(GetPullRequestIdOfSourceBranch "$project" "$repositorySlug" "$branchName")
+  pullRequestId=$(GetPullRequestIdOfSourceBranch "$userName" "$password" "$project" "$repositorySlug" "$branchName")
   if [ "$pullRequestId" != "" ]; then
     pullRequestInfoJson=$(GetPullRequestInfoJson "$userName" "$password" "$project" "$repositorySlug" "$pullRequestId")
     pullRequestStatus=$(GetStatusFromPullRequestInfoJson "$pullRequestInfoJson")
