@@ -48,10 +48,10 @@ UpdateAllLicenseHeaders() {
   | sed -e "s~\"http.*@\(.*\)\"~UpdateLicenseHeadersOfProject \\1~")
 
   # execute update of all harvesters
-  printf '%s\n' "$harvesterUrls" | while IFS= read -r updateInstruction
+  while read updateInstruction
   do 
     $updateInstruction
-  done
+  done <<< "$(echo -e "$harvesterUrls")"
   
   # clean up temporary folder
   cd "$topDir"

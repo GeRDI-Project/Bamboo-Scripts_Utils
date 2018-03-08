@@ -188,7 +188,7 @@ PushAllFilesToGitRepository() {
   commitMessage="$3"
 
   echo "Adding files to Git" >&2
-  git add -A ${PWD}
+  git add -A
 
   echo "Committing files to Git" >&2
   git config user.email "$userDisplayName"
