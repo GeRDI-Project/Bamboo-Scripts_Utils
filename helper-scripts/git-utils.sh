@@ -188,7 +188,7 @@ PushAllFilesToGitRepository() {
   commitMessage="$3"
 
   echo "Adding files to Git" >&2
-  git add -A ${PWD}
+  git add -A
 
   echo "Committing files to Git" >&2
   git config user.email "$userDisplayName"
@@ -300,7 +300,7 @@ GetPullRequestIdOfSourceBranch() {
   if [ "$hasNoOpenRequests" != "" ]; then
     pullRequestId=""
   else
-    pullRequestId=${allPullRequests%\"fromRef\":\{\"id\":\"refs/heads/$branchName}
+    pullRequestId=${allPullRequests%\"fromRef\":\{\"id\":\"refs/heads/$branchName*}
     pullRequestId=${pullRequestId##*\"id\":}
     pullRequestId=${pullRequestId%%,*}
   fi
@@ -345,7 +345,7 @@ MergeAndCleanPullRequest() {
   repositorySlug="$4"
   branchName="$5"
   
-  pullRequestId=$(GetPullRequestIdOfSourceBranch "$project" "$repositorySlug" "$branchName")
+  pullRequestId=$(GetPullRequestIdOfSourceBranch "$userName" "$password" "$project" "$repositorySlug" "$branchName")
   if [ "$pullRequestId" != "" ]; then
     pullRequestInfoJson=$(GetPullRequestInfoJson "$userName" "$password" "$project" "$repositorySlug" "$pullRequestId")
     pullRequestStatus=$(GetStatusFromPullRequestInfoJson "$pullRequestInfoJson")

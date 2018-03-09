@@ -313,7 +313,7 @@ UpdateAllHarvesters() {
   
   echo "Trying to update all Harvesters to parent version $newParentVersion!" >&2
   
-  harvesterUrls=$(curl -sX GET -u "$atlassianUserName:$atlassianPassword" -H "Content-Type: application/json" https://code.gerdi-project.de/rest/api/latest/projects/HAR/repos | python -m json.tool) 
+  harvesterUrls=$(curl -sX GET -u "$atlassianUserName:$atlassianPassword" https://code.gerdi-project.de/rest/api/latest/projects/HAR/repos | python -m json.tool) 
 
   # grep harvester clone URLs, except those of the libraries, and convert them to batch instructions
   harvesterUrls=$(echo "$harvesterUrls" \
@@ -326,10 +326,10 @@ UpdateAllHarvesters() {
   | sed -e "s~\"http.*@\(.*\)\"~UpdateHarvester \\1 $newParentVersion~")
 
   # execute update of all harvesters
-  printf '%s\n' "$harvesterUrls" | while IFS= read -r updateInstruction
+  while read updateInstruction
   do 
     $updateInstruction
-  done
+  done <<< "$(echo -e "$harvesterUrls")"
 }
 
 
@@ -342,7 +342,7 @@ UpdateHarvester() {
   PrepareUpdate "$repositorySlug" "."
   if [ "$sourceVersion" != "" ]; then
     QueueParentPomUpdate "$newParentVersion"
-    harvesterVersion=$(ExecuteUpdate)
+    ExecuteUpdate
   fi
 }
 
