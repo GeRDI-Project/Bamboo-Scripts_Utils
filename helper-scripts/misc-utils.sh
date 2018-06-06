@@ -79,6 +79,20 @@ GetHeadHttpCode() {
 }
 
 
+# Replaces all occurences of a specified ${placeholder} within a file
+# with the actual value of $placeholder.
+#  Arguments:
+#  1 - the name of the placeholder and local variable
+#  2 - the file path
+SubstitutePlaceholderInFile() {
+  placeHolderName="$1"
+  fileName="$2"
+  placeHolderValue="${!placeHolderName}"
+  
+  sed --in-place=.tmp -e "s~\${$placeHolderName}~$placeHolderValue~g" $fileName && rm -f $fileName.tmp
+}
+
+
 # This function fails with exit code 1, if the preceding operation did not exit with exit code 0.
 #  Arguments:
 #  1 - An optional error message that is printed only when the preceding operation failed

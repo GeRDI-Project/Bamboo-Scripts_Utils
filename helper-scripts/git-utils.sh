@@ -476,3 +476,18 @@ GetStatusFromPullRequestInfoJson() {
     echo "NEEDS_WORK"
   fi
 }
+
+
+# Requests the full name of a BitBucket project.
+#  Arguments:
+#  1 - a Bitbucket user name
+#  2 - the login password that belongs to argument 1
+#  3 - the ID of the project to which the repository belongs
+#
+GetBitBucketProjectName() {
+  userName="$1"
+  password="$2"
+  project="$3"
+  response=$(curl -sX GET -u "$userName:$password" https://code.gerdi-project.de/rest/api/latest/projects/$project/)
+  echo "$response" | grep -oP "(?<=\"name\":\")[^\"]+"
+}
