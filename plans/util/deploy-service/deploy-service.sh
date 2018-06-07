@@ -92,6 +92,7 @@ SubmitYamlFile() {
     exit 1
   fi
   
+  AddJiraTicketToCurrentSprint "$jiraKey" "$atlassianUserName" "$atlassianPassword"
   StartJiraTask "$jiraKey" "$atlassianUserName" "$atlassianPassword"
     
   branchName="$jiraKey-deploy-$serviceName"
