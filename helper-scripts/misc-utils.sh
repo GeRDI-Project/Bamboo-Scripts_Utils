@@ -82,11 +82,12 @@ GetHeadHttpCode() {
 # Replaces all occurences of a specified ${placeholder} within a file
 # with the actual value of $placeholder.
 #  Arguments:
-#  1 - the name of the placeholder and local variable
-#  2 - the file path
+#  1 - the file path
+#  2 - the name of the placeholder and local variable
+#
 SubstitutePlaceholderInFile() {
-  placeHolderName="$1"
-  fileName="$2"
+  fileName="$1"
+  placeHolderName="$2"
   placeHolderValue="${!placeHolderName}"
   
   sed --in-place=.tmp -e "s~\${$placeHolderName}~$placeHolderValue~g" $fileName && rm -f $fileName.tmp

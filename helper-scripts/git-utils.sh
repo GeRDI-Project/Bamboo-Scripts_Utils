@@ -406,15 +406,15 @@ MergeAllPullRequestsOfJiraTicket() {
     project=$(GetProjectIdFromCloneLink "$cloneLink")
     repositorySlug=$(GetRepositorySlugFromCloneLink "$cloneLink")
 	
-	# get full branch name by looking for branches that start with the JIRA ticket number
+	  # get full branch name by looking for branches that start with the JIRA ticket number
     jiraBranchJson=$(curl -sX GET -u "$userName:$password" https://code.gerdi-project.de/rest/api/latest/projects/$project/repos/$repositorySlug/branches?filterText=$jiraKey)
-	branchName=$(echo $jiraBranchJson | grep -oP "(?<=\"id\":\"refs/heads/)[^\"]+")
+	  branchName=$(echo $jiraBranchJson | grep -oP "(?<=\"id\":\"refs/heads/)[^\"]+")
 	
-	if [ "$branchName" != "" ]; then
+	  if [ "$branchName" != "" ]; then
       $(MergeAndCleanPullRequest "$userName" "$password" "$project" "$repositorySlug" "$branchName")
-	  isMerged=$?
-	  failedMerges=$(expr $failedMerges + $isMerged)
-	fi
+	    isMerged=$?
+	    failedMerges=$(expr $failedMerges + $isMerged)
+	  fi
   done
   echo $failedMerges )
 }
