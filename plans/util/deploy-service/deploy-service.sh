@@ -178,7 +178,7 @@ ExitIfAtlassianCredentialsWrong "$atlassianUserName" "$atlassianPassword"
 atlassianUserDisplayName=$(GetAtlassianUserDisplayName "$atlassianUserName" "$atlassianPassword" "$atlassianUserName")
 atlassianUserEmail=$(GetAtlassianUserEmailAddress "$atlassianUserName" "$atlassianPassword" "$atlassianUserName")
 
-echo "Current User: $atlassianUserDisplayName, $atlassianPassword, $atlassianUserEmail" >&2
+echo "Current User: $atlassianUserName, $atlassianUserDisplayName, $atlassianUserEmail" >&2
 
 # retrieve plan variables
 gitCloneLink=$(GetValueOfPlanVariable gitCloneLink)
@@ -186,15 +186,15 @@ gitCloneLink=$(GetValueOfPlanVariable gitCloneLink)
 repositorySlug=$(GetRepositorySlugFromCloneLink "$gitCloneLink")
 echo "Slug: '$repositorySlug'" >&2
 
+projectAbbrev=$(GetProjectIdFromCloneLink "$gitCloneLink")
+projectName=$(GetBitBucketProjectName "$atlassianUserName" "$atlassianPassword" "$projectAbbrev")
+echo "Bitbucket Project: $projectName ($projectAbbrev)" >&2
+
 # clear, create and navigate to a temporary folder
 echo "Setting up a temporary folder" >&2
 rm -fr addServiceToTestTemp
 mkdir addServiceToTestTemp
 cd addServiceToTestTemp
-
-projectAbbrev=$(GetProjectIdFromCloneLink "$gitCloneLink")
-projectName=$(GetBitBucketProjectName "$atlassianUserName" "$atlassianPassword" "$projectAbbrev")
-echo "Bitbucket Project: $projectName ($projectAbbrev)" >&2
 
 mkdir gerdireleases
 cd gerdireleases
