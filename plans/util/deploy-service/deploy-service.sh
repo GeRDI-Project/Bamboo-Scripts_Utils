@@ -17,6 +17,9 @@
 # This script is being called by the Bamboo Job https://ci.gerdi-project.de/browse/UTIL-ASTTE which aims
 # to add a new service to the test environment.
 #
+# Arguments:
+#  1 - the branch of gerdireleases in which the YAML file should be generated
+#
 # Bamboo Plan Variables:
 #  ManualBuildTriggerReason_userName - the login name of the current user
 #  atlassianPassword - the Atlassian password of the current user
@@ -83,6 +86,12 @@ SubmitYamlFile() {
   description="Creates a Kubernetes YAML file for: $serviceName"
   
   jiraKey=$(CreateJiraTicket "$title" "$description" "$atlassianUserName" "$atlassianPassword")
+  
+  if [ "$jiraKey" = "" ]; then
+    echo "Could not Create JIRA Ticket!" >&2
+    exit 1
+  fi
+  
   StartJiraTask "$jiraKey" "$atlassianUserName" "$atlassianPassword"
     
   branchName="$jiraKey-deploy-$serviceName"
@@ -158,14 +167,18 @@ ExitIfNotLoggedIn
 ExitIfPlanVariableIsMissing "atlassianPassword"
 ExitIfPlanVariableIsMissing "gitCloneLink"
 
+jiraKey=""
 environment="$1"
 atlassianUserName=$(GetBambooUserName)
 atlassianPassword=$(GetValueOfPlanVariable "atlassianPassword")
-atlassianUserDisplayName=$(GetAtlassianUserDisplayName "$atlassianUserName" "$atlassianPassword" "$atlassianUserName")
-atlassianUserEmail=$(GetAtlassianUserEmailAddress "$atlassianUserName" "$atlassianPassword" "$atlassianUserName")
 
 # test Atlassian credentials
 ExitIfAtlassianCredentialsWrong "$atlassianUserName" "$atlassianPassword"
+
+atlassianUserDisplayName=$(GetAtlassianUserDisplayName "$atlassianUserName" "$atlassianPassword" "$atlassianUserName")
+atlassianUserEmail=$(GetAtlassianUserEmailAddress "$atlassianUserName" "$atlassianPassword" "$atlassianUserName")
+
+echo "Current User: $atlassianUserDisplayName, $atlassianPassword, $atlassianUserEmail" >&2
 
 # retrieve plan variables
 gitCloneLink=$(GetValueOfPlanVariable gitCloneLink)
@@ -208,3 +221,10 @@ SubmitYamlFile
 echo "Removing the temporary directory" >&2
 cd ..
 rm -fr addServiceToTestTemp
+
+if [ "$jiraKey" != "" ]; then
+  echo "-------------------------------------------------" >&2
+  echo "   FINISHED! PLEASE, CHECK THE JIRA TICKET:" >&2
+  echo "https://tasks.gerdi-project.de/browse/$jiraKey" >&2
+  echo "-------------------------------------------------" >&2
+fi
