@@ -26,11 +26,6 @@
 # treat unset variables as an error when substituting
 set -u
 
-# TODO REMOVE
-bamboo_ManualBuildTriggerReason_userName=row@informatik.uni-kiel.de
-bamboo_atlassianPassword="!j1raMyselfy"
-bamboo_gitCloneLink="https://row%40informatik.uni-kiel.de@code.gerdi-project.de/scm/har/faostat.git"
-bamboo_environment="nibi"
 
 # load helper scripts
 source ./scripts/helper-scripts/atlassian-utils.sh
@@ -51,15 +46,15 @@ CreateYamlFile() {
     
   # copy template file
   kubernetesYaml="$kubernetesDir/$serviceName.yml"
-  cp "../scripts/plans/util/add-service-to-test/k8s_template.yml" "$kubernetesYaml"
+  cp "../scripts/plans/util/deploy-service/k8s_template.yml" "$kubernetesYaml"
   
   if [ ! -f "$kubernetesYaml" ]; then
   	exit 1
   fi
   
-  SubstitutePlaceholderInFile "$kubernetesYaml" "serviceName" "$serviceName"
-  SubstitutePlaceholderInFile "$kubernetesYaml" "serviceType" "$serviceType"
-  SubstitutePlaceholderInFile "$kubernetesYaml" "dockerImage" "$dockerImage"
+  SubstitutePlaceholderInFile "$kubernetesYaml" "serviceName"
+  SubstitutePlaceholderInFile "$kubernetesYaml" "serviceType"
+  SubstitutePlaceholderInFile "$kubernetesYaml" "dockerImage"
   SubstitutePlaceholderInFile "$kubernetesYaml" "clusterIp" "$clusterIp"
   SubstitutePlaceholderInFile "$kubernetesYaml" "creationYear" "$creationYear"
   SubstitutePlaceholderInFile "$kubernetesYaml" "authorFullName" "$authorFullName"
