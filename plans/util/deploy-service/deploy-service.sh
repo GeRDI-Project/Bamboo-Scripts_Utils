@@ -45,15 +45,21 @@ source ./scripts/helper-scripts/misc-utils.sh
 CreateYamlFile() {
   # create directory if necessary
   kubernetesDir="gerdireleases/k8s-deployment/$serviceType"
+  kubernetesYaml="$kubernetesDir/$serviceName.yml"
+  
   if [ ! -e "$kubernetesDir" ]; then
   	mkdir $kubernetesDir
+    
+  elif [ -e "$kubernetesYaml" ]; then
+    echo "The file $kubernetesYaml already exists!" >&2
+  	exit 1
   fi
     
   # copy template file
-  kubernetesYaml="$kubernetesDir/$serviceName.yml"
   cp "../scripts/plans/util/deploy-service/k8s_template.yml" "$kubernetesYaml"
   
   if [ ! -f "$kubernetesYaml" ]; then
+    echo "The file $kubernetesYaml could not be created!" >&2
   	exit 1
   fi
   
@@ -80,8 +86,8 @@ SubmitYamlFile() {
   StartJiraTask "$jiraKey" "$atlassianUserName" "$atlassianPassword"
     
   branchName="$jiraKey-deploy-$serviceName"
-  $(CreateBranch "$branchName")
-  $(PushAllFilesToGitRepository $atlassianUserDisplayName $atlassianUserName $atlassianPassword) 
+  echo $(CreateBranch "$branchName") >&2
+  echo $(PushAllFilesToGitRepository "$atlassianUserDisplayName" "$atlassianUserEmail" "$jiraKey Created YAML file for Kubernetes") >&2
 
   echo $(CreatePullRequest \
         "$atlassianUserName" \
@@ -89,11 +95,11 @@ SubmitYamlFile() {
         "SYS" \
         "gerdireleases" \
         "$branchName" \
+        "$environment" \
         "$jiraKey $title" \
         "$description" \
         "ntd@informatik.uni-kiel.de" \
-        "tobias.weber@lrz.de") >&2
-        
+        "di72jiv") >&2
   ReviewJiraTask "$jiraKey" "$atlassianUserName" "$atlassianPassword"
   
   cd ..
@@ -152,16 +158,17 @@ ExitIfNotLoggedIn
 ExitIfPlanVariableIsMissing "atlassianPassword"
 ExitIfPlanVariableIsMissing "gitCloneLink"
 
+environment="$1"
 atlassianUserName=$(GetBambooUserName)
 atlassianPassword=$(GetValueOfPlanVariable "atlassianPassword")
 atlassianUserDisplayName=$(GetAtlassianUserDisplayName "$atlassianUserName" "$atlassianPassword" "$atlassianUserName")
+atlassianUserEmail=$(GetAtlassianUserEmailAddress "$atlassianUserName" "$atlassianPassword" "$atlassianUserName")
 
 # test Atlassian credentials
 ExitIfAtlassianCredentialsWrong "$atlassianUserName" "$atlassianPassword"
 
 # retrieve plan variables
 gitCloneLink=$(GetValueOfPlanVariable gitCloneLink)
-environment=$(GetValueOfPlanVariable environment)
 
 repositorySlug=$(GetRepositorySlugFromCloneLink "$gitCloneLink")
 echo "Slug: '$repositorySlug'" >&2
@@ -189,6 +196,11 @@ dockerImage="docker-registry.gerdi.research.lrz.de:5043/$serviceType/$repository
 creationYear=$(date +'%Y')
 authorFullName="$atlassianUserDisplayName"
 clusterIp=$(GetFreeClusterIp)
+
+if [ "$clusterIp" = "" ]; then
+  echo "Could not get ClusterIp: There must be at least one YAML file in the k8s-deployment directory in gerdireleases!" >&2
+  exit 1
+fi
 
 CreateYamlFile
 SubmitYamlFile

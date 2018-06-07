@@ -146,9 +146,10 @@ PushLicenseHeaderUpdate() {
       echo $(CreatePullRequest \
         "$atlassianUserName" \
         "$atlassianPassword" \
-		"$projectId" \
+        "$projectId" \
         "$repositorySlug" \
 	    "$branchName" \
+        "master" \
         "$repositorySlug Update License Headers" \
         "Updated and/or added license headers." \
         "$reviewer1" \
