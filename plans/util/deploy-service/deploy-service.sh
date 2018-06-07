@@ -26,13 +26,18 @@
 # treat unset variables as an error when substituting
 set -u
 
-
 # load helper scripts
 source ./scripts/helper-scripts/atlassian-utils.sh
 source ./scripts/helper-scripts/bamboo-utils.sh
 source ./scripts/helper-scripts/git-utils.sh
 source ./scripts/helper-scripts/maven-utils.sh
+source ./scripts/helper-scripts/jira-utils.sh
 source ./scripts/helper-scripts/misc-utils.sh
+
+
+#########################
+#  FUNCTION DEFINITIONS #
+#########################
 
 # Creates the YAML file for the service by copying a template and substituting
 # placeholders.
@@ -55,11 +60,44 @@ CreateYamlFile() {
   SubstitutePlaceholderInFile "$kubernetesYaml" "serviceName"
   SubstitutePlaceholderInFile "$kubernetesYaml" "serviceType"
   SubstitutePlaceholderInFile "$kubernetesYaml" "dockerImage"
-  SubstitutePlaceholderInFile "$kubernetesYaml" "clusterIp" "$clusterIp"
-  SubstitutePlaceholderInFile "$kubernetesYaml" "creationYear" "$creationYear"
-  SubstitutePlaceholderInFile "$kubernetesYaml" "authorFullName" "$authorFullName"
+  SubstitutePlaceholderInFile "$kubernetesYaml" "clusterIp"
+  SubstitutePlaceholderInFile "$kubernetesYaml" "creationYear"
+  SubstitutePlaceholderInFile "$kubernetesYaml" "authorFullName"
 }
 
+
+# Creates a JIRA ticket and a gerdireleases branch and pushes
+# the YAML file to the branch. Subsequently, a pull request is sent out
+# to the lead architects.
+#
+SubmitYamlFile() {
+  cd gerdireleases
+  
+  title="Deploy $serviceName"
+  description="Creates a Kubernetes YAML file for: $serviceName"
+  
+  jiraKey=$(CreateJiraTicket "$title" "$description" "$atlassianUserName" "$atlassianPassword")
+  StartJiraTask "$jiraKey" "$atlassianUserName" "$atlassianPassword"
+    
+  branchName="$jiraKey-deploy-$serviceName"
+  $(CreateBranch "$branchName")
+  $(PushAllFilesToGitRepository $atlassianUserDisplayName $atlassianUserName $atlassianPassword) 
+
+  echo $(CreatePullRequest \
+        "$atlassianUserName" \
+        "$atlassianPassword" \
+        "SYS" \
+        "gerdireleases" \
+        "$branchName" \
+        "$jiraKey $title" \
+        "$description" \
+        "ntd@informatik.uni-kiel.de" \
+        "tobias.weber@lrz.de") >&2
+        
+  ReviewJiraTask "$jiraKey" "$atlassianUserName" "$atlassianPassword"
+  
+  cd ..
+}
 
 
 # Returns the next available ClusterIP by checking all yml files
@@ -105,6 +143,9 @@ GetHighestClusterIp() {
 }
 
 
+###########################
+#  BEGINNING OF EXECUTION #
+###########################
 
 # check early exit conditions
 ExitIfNotLoggedIn
@@ -113,6 +154,7 @@ ExitIfPlanVariableIsMissing "gitCloneLink"
 
 atlassianUserName=$(GetBambooUserName)
 atlassianPassword=$(GetValueOfPlanVariable "atlassianPassword")
+atlassianUserDisplayName=$(GetAtlassianUserDisplayName "$atlassianUserName" "$atlassianPassword" "$atlassianUserName")
 
 # test Atlassian credentials
 ExitIfAtlassianCredentialsWrong "$atlassianUserName" "$atlassianPassword"
@@ -145,11 +187,12 @@ serviceType=$(echo "$projectName" | tr '[:upper:]' '[:lower:]')
 serviceName="$repositorySlug-$serviceType"
 dockerImage="docker-registry.gerdi.research.lrz.de:5043/$serviceType/$repositorySlug"
 creationYear=$(date +'%Y')
-authorFullName=$(GetAtlassianUserDisplayName "$atlassianUserName" "$atlassianPassword" "$atlassianUserName")
+authorFullName="$atlassianUserDisplayName"
 clusterIp=$(GetFreeClusterIp)
 
 CreateYamlFile
+SubmitYamlFile
 
-echo "Removing the temporary directory"
+echo "Removing the temporary directory" >&2
 cd ..
-#rm -fr addServiceToTestTemp
+rm -fr addServiceToTestTemp
