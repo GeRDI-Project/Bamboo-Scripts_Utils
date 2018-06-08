@@ -106,6 +106,7 @@ GetClusterIpList() {
   done
   
   while read file; do
+    clusterIp=""
     if [ -f "$serviceFolder/$file" ] && [ "${file##*.}" = "yml" ]; then
 	    clusterIp=$(grep -oP "(?<=clusterIP:).+" "$serviceFolder/$file" | tr -d '[:space:]')
     fi
