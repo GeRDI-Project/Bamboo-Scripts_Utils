@@ -121,7 +121,7 @@ SubmitYamlFile() {
 #
 GetFreeClusterIp() {
   highestClusterIp=$(GetHighestClusterIp "gerdireleases/k8s-deployment")
-  if [ "$highestClusterIp" = "" ]; then
+  if [ "$highestClusterIp" = "" ] || [ "${highestClusterIp##*.}" = "255" ]; then
     echo ""
   else
     echo "${highestClusterIp%.*}.$(expr ${highestClusterIp##*.} + 1)"
@@ -134,13 +134,15 @@ GetFreeClusterIp() {
 #
 GetHighestClusterIp() {
   serviceFolder="$1"
-  highestClusterIp=""
+  highestClusterIp="0.0.0.0"
     
   for file in "$serviceFolder"/*
   do
     if [ -d "$file" ]; then
       clusterIp=$(GetHighestClusterIp "$file")
-      if [ "$clusterIp" != "" ] && [ "$clusterIp" \> "$highestClusterIp" ]; then
+
+      # if there is a clusterIP in a subfolder, check if it is higher than the current highest
+      if [ "$clusterIp" != "" ] && [ $(echo "$clusterIp" | tr  -d ".") -gt $(echo "$highestClusterIp" | tr -d "." ) ]; then
         highestClusterIp="$clusterIp"
 	  fi
     fi
@@ -150,12 +152,18 @@ GetHighestClusterIp() {
     if [ -f "$serviceFolder/$file" ] && [ "${file##*.}" = "yml" ]; then
 	    clusterIp=$(grep -oP "(?<=clusterIP:).+" "$serviceFolder/$file" | tr -d '[:space:]')
     fi
-	if [ "$clusterIp" != "" ] && [ "$clusterIp" != "None" ] && [ "$clusterIp" \> "$highestClusterIp" ]; then
+    
+    # if there is a clusterIP, check if it is higher than the current highest
+	  if [ "$clusterIp" != "" ] && [ "$clusterIp" != "None" ] && [ $(echo "$clusterIp" | tr  -d ".") -gt $(echo "$highestClusterIp" | tr -d "." ) ]; then
       highestClusterIp="$clusterIp"
-	fi
+	  fi
   done <<< "$(ls "$serviceFolder")"
   
-  echo "$highestClusterIp"
+  if [ "$highestClusterIp" = "0.0.0.0" ]; then
+    echo ""
+  else
+    echo "$highestClusterIp"
+  fi
 }
 
 
@@ -182,7 +190,7 @@ atlassianUserEmail=$(GetAtlassianUserEmailAddress "$atlassianUserName" "$atlassi
 echo "Current User: $atlassianUserName, $atlassianUserDisplayName, $atlassianUserEmail" >&2
 
 # retrieve plan variables
-gitCloneLink=$(GetValueOfPlanVariable gitCloneLink)
+gitCloneLink=$(GetValueOfPlanVariable "gitCloneLink")
 
 repositorySlug=$(GetRepositorySlugFromCloneLink "$gitCloneLink")
 echo "Slug: '$repositorySlug'" >&2
