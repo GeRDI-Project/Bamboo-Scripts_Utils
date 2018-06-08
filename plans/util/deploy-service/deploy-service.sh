@@ -24,6 +24,9 @@
 #  ManualBuildTriggerReason_userName - the login name of the current user
 #  atlassianPassword - the Atlassian password of the current user
 #  gitCloneLink - the clone link of a git repository
+#  clusterIpPrefix - the first three segments of the clusterIp of the deployed service (e.g. 192.168.0.)
+#  clusterIpMin - the min value of the fourth IP segment [0...255]
+#  clusterIpMax - the max value of the fourth IP segment [0...255]
 
 
 # treat unset variables as an error when substituting
@@ -116,34 +119,52 @@ SubmitYamlFile() {
 }
 
 
-# Returns the next available ClusterIP by checking all yml files
-# of the k8s-deployment folder of the gerdireleases repository
+# Returns the first available clusterIp in a specified range by looking at clusterIPs of
+# YAML files within the k8s-deployment folder.
+#
+# Arguments:
+#  1 - the first three IP segments (e.g. "192.168.0.")
+#  2 - the lowest viable fourth IP segment
+#  3 - the highest viable fourth IP segment
 #
 GetFreeClusterIp() {
-  highestClusterIp=$(GetHighestClusterIp "gerdireleases/k8s-deployment")
-  if [ "$highestClusterIp" = "" ] || [ "${highestClusterIp##*.}" = "255" ]; then
-    echo ""
-  else
-    echo "${highestClusterIp%.*}.$(expr ${highestClusterIp##*.} + 1)"
-  fi  
+  ipPrefix="$1"
+  rangeFrom=$2
+  rangeTo=$3
+  ipList=$(GetClusterIpList "gerdireleases/k8s-deployment")
+  
+  for ((lastSegment=$rangeFrom;lastSegment <= $rangeTo;lastSegment++))
+  do
+    clusterIp="$ipPrefix$lastSegment"
+	
+	if [ "$(echo "$ipList" | grep -oP "(?<![0-9])$clusterIp(?![0-9])")" = "" ]; then
+      echo "$clusterIp"
+	  exit 0
+    fi
+  done
+  
+  exit 1
 }
 
 
-# Iterates through a specified folder recursively, looking for yml-files
-# and retrieving the highest clusterIP value.
+# Returns a space-separated list of clusterIPs that are set in YAML files of the
+# specified folder and sub-folders
 #
-GetHighestClusterIp() {
+# Arguments:
+#  1 - the root folder path
+#
+GetClusterIpList() {
   serviceFolder="$1"
-  highestClusterIp="0.0.0.0"
+  ipList=""
     
   for file in "$serviceFolder"/*
   do
     if [ -d "$file" ]; then
-      clusterIp=$(GetHighestClusterIp "$file")
+      dirIpList=$(GetClusterIpList "$file")
 
       # if there is a clusterIP in a subfolder, check if it is higher than the current highest
-      if [ "$clusterIp" != "" ] && [ $(echo "$clusterIp" | tr  -d ".") -gt $(echo "$highestClusterIp" | tr -d "." ) ]; then
-        highestClusterIp="$clusterIp"
+      if [ "$dirIpList" != "" ]; then
+        ipList="$ipList $dirIpList"
 	  fi
     fi
   done
@@ -154,16 +175,15 @@ GetHighestClusterIp() {
     fi
     
     # if there is a clusterIP, check if it is higher than the current highest
-	  if [ "$clusterIp" != "" ] && [ "$clusterIp" != "None" ] && [ $(echo "$clusterIp" | tr  -d ".") -gt $(echo "$highestClusterIp" | tr -d "." ) ]; then
-      highestClusterIp="$clusterIp"
-	  fi
+    if [ "$clusterIp" != "" ] && [ "$clusterIp" != "None" ]; then
+        ipList="$ipList $clusterIp"
+    fi
   done <<< "$(ls "$serviceFolder")"
   
-  if [ "$highestClusterIp" = "0.0.0.0" ]; then
-    echo ""
-  else
-    echo "$highestClusterIp"
+  if [ "$ipList" != "" ]; then
+    ipList="${ipList# }"
   fi
+  echo "$ipList"
 }
 
 
@@ -191,6 +211,19 @@ echo "Current User: $atlassianUserName, $atlassianUserDisplayName, $atlassianUse
 
 # retrieve plan variables
 gitCloneLink=$(GetValueOfPlanVariable "gitCloneLink")
+clusterIpPrefix=$(GetValueOfPlanVariable "clusterIpPrefix")
+clusterIpMin=$(GetValueOfPlanVariable "clusterIpMin")
+clusterIpMax=$(GetValueOfPlanVariable "clusterIpMax")
+
+if [ "$clusterIpMin" -lt 0 ] || [ "$clusterIpMin" -gt "$clusterIpMax" ]; then
+  echo "The plan variable 'clusterIpMin' must be a number in range [0..255] and smaller than 'clusterIpMax'!" >&2
+  exit 1
+fi
+
+if [ "$clusterIpMax" -lt "$clusterIpMin" ] || [ "$clusterIpMax" -gt 255 ]; then
+  echo "The plan variable 'clusterIpMax' must be a number in range [0..255] and greater than 'clusterIpMin'!" >&2
+  exit 1
+fi
 
 repositorySlug=$(GetRepositorySlugFromCloneLink "$gitCloneLink")
 echo "Slug: '$repositorySlug'" >&2
@@ -217,7 +250,7 @@ serviceName="$repositorySlug-$serviceType"
 dockerImage="docker-registry.gerdi.research.lrz.de:5043/$serviceType/$repositorySlug"
 creationYear=$(date +'%Y')
 authorFullName="$atlassianUserDisplayName"
-clusterIp=$(GetFreeClusterIp)
+clusterIp=$(GetFreeClusterIp "$clusterIpPrefix" "$clusterIpMin" "$clusterIpMax")
 
 if [ "$clusterIp" = "" ]; then
   echo "Could not get ClusterIp: There must be at least one YAML file in the k8s-deployment directory in gerdireleases!" >&2
