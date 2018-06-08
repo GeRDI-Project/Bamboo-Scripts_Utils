@@ -36,9 +36,9 @@ set -u
 source ./scripts/helper-scripts/atlassian-utils.sh
 source ./scripts/helper-scripts/bamboo-utils.sh
 source ./scripts/helper-scripts/git-utils.sh
-source ./scripts/helper-scripts/maven-utils.sh
 source ./scripts/helper-scripts/jira-utils.sh
 source ./scripts/helper-scripts/misc-utils.sh
+source ./scripts/helper-scripts/k8s-utils.sh
 
 
 #########################
@@ -119,73 +119,6 @@ SubmitYamlFile() {
 }
 
 
-# Returns the first available clusterIp in a specified range by looking at clusterIPs of
-# YAML files within the k8s-deployment folder.
-#
-# Arguments:
-#  1 - the first three IP segments (e.g. "192.168.0.")
-#  2 - the lowest viable fourth IP segment
-#  3 - the highest viable fourth IP segment
-#
-GetFreeClusterIp() {
-  ipPrefix="$1"
-  rangeFrom=$2
-  rangeTo=$3
-  ipList=$(GetClusterIpList "gerdireleases/k8s-deployment")
-  
-  for ((lastSegment=$rangeFrom;lastSegment <= $rangeTo;lastSegment++))
-  do
-    clusterIp="$ipPrefix$lastSegment"
-	
-	if [ "$(echo "$ipList" | grep -oP "(?<![0-9])$clusterIp(?![0-9])")" = "" ]; then
-      echo "$clusterIp"
-	  exit 0
-    fi
-  done
-  
-  exit 1
-}
-
-
-# Returns a space-separated list of clusterIPs that are set in YAML files of the
-# specified folder and sub-folders
-#
-# Arguments:
-#  1 - the root folder path
-#
-GetClusterIpList() {
-  serviceFolder="$1"
-  ipList=""
-    
-  for file in "$serviceFolder"/*
-  do
-    if [ -d "$file" ]; then
-      dirIpList=$(GetClusterIpList "$file")
-
-      # if there is a clusterIP in a subfolder, check if it is higher than the current highest
-      if [ "$dirIpList" != "" ]; then
-        ipList="$ipList $dirIpList"
-	  fi
-    fi
-  done
-  
-  while read file; do
-    if [ -f "$serviceFolder/$file" ] && [ "${file##*.}" = "yml" ]; then
-	    clusterIp=$(grep -oP "(?<=clusterIP:).+" "$serviceFolder/$file" | tr -d '[:space:]')
-    fi
-    
-    # if there is a clusterIP, check if it is higher than the current highest
-    if [ "$clusterIp" != "" ] && [ "$clusterIp" != "None" ]; then
-        ipList="$ipList $clusterIp"
-    fi
-  done <<< "$(ls "$serviceFolder")"
-  
-  if [ "$ipList" != "" ]; then
-    ipList="${ipList# }"
-  fi
-  echo "$ipList"
-}
-
 
 ###########################
 #  BEGINNING OF EXECUTION #
@@ -250,7 +183,7 @@ serviceName="$repositorySlug-$serviceType"
 dockerImage="docker-registry.gerdi.research.lrz.de:5043/$serviceType/$repositorySlug"
 creationYear=$(date +'%Y')
 authorFullName="$atlassianUserDisplayName"
-clusterIp=$(GetFreeClusterIp "$clusterIpPrefix" "$clusterIpMin" "$clusterIpMax")
+clusterIp=$(GetFreeClusterIp "gerdireleases/k8s-deployment" "$clusterIpPrefix" "$clusterIpMin" "$clusterIpMax")
 
 if [ "$clusterIp" = "" ]; then
   echo "Could not get ClusterIp: There must be at least one YAML file in the k8s-deployment directory in gerdireleases!" >&2
