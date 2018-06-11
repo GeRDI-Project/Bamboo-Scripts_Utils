@@ -207,10 +207,11 @@ PushAllFilesToGitRepository() {
 #  3 - the ID of the project to which the repository belongs
 #  4 - the identifier of the repository
 #  5 - the identifier of the branch that is to be merged
-#  6 - the title of the pull request
-#  7 - the description of the pull request
-#  8 - the Atlassian user name of a pull request reviewer (recommended)
-#  8 - the Atlassian user name of another pull request reviewer (optional)
+#  6 - the identifier of the branch to which the merge is directed
+#  7 - the title of the pull request
+#  8 - the description of the pull request
+#  9 - the Atlassian user name of a pull request reviewer (recommended)
+#  10 - the Atlassian user name of another pull request reviewer (optional)
 #
 CreatePullRequest() {
   userName="$1"
@@ -218,22 +219,27 @@ CreatePullRequest() {
   project="$3"
   repositorySlug="$4"
   branch="$5"
-  title="$6"
-  description="$7"
-  reviewer1="$8"
-  reviewer2="$9"
+  target="$6"
+  title="$7"
+  description="$8"
+  reviewer1="$9"
+  reviewer2="${10}"
   
   # print some debug log about the repository and reviewer(s)
   echo "Creating Pull-Request for repository '$repositorySlug' in project '$project'." >&2
   
+  reviewers="[]"
   if [ "$reviewer1" != "" ] && [ "$reviewer2" != "" ]; then
     echo "Reviewers are $reviewer1 and $reviewer2." >&2
+    reviewers="[{ \"user\": { \"name\": \"$reviewer1\" }}, { \"user\": { \"name\": \"$reviewer2\" }}]"
 	
   elif [ "$reviewer1" != "" ]; then
     echo "Reviewer is $reviewer1." >&2
+    reviewers="[{ \"user\": { \"name\": \"$reviewer1\" }}]"
 	
   elif [ "$reviewer2" != "" ]; then
     echo "Reviewer is $reviewer2." >&2
+    reviewers="[{ \"user\": { \"name\": \"$reviewer2\" }}]"
 	
   else
     echo "No Reviewers are assigned." >&2
@@ -257,7 +263,7 @@ CreatePullRequest() {
         }
     },
     "toRef": {
-        "id": "refs/heads/master",
+        "id": "refs/heads/'"$target"'",
         "repository": {
             "slug": "'"$repositorySlug"'",
             "name": null,
@@ -267,9 +273,7 @@ CreatePullRequest() {
         }
     },
     "locked": false,
-    "reviewers": [
-        { "user": { "name": "'"$reviewer1"'" }}
-    ],
+    "reviewers": '"$reviewers"',
     "links": {
         "self": [
             null
@@ -406,15 +410,15 @@ MergeAllPullRequestsOfJiraTicket() {
     project=$(GetProjectIdFromCloneLink "$cloneLink")
     repositorySlug=$(GetRepositorySlugFromCloneLink "$cloneLink")
 	
-	# get full branch name by looking for branches that start with the JIRA ticket number
+	  # get full branch name by looking for branches that start with the JIRA ticket number
     jiraBranchJson=$(curl -sX GET -u "$userName:$password" https://code.gerdi-project.de/rest/api/latest/projects/$project/repos/$repositorySlug/branches?filterText=$jiraKey)
-	branchName=$(echo $jiraBranchJson | grep -oP "(?<=\"id\":\"refs/heads/)[^\"]+")
+	  branchName=$(echo $jiraBranchJson | grep -oP "(?<=\"id\":\"refs/heads/)[^\"]+")
 	
-	if [ "$branchName" != "" ]; then
+	  if [ "$branchName" != "" ]; then
       $(MergeAndCleanPullRequest "$userName" "$password" "$project" "$repositorySlug" "$branchName")
-	  isMerged=$?
-	  failedMerges=$(expr $failedMerges + $isMerged)
-	fi
+	    isMerged=$?
+	    failedMerges=$(expr $failedMerges + $isMerged)
+	  fi
   done
   echo $failedMerges )
 }
@@ -475,4 +479,19 @@ GetStatusFromPullRequestInfoJson() {
   else
     echo "NEEDS_WORK"
   fi
+}
+
+
+# Requests the full name of a BitBucket project.
+#  Arguments:
+#  1 - a Bitbucket user name
+#  2 - the login password that belongs to argument 1
+#  3 - the ID of the project to which the repository belongs
+#
+GetBitBucketProjectName() {
+  userName="$1"
+  password="$2"
+  project="$3"
+  response=$(curl -sX GET -u "$userName:$password" https://code.gerdi-project.de/rest/api/latest/projects/$project/)
+  echo "$response" | grep -oP "(?<=\"name\":\")[^\"]+"
 }

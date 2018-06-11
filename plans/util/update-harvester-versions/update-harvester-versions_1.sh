@@ -289,9 +289,10 @@ ExecuteUpdate() {
       echo $(CreatePullRequest \
         "$atlassianUserName" \
         "$atlassianPassword" \
-		"HAR" \
+        "HAR" \
         "$repositorySlug" \
 	    "$branchName" \
+        "master" \
         "Update $artifactId" \
         "Maven version update." \
         "$reviewer1" \
