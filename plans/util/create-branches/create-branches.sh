@@ -35,13 +35,6 @@ source ./scripts/helper-scripts/maven-utils.sh
 source ./scripts/helper-scripts/misc-utils.sh
 
 
-# TODO remove
- bamboo_ManualBuildTriggerReason_userName="$1"
- bamboo_atlassianPassword="$2"
- bamboo_projectsAndCloneLinks="$3"
- bamboo_createdBranchName="$4"
- bamboo_sourceBranchName="$5"
-
 #########################
 #  FUNCTION DEFINITIONS #
 #########################
