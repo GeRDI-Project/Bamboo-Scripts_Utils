@@ -18,6 +18,9 @@
 # represents a Maven SNAPSHOT version.
 
 
+# treat unset variables as an error when substituting
+set -u
+
 isSnapshot=$(echo "${bamboo.inject.maven.version}" | grep -cP "\-SNAPSHOT\$")
 
 if [ "$isSnapshot" = "1" ]; then

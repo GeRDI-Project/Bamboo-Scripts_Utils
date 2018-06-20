@@ -24,6 +24,13 @@
 # Arguments:
 #  1 - the file name of the file which is generated to be exported via the "Inject Bamboo variables" task
 
+# treat unset variables as an error when substituting
+set -u
+
+#########################
+#  FUNCTION DEFINITIONS #
+#########################
+
 # Retrieves the next version tag by checking the current branch and the value
 # of global Bamboo variables.
 #
@@ -72,6 +79,11 @@ GetMavenVersion() {
   fi
   echo "$mavenVersion"
 }
+
+
+###########################
+#  BEGINNING OF EXECUTION #
+###########################
 
 exportFilePath="$1"
 
