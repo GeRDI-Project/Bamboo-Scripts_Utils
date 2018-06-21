@@ -22,7 +22,9 @@
 #  ManualBuildTriggerReason_userName - the login name of the current user
 #
 # Arguments:
-#  1 - the file name of the file which is generated to be exported via the "Inject Bamboo variables" task
+#  1 the path to the pom.xml of which the Maven version is retrieved
+#  2 the path to the git folder of which the tag version is retrieved
+#  3 the file name of the file which is generated to be exported via the "Inject Bamboo variables" task
 
 # treat unset variables as an error when substituting
 set -u
@@ -53,6 +55,11 @@ GetBuildNumber() {
 # of global Bamboo variables.
 #
 GetTagVersion() {
+  local gitPath="$1"
+  local topDir="$PWD"
+  
+  cd "$gitPath"
+  
   # get branch name
   local currentBranch
   currentBranch=$(git branch --points-at HEAD)
@@ -84,14 +91,18 @@ GetTagVersion() {
   else
     echo ""
   fi
+  
+  cd "$topDir"
 }
 
 
 # Retrieves the version of a pom.xml.
 #
 GetMavenVersion() {
+  local pomPath="$1"
   local mavenVersion
-  mavenVersion=$(mvn -q -Dexec.executable="echo" -Dexec.args='${project.version}' \
+  
+  mavenVersion=$(mvn -q -f "$pomPath" -Dexec.executable="echo" -Dexec.args='${project.version}' \
   --non-recursive org.codehaus.mojo:exec-maven-plugin:1.3.1:exec)
   if [ "$?" -ne "0" ]; then
     mavenVersion=""
@@ -103,18 +114,41 @@ GetMavenVersion() {
 # The main function of this script.
 #
 Main() {
-  local exportFilePath="$1"
+  local pomFilePath="$1"
+  local gitFilePath="$2"
+  local exportFilePath="$3"
 
+  # default pom.xml path is the current folder
+  if [ -z "$pomFilePath" ]; then
+    pomFilePath="."
+  fi
+  
+  # default git path is the current folder
+  if [ -z "$gitFilePath" ]; then
+    gitFilePath="."
+  fi
+  
   if [ -z "$exportFilePath" ]; then
     echo 'You must specify the name of the exported variables file as the first argument of this script! 
 It must match the "Inject Bamboo variables" task which is to be executed after this script!' >&2
     exit 1
-  else
-    readonly exportFilePath
-  fi
+  fi 
 
   rm -f "$exportFilePath"
-  echo -e "maven.version=$(GetMavenVersion)\ntag.version=$(GetTagVersion)"  >> "$exportFilePath"
+  
+  local mavenVersion
+  mavenVersion="$(GetMavenVersion "$pomFilePath")"
+  if [ -n "$mavenVersion" ]; then
+    echo -e "maven.version=$mavenVersion"  >> "$exportFilePath"
+  fi
+  
+  local tagVersion
+  tagVersion="$(GetTagVersion "$gitFilePath")"
+  if [ -n "$tagVersion" ]; then
+    echo -e "tag.version=$tagVersion"  >> "$exportFilePath"
+  fi
+  
+  echo -e "Wrote Bamboo variables to '$exportFilePath':\n$(cat "$exportFilePath")" >&2
 }
 
 
@@ -122,4 +156,4 @@ It must match the "Inject Bamboo variables" task which is to be executed after t
 #  BEGINNING OF EXECUTION #
 ###########################
 
-Main "$1"
+Main "$@"
