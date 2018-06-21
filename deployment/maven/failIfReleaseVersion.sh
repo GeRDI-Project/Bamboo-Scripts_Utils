@@ -24,6 +24,6 @@ set -u
 isSnapshot=$(echo "${bamboo.inject.maven.version}" | grep -cP "\-SNAPSHOT\$")
 
 if [ "$isSnapshot" = "0" ]; then
-  echo "Maven test deployments should always be SNAPSHOT versions!" >&2
+  echo "Maven test deployments must always be SNAPSHOT versions!" >&2
   exit 1
 fi
