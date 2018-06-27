@@ -47,6 +47,13 @@ spec:
         volumeMounts:
         - mountPath: /var/lib/jetty/cache/
           name: ${serviceName}-cache
+        resources:
+            requests:
+                memory: "512Mi"
+                cpu:    "500m"
+            limits:
+                memory: "1Gi"
+                cpu:    "1"
       imagePullSecrets:
       - name: lrz-docker-registry-secret
       volumes:
