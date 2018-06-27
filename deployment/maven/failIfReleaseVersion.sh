@@ -21,7 +21,7 @@
 # treat unset variables as an error when substituting
 set -u
 
-isSnapshot=$(echo "${bamboo.inject.maven.version}" | grep -cP "\-SNAPSHOT\$")
+isSnapshot=$(echo "$bamboo_inject_maven_version" | grep -cP "\-SNAPSHOT\$")
 
 if [ "$isSnapshot" = "0" ]; then
   echo "Maven test deployments must always be SNAPSHOT versions!" >&2
