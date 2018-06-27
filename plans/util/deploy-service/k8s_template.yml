@@ -30,13 +30,30 @@ spec:
         scs: ${serviceType}
         app: ${serviceName}
     spec:
+      initContainers:
+      - name: correct-permissions
+        image: busybox
+        securityContext:
+          privileged: true
+        command: ['sh', '-c', 'chown 100 /var/lib/jetty/cache']
+        volumeMounts:
+        - mountPath: /var/lib/jetty/cache/
+          name: ${serviceName}-cache
       containers:
       - name: ${serviceName}
         image: ${dockerImage}
         ports:
           - containerPort: 8080
+        volumeMounts:
+        - mountPath: /var/lib/jetty/cache/
+          name: ${serviceName}-cache
       imagePullSecrets:
       - name: lrz-docker-registry-secret
+      volumes:
+      - name: ${serviceName}-cache
+        hostPath:
+            path: /mnt/nfs/test/${serviceType}/${serviceName}
+            type: DirectoryOrCreate
 ---
 apiVersion: v1
 kind: Service
