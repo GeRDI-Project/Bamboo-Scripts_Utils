@@ -14,7 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# This script is being called by the Bamboo Job https://ci.gerdi-project.de/browse/UTIL-CHPL which creates/overwrites
+# This script is called by the Bamboo Job https://ci.gerdi-project.de/browse/UTIL-CHPL which creates/overwrites
 # Bamboo jobs for an existing harvester project.
 #
 # Bamboo Plan Variables:
