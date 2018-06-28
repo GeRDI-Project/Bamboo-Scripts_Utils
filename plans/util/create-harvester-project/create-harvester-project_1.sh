@@ -90,6 +90,9 @@ cd harvesterSetupTemp
 repositorySlug=$(CreateGitRepository "$atlassianUserName" "$atlassianPassword" "HAR" "$providerName")
 ExitIfLastOperationFailed ""
 
+# grant the bamboo-agent the permission to tag the repository
+AddWritePermissionForRepository "$atlassianUserName" "$atlassianPassword" "HAR" "$repositorySlug" "bamboo-agent"
+
 # clone newly created repository
 CloneGitRepository "$atlassianUserName" "$atlassianPassword" "HAR" "$repositorySlug"
 

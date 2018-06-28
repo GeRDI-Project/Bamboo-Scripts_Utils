@@ -55,6 +55,9 @@ echo "Bitbucket Project: '$projectAbbrev'" >&2
 repositorySlug=$(GetRepositorySlugFromCloneLink "$gitCloneLink")
 echo "Slug: '$repositorySlug'" >&2
 
+# grant the bamboo-agent the permission to tag the repository
+AddWritePermissionForRepository "$atlassianUserName" "$atlassianPassword" "$projectAbbrev" "$repositorySlug" "bamboo-agent"
+
 # clear, create and navigate to a temporary folder
 echo "Setting up a temporary folder" >&2
 rm -fr harvesterSetupTemp
