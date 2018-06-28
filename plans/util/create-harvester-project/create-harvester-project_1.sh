@@ -14,7 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# This script is being called by the Bamboo Job https://ci.gerdi-project.de/browse/UTIL-CHP which creates
+# This script is called by the Bamboo Job https://ci.gerdi-project.de/browse/UTIL-CHP which creates
 # a harvester project and Bamboo jobs:
 #  1. Creates a Git repository in the harvester project (HAR)
 #  2. Creates a pom derived from the latest version of the HarvesterSetup (https://oss.sonatype.org/content/repositories/snapshots/de/gerdi-project/GeRDI-harvester-setup/)
@@ -89,6 +89,9 @@ cd harvesterSetupTemp
 # create repository
 repositorySlug=$(CreateGitRepository "$atlassianUserName" "$atlassianPassword" "HAR" "$providerName")
 ExitIfLastOperationFailed ""
+
+# grant the bamboo-agent the permission to tag the repository
+AddWritePermissionForRepository "$atlassianUserName" "$atlassianPassword" "HAR" "$repositorySlug" "bamboo-agent"
 
 # clone newly created repository
 CloneGitRepository "$atlassianUserName" "$atlassianPassword" "HAR" "$repositorySlug"

@@ -14,7 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# This script is being called by the Bamboo Job https://ci.gerdi-project.de/browse/UTIL-CHPL which creates/overwrites
+# This script is called by the Bamboo Job https://ci.gerdi-project.de/browse/UTIL-CHPL which creates/overwrites
 # Bamboo jobs for an existing harvester project.
 #
 # Bamboo Plan Variables:
@@ -54,6 +54,9 @@ echo "Bitbucket Project: '$projectAbbrev'" >&2
 
 repositorySlug=$(GetRepositorySlugFromCloneLink "$gitCloneLink")
 echo "Slug: '$repositorySlug'" >&2
+
+# grant the bamboo-agent the permission to tag the repository
+AddWritePermissionForRepository "$atlassianUserName" "$atlassianPassword" "$projectAbbrev" "$repositorySlug" "bamboo-agent"
 
 # clear, create and navigate to a temporary folder
 echo "Setting up a temporary folder" >&2

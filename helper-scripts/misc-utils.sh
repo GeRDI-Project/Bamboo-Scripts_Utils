@@ -31,7 +31,7 @@ IsUrlReachable() {
 
   httpCode=$(GetHeadHttpCode "$url" "$userName" "$password")
   
-  if [ $httpCode -eq 200 ]; then
+  if [ $httpCode -ge 200 ] && [ $httpCode -lt 400 ]; then
     echo true
   else
     echo false
