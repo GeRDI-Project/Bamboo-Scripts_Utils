@@ -511,7 +511,8 @@ AddReadPermissionForRepository() {
   repositorySlug="$4"
   targetUser="$5"
 
-  echo $(curl -sX PUT -u "$userName:$password" https://code.gerdi-project.de/rest/api/1.0/projects/$project/repos/$repositorySlug/permissions/users?name=$targetUser&permission=REPO_READ) >&2
+  echo "Adding Read-permission of repository '$project/$repositorySlug' for user '$targetUser'." >&2
+  echo $(curl -sX PUT -u "$userName:$password" "https://code.gerdi-project.de/rest/api/1.0/projects/$project/repos/$repositorySlug/permissions/users?name=$targetUser&permission=REPO_READ") >&2
 }
 
 
@@ -528,6 +529,7 @@ AddWritePermissionForRepository() {
   project="$3"
   repositorySlug="$4"
   targetUser="$5"
-
-  echo $(curl -sX PUT -u "$userName:$password" https://code.gerdi-project.de/rest/api/1.0/projects/$project/repos/$repositorySlug/permissions/users?name=$targetUser&permission=REPO_WRITE) >&2
+  
+  echo "Adding Write-permission of repository '$project/$repositorySlug' for user '$targetUser'." >&2
+  echo $(curl -sX PUT -u "$userName:$password" "https://code.gerdi-project.de/rest/api/1.0/projects/$project/repos/$repositorySlug/permissions/users?name=$targetUser&permission=REPO_WRITE") >&2
 }
