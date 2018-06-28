@@ -14,15 +14,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# This script is called by the Bamboo Job https://ci.gerdi-project.de/browse/UTIL-CHP which creates
-# a harvester project and Bamboo jobs:
+# This script is called by the Bamboo Job https://ci.gerdi-project.de/browse/UTIL-CHP. It creates
+# a harvester repository:
 #  1. Creates a Git repository in the harvester project (HAR)
 #  2. Creates a pom derived from the latest version of the HarvesterSetup (https://oss.sonatype.org/content/repositories/snapshots/de/gerdi-project/GeRDI-harvester-setup/)
 #  3. Executes the setup, creating a bare minimum harvester project that has placeholders within files and file names
 #  4. The placeholders are replaced by the plan variables of the Bamboo job (see below)
 #  5. All files are formatted with AStyle
 #  6. All files are committed and pushed to the remote Git repository.
-#  7. Bamboo Plans and Deployment jobs for the project are created.
+#  7. Branches for staging and production environment are created and pushed.
 #
 # Bamboo Plan Variables:
 #  ManualBuildTriggerReason_userName - the login name of the current user
@@ -141,13 +141,6 @@ ExitIfLastOperationFailed ""
 
 # create branch model
 CreateBranch "stage"
+ExitIfLastOperationFailed ""
 CreateBranch "production"
-
-# create Bamboo jobs
-cd bamboo-specs
-RunBambooSpecs "$atlassianUserName" "$atlassianPassword"
-
-# clean up temporary folders
-echo "Removing the temporary directory"
-cd ../
-rm -fr harvesterSetupTemp
+ExitIfLastOperationFailed ""

@@ -137,6 +137,25 @@ GetMavenDeployEnvironmentId() {
 }
 
 
+# Searches for a plan with a specified name inside a specified project and
+# returns the first matching plan.
+#  Arguments:
+#  1 - the ID of the project
+#  2 - the name of the plan
+#  3 - a Bamboo user name that has the necessary permissions for this operation
+#  4 - a password for argument 3
+#
+GetPlanLabelByProjectAndName() {
+  projectId="$1"
+  planName="$2"
+  userName="$3"
+  password="$4"
+  
+  response=$(curl -sX GET -u "$userName:$password" "https://ci.gerdi-project.de/rest/api/latest/search/plans?searchTerm=$planName")
+  echo "$response" | grep -oP "(?<=\<key\>)$projectId-.+?(?=\</key\>)" | head -n1
+}
+
+
 # Runs a specified Bamboo plan and returns the plan result key which serves as an identifier
 # of the plan execution.
 #  Arguments:
@@ -282,6 +301,23 @@ WaitForDeploymentToBeDone() {
   if [ "$deploymentState" != "SUCCESS" ]; then
     exit 1
   fi
+}
+
+
+# Creates a plan branch for an existing git branch.
+#  Arguments:
+#  1 - the identifier of the plan
+#  2 - the string identifier of the git branch
+#  3 - a Bamboo user name that has the necessary permissions for this operation
+#  4 - a password for argument 3
+#
+CreatePlanBranch() {
+  planLabel="$1"
+  branch="$2"
+  userName="$3"
+  password="$4"
+  
+  echo "$(curl -sX PUT -u "$userName:$password" "https://ci.gerdi-project.de/rest/api/latest/plan/$planLabel/branch/$branch?vcsBranch=refs%2Fheads%2F$branch")" >&2
 }
 
 
