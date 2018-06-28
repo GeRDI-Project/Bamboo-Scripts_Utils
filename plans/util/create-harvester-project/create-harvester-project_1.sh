@@ -139,6 +139,10 @@ fi
 PushAllFilesToGitRepository "$atlassianUserDisplayName" "$atlassianUserEmail" "Bamboo: Created harvester repository for the provider '$bamboo_providerName'."
 ExitIfLastOperationFailed ""
 
+# create branch model
+CreateBranch "stage"
+CreateBranch "production"
+
 # create Bamboo jobs
 cd bamboo-specs
 RunBambooSpecs "$atlassianUserName" "$atlassianPassword"

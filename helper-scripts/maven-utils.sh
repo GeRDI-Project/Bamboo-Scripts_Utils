@@ -147,7 +147,7 @@ RunBambooSpecs() {
   password="$2"
   
   echo "Running Bamboo-Specs" >&2
-  mvn -e compile -Dexec.args="'$userName' '$password'" 
+  echo -e $(mvn -e compile -Dexec.args="'$userName' '$password'") >&2
   
   if [ $?  -ne 0 ]; then
     echo "Error creating Bamboo Jobs!" >&2

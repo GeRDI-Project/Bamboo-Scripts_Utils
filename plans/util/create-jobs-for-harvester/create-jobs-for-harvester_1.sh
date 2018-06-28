@@ -68,6 +68,17 @@ cd harvesterSetupTemp
 CloneGitRepository "$atlassianUserName" "$atlassianPassword" "$projectAbbrev" "$repositorySlug"
 cd "$repositorySlug"
 
+# create branch model
+hasStagingBranch=$(git branch -r | grep -cx " *origin/stage\$")
+if [ "$hasStagingBranch" = "0" ]; then
+  CreateBranch "stage"
+fi
+
+hasProductionBranch=$(git branch -r | grep -cx " *origin/stage\$")
+if [ "$hasStagingBranch" = "0" ]; then
+  CreateBranch "production"
+fi
+
 # retrieve name of the provider from the file name of the context listener
 providerClassName=$(basename -s ContextListener.java src/main/java/de/gerdiproject/harvest/*ContextListener.java)
 echo "Provider Class Name: '$providerClassName'" >&2
