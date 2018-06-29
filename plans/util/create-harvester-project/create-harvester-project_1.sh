@@ -65,9 +65,7 @@ CreateRepository() {
   CloneGitRepository "$atlassianUserName" "$atlassianPassword" "$project" "$repositorySlug"
 
   # copy placeholder project into the cloned repository
-  cd ..
-  cp -r "harvesterSetup/placeholderProject" "repoTemp"
-  cd "repoTemp"
+  cp -rT "../harvesterSetup/placeholderProject/" "./"
 
   # rename placeholders for the project
   ./../harvesterSetup/scripts/renameSetup.sh\
