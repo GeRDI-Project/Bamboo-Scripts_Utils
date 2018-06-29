@@ -46,17 +46,16 @@ Main() {
   echo -e $(mvn -e compile -Dexec.args="'$atlassianUserName' '$atlassianPassword' '$providerClassName' '$project' '$repositorySlug'") >&2
 
   # add plan branches
+  local planName
+  planName="$providerClassName-Harvester%20Static%20Analysis"
   local planLabel
-  planLabel=$(GetPlanLabelByProjectAndName "CA" "$providerClassName-Harvester Static Analysis" "$atlassianUserName" "$atlassianPassword")
+  planLabel=$(GetPlanLabelByProjectAndName "CA" "$planName" "$atlassianUserName" "$atlassianPassword")
   
   # work-around for latency in bamboo job creation
   local retries=5
   while [ -z "$planLabel" ]; do
 	sleep 3
-    planLabel=$(GetPlanLabelByProjectAndName "CA" "$providerClassName-Harvester Static Analysis" "$atlassianUserName" "$atlassianPassword")
-	
-	echo "$retries : curl https://ci.gerdi-project.de/rest/api/latest/search/plans?searchTerm=$providerClassName-Harvester Static Analysis"
-    echo $(curl -sX GET -u "$atlassianUserName:$atlassianPassword" "https://ci.gerdi-project.de/rest/api/latest/search/plans?searchTerm=$providerClassName-Harvester Static Analysis") >&2
+    planLabel=$(GetPlanLabelByProjectAndName "CA" "$planName" "$atlassianUserName" "$atlassianPassword")
 	
 	retries=$(expr "$retries" - 1)
 	if [ -z "$planLabel" ] && [ $retries -eq 0 ]; then
