@@ -424,24 +424,6 @@ if [ "$sourceVersion" != "" ]; then
   BuildAndDeployLibrary "CA-HU"
 fi
 
-# update harvester setup /archive
-PrepareUpdate "harvestersetup" "archive"
-if [ "$sourceVersion" != "" ]; then
-  QueueParentPomUpdate "$parentPomVersion"
-  ExecuteUpdate
-  harvesterSetupArchiveVersion="$targetVersion"
-fi
-
-# update harvester setup
-PrepareUpdate "harvestersetup" "."
-if [ "$sourceVersion" != "" ]; then
-  QueueParentPomUpdate "$parentPomVersion"
-  QueuePropertyUpdate "harvesterutils.dependency.version" "$harvesterUtilsVersion"
-  QueuePropertyUpdate "setup.archive.dependency.version" "$harvesterSetupArchiveVersion"
-  ExecuteUpdate
-  harvesterSetupVersion="$targetVersion"
-fi
-
 # update json library
 PrepareUpdate "jsonlibraries" "."
 if [ "$sourceVersion" != "" ]; then

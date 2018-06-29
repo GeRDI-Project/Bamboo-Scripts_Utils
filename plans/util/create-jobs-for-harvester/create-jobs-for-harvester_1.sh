@@ -34,99 +34,128 @@ source ./scripts/helper-scripts/git-utils.sh
 source ./scripts/helper-scripts/maven-utils.sh
 source ./scripts/helper-scripts/misc-utils.sh
 
-# check early exit conditions
-ExitIfNotLoggedIn
-ExitIfPlanVariableIsMissing "atlassianPassword"
-ExitIfPlanVariableIsMissing "gitCloneLink"
 
-atlassianUserName=$(GetBambooUserName)
-atlassianPassword=$(GetValueOfPlanVariable "atlassianPassword")
+# Checks if a remote branch of a non-checked-out BitBucket repository exists and
+# creates one out of the latest master branch commit, if it does not exist.
+#  Arguments:
+#   1 - Bitbucket user name
+#   2 - Bitbucket user password
+#   3 - Bitbucket Project ID
+#   4 - Repository slug
+#   5 - The name of the branch that is to be checked
+#
+CreateBitbucketBranch() {
+  local userName="$1"
+  local password="$2"
+  local project="$3"
+  local slug="$4"
+  local branchName="$5"
+  
+  hasBranch=$(curl -sX GET -u "$userName:$password" "https://code.gerdi-project.de/rest/api/latest/projects/$project/repos/$slug/branches/?filterText=$branchName"\
+             | grep -c "\"id\":\"refs/heads/$branchName\"")
+		   
+  if [ "$hasBranch" = "0" ]; then	
+	revision=$(curl -sX GET -u "$userName:$password" "https://code.gerdi-project.de/rest/api/1.0/projects/$project/repos/$slug/branches/?filterText=master"\
+	          | grep -oP "(?<=\"id\":\"refs/heads/master\",\"displayId\":\"master\",\"type\":\"BRANCH\",\"latestCommit\":\")[^\"]+")
+			  
+    echo "Creating Bitbucket branch '$branchName' for repository '$project/$slug', revision '$revision'." >&2
+	
+    response=$(curl -sX POST -u "$userName:$password" -H "Content-Type: application/json" -d '{
+      "name": "'"$branchName"'",
+      "startPoint": "'"$revision"'",
+      "message": "Bamboo automatically created this branch in order to support Continuous Deployment."
+    }' "https://code.gerdi-project.de/rest/api/1.0/projects/$project/repos/$slug/branches/")
+  fi
+}
 
-# test Atlassian credentials
-ExitIfAtlassianCredentialsWrong "$atlassianUserName" "$atlassianPassword"
 
-# retrieve plan variables
-overwriteFlag=$(GetValueOfPlanVariable overwriteExistingJobs)
-gitCloneLink=$(GetValueOfPlanVariable gitCloneLink)
+# Updates a Bitbucket repository, adding missing branches and user permissions.
+#
+UpdateRepository() {
+  local username="$1"
+  local password="$2"
+  local gitCloneLink="$3"
+  
+  local project
+  project=$(GetProjectIdFromCloneLink "$gitCloneLink")
 
-projectAbbrev=$(GetProjectIdFromCloneLink "$gitCloneLink")
-echo "Bitbucket Project: '$projectAbbrev'" >&2
+  local repositorySlug
+  repositorySlug=$(GetRepositorySlugFromCloneLink "$gitCloneLink")
 
-repositorySlug=$(GetRepositorySlugFromCloneLink "$gitCloneLink")
-echo "Slug: '$repositorySlug'" >&2
+  # grant the bamboo-agent the permission to tag the repository
+  AddWritePermissionForRepository "$username" "$password" "$project" "$repositorySlug" "bamboo-agent"
 
-# grant the bamboo-agent the permission to tag the repository
-AddWritePermissionForRepository "$atlassianUserName" "$atlassianPassword" "$projectAbbrev" "$repositorySlug" "bamboo-agent"
+  # create branch model
+  CreateBitbucketBranch "$username" "$password" "$project"  "$repositorySlug" "stage"
+  CreateBitbucketBranch "$username" "$password" "$project"  "$repositorySlug" "production"
+}
 
-# clear, create and navigate to a temporary folder
-echo "Setting up a temporary folder" >&2
-rm -fr harvesterSetupTemp
-mkdir harvesterSetupTemp
-cd harvesterSetupTemp
 
-# clone newly created repository
-CloneGitRepository "$atlassianUserName" "$atlassianPassword" "$projectAbbrev" "$repositorySlug"
-cd "$repositorySlug"
+# Retrieves the provider name without spaces and special characters.
+#
+GetProviderClassName() {
+  local username="$1"
+  local password="$2"
+  local gitCloneLink="$3"
+  
+  local project
+  project="HAR"
 
-# create branch model
-hasStagingBranch=$(git branch -r | grep -cx " *origin/stage\$")
-if [ "$hasStagingBranch" = "0" ]; then
-  CreateBranch "stage"
-fi
+  local repositorySlug
+  repositorySlug="faostat"
+  
+  local proviCLassName
+  proviClassName=$(curl -sX GET -u "$userName:$password" "https://code.gerdi-project.de/rest/api/1.0/projects/$project/repos/$repositorySlug/files" \
+  | grep -oP "(?<=src/main/java/de/gerdiproject/harvest/)[^\"]+(?=ContextListener.java\")")
+  
+  if [ "$proviClassName" = "" ]; then
+    proviClassName=$(curl -sX GET "https://code.gerdi-project.de/rest/api/1.0/projects/$project/repos/$repositorySlug/files" \
+    | grep -oP "(?<=src/main/java/de/gerdiproject/harvest/)[^\"]+(?=ContextListener.java\")")
+  fi
+  
+  echo "$proviClassName"
+}
 
-hasProductionBranch=$(git branch -r | grep -cx " *origin/stage\$")
-if [ "$hasStagingBranch" = "0" ]; then
-  CreateBranch "production"
-fi
 
-# retrieve name of the provider from the file name of the context listener
-providerClassName=$(basename -s ContextListener.java src/main/java/de/gerdiproject/harvest/*ContextListener.java)
-echo "Provider Class Name: '$providerClassName'" >&2
+# The main function of this script.
+#
+Main() {
+  # check early exit conditions
+  ExitIfNotLoggedIn
+  ExitIfPlanVariableIsMissing "atlassianPassword"
+  ExitIfPlanVariableIsMissing "gitCloneLink"
 
-# check if Bamboo plans already exist and should be overridden
-planKey="$( echo "$providerClassName" | sed -e "s~[a-z]~~g")HAR"
-doPlansExist=$(IsUrlReachable "https://ci.gerdi-project.de/rest/api/latest/plan/CA-$planKey" "$atlassianUserName" "$atlassianPassword")
+  local atlassianUserName
+  atlassianUserName=$(GetBambooUserName)
+  
+  local atlassianPassword
+  atlassianPassword=$(GetValueOfPlanVariable "atlassianPassword")
 
-if [ "$doPlansExist" = true ]; then
-  if [ "$overwriteFlag" = true ]; then
-    echo "Overriding existing Bamboo jobs!" >&2
-  else
+  # test Atlassian credentials
+  ExitIfAtlassianCredentialsWrong "$atlassianUserName" "$atlassianPassword"
+
+  # retrieve plan variables
+  gitCloneLink=$(GetValueOfPlanVariable gitCloneLink)
+  
+  local providerClassName
+  providerClassName=$(GetProviderClassName "$atlassianUserName" "$atlassianPassword" "$gitCloneLink")
+  echo "Provider Class Name: '$providerClassName'" >&2
+  
+  # check if a plan with the same ID already exists in CodeAnalysis
+  planKey="$(echo "$providerClassName" | sed -e "s~[a-z]~~g")HAR"
+  doPlansExist=$(IsUrlReachable "https://ci.gerdi-project.de/rest/api/latest/plan/CA-$planKey" "$atlassianUserName" "$atlassianPassword")
+
+  if [ "$doPlansExist" = true ]; then
     echo "Plans with the key '$planKey' already exist!" >&2
+    DeleteGitRepository "$atlassianUserName" "$atlassianPassword" "HAR" "$repositorySlug"
     exit 1
   fi
-fi
+  
+  # update repository
+  UpdateRepository "$atlassianUserName" "$atlassianPassword" "$gitCloneLink" 
 
-# back up existing pom.xml
-mv pom.xml backup-pom.xml
+  # run Bamboo Specs
+  ./scripts/plans/util/create-jobs-for-harvester/setup-bamboo-jobs.sh "$atlassianUserName" "$atlassianPassword" "$providerClassName"
+}
 
-# create a setup pom.xml in cloned repository directory
-CreateHarvesterSetupPom ""
-
-# retrieve and unpack the harvester setup files
-echo "Generating harvester setup files"
-mvn generate-resources -Psetup
-ExitIfLastOperationFailed "Could not generate Maven resources!"
-
-# rename placeholders for the unpacked files
-chmod o+rw scripts/renameSetup.sh
-chmod +x scripts/renameSetup.sh
-./scripts/renameSetup.sh\
- "$providerClassName"\
- "XXX"\
- "XXX"\
- "XXX"\
- "XXX"\
- "XXX"\
- "XXX"
-
-# restore backed up pom.xml
-mv -f backup-pom.xml pom.xml
-
-# create Bamboo jobs
-cd bamboo-specs
-RunBambooSpecs "$atlassianUserName" "$atlassianPassword"
-
-# clean up temporary folder
-echo "Removing the temporary directory"
-cd ..
-rm -fr harvesterSetupTemp
+Main "$@"

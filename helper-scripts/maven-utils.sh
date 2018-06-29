@@ -95,47 +95,6 @@ GetPomValue() {
 }
 
 
-# Creates a pom.xml that extends the GeRDI-harvester-setup project with either a specified or the latest version.
-#  Arguments:
-#  1 - a version of GeRDI-harvester-setup (optional)
-#
-CreateHarvesterSetupPom() {
-  harvesterSetupVersion="$1"
-  
-  # get the latest version of the Harvester Parent Pom, if no version was specified
-  if [ "$harvesterSetupVersion" = "" ]; then
-    harvesterSetupVersion=$(GetLatestMavenVersion "GeRDI-harvester-setup" true)
-  fi
-  
-  # create a basic pom.xml that will fetch the harvester setup
-  echo "Creating temporary pom.xml for HarvesterSetup $harvesterSetupVersion" >&2
-  
-  # check if a pom.xml already exists
-  if [ -e pom.xml ]; then
-    echo "Could not create file '$PWD/pom.xml', because it already exists!" >&2
-    exit 1
-  fi
-  
-  echo '<project>
-  <modelVersion>4.0.0</modelVersion>
-  <parent>
-    <groupId>de.gerdi-project</groupId>
-    <artifactId>GeRDI-harvester-setup</artifactId>
-    <version>'"$harvesterSetupVersion"'</version>
-  </parent>
-  <artifactId>temporary-harvester-setup</artifactId>
-  <repositories>
-    <repository>
-      <id>Sonatype</id>
-      <url>https://oss.sonatype.org/content/repositories/snapshots/</url>
-    </repository>
-  </repositories>
-</project>' >> pom.xml
-
-  echo "Successfully created file '$PWD/pom.xml'." >&2
-}
-
-
 # Creates a temporary credentials file and runs Bamboo Specs from a pom.xml,
 # which creates Bamboo jobs.
 #  Arguments:
