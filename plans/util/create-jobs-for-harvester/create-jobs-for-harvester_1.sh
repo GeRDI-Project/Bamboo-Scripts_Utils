@@ -136,6 +136,12 @@ Main() {
   
   local providerClassName
   providerClassName=$(GetProviderClassName "$atlassianUserName" "$atlassianPassword" "$project" "$repositorySlug")
+  
+  if [ -z "$providerClassName" ]; then
+    echo "Could not find ContextListener java class of repository '$project/$repositorySlug'!" >&2
+	exit 1
+  fi
+  
   echo "Provider Class Name: '$providerClassName'" >&2
   
   # check if a plan with the same ID already exists in CodeAnalysis

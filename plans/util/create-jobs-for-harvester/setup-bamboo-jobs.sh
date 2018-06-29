@@ -44,7 +44,7 @@ Main() {
   ./../harvesterSetup/scripts/renameSetup.sh "$providerClassName" "XXX" "XXX" "XXX" "XXX" "XXX" "XXX"
  
   # create Bamboo plans
-  cd bambooSpecsTemp/plans
+  cd plans
   RunBambooSpecs "$atlassianUserName" "$atlassianPassword"
 
   # add plan branches
