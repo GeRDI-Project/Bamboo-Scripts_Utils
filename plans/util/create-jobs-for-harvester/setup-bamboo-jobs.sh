@@ -34,28 +34,32 @@ Main() {
   local atlassianUserName="$1"
   local atlassianPassword="$2"
   local providerClassName="$3"
+  local project="$4"
+  local repositorySlug="$5"
   
   # copy placeholder bamboo-specs
   rm -fr "bambooSpecsTemp"
   cp -r "harvesterSetup/bamboo-specs" "bambooSpecsTemp"
 
-  # rename placeholders for bamboo specs
-  cd bambooSpecsTemp
-  ./../harvesterSetup/scripts/renameSetup.sh "$providerClassName" "XXX" "XXX" "XXX" "XXX" "XXX" "XXX"
- 
   # create Bamboo plans
-  cd plans
-  RunBambooSpecs "$atlassianUserName" "$atlassianPassword"
+  cd bambooSpecsTemp/plans
+  echo -e $(mvn -e compile -Dexec.args="'$atlassianUserName' '$atlassianPassword' '$providerClassName' '$project' '$repositorySlug'") >&2
 
   # add plan branches
   local planLabel
   planLabel=$(GetPlanLabelByProjectAndName "CA" "$providerClassName Static Analysis" "$atlassianUserName" "$atlassianPassword")
+  
+  if [ -z "$planLabel" ]; then
+    echo "Could not create plan!" >&2
+	exit 1
+  fi
+  
   CreatePlanBranch "$planLabel" "stage" "$atlassianUserName" "$atlassianPassword"
   CreatePlanBranch "$planLabel" "production" "$atlassianUserName" "$atlassianPassword"
   
   # create Bamboo deployments
   cd ../deployments
-  RunBambooSpecs "$atlassianUserName" "$atlassianPassword"
+  echo -e $(mvn -e compile -Dexec.args="'$atlassianUserName' '$atlassianPassword' '$providerClassName' '$project' '$repositorySlug'") >&2
 }
 
 Main "$@"

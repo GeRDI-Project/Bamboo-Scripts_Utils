@@ -93,23 +93,3 @@ GetPomValue() {
     echo $(mvn -q -Dexec.executable="echo" -Dexec.args='${'"$valueKey"'}' --non-recursive org.codehaus.mojo:exec-maven-plugin:$mavenExecVersion:exec -f"$pomPath")
   fi
 }
-
-
-# Creates a temporary credentials file and runs Bamboo Specs from a pom.xml,
-# which creates Bamboo jobs.
-#  Arguments:
-#  1 - a Bamboo user name of a user that is allowed to create jobs
-#  2 - the login password that belongs to argument 1
-#
-RunBambooSpecs() {
-  userName="$1"
-  password="$2"
-  
-  echo "Running Bamboo-Specs" >&2
-  echo -e $(mvn -e compile -Dexec.args="'$userName' '$password'") >&2
-  
-  if [ $?  -ne 0 ]; then
-    echo "Error creating Bamboo Jobs!" >&2
-    exit 1
-  fi
-}

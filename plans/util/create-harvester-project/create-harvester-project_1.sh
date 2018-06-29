@@ -49,18 +49,19 @@ source ./scripts/helper-scripts/misc-utils.sh
 # in Bitbucket.
 #
 CreateRepository() {
-  repositorySlug=$(CreateGitRepository "$atlassianUserName" "$atlassianPassword" "HAR" "$providerName")
+  local project="$1"
+  repositorySlug=$(CreateGitRepository "$atlassianUserName" "$atlassianPassword" "$project" "$providerName")
   ExitIfLastOperationFailed ""
 
   # grant the bamboo-agent the permission to tag the repository
-  AddWritePermissionForRepository "$atlassianUserName" "$atlassianPassword" "HAR" "$repositorySlug" "bamboo-agent"
+  AddWritePermissionForRepository "$atlassianUserName" "$atlassianPassword" "$project" "$repositorySlug" "bamboo-agent"
 
   # create temporary folder
   rm -fr "repoTemp"
   cd "repoTemp"
 
   # clone newly created repository
-  CloneGitRepository "$atlassianUserName" "$atlassianPassword" "HAR" "$repositorySlug"
+  CloneGitRepository "$atlassianUserName" "$atlassianPassword" "$project" "$repositorySlug"
 
   # copy placeholder project into the cloned repository
   cd ..
@@ -132,29 +133,30 @@ Main() {
   if [ "$authorEmail" = "" ]; then
     authorEmail="$atlassianUserEmail"
   fi
-
+  
+  local project="HAR"
 
   # get latest version of the Harvester Parent Pom
   parentPomVersion=$(GetLatestMavenVersion "GeRDI-parent-harvester" true)
 
-  CreateRepository
+  CreateRepository "$project"
  
   # retrieve name of the provider from the file name of the context listener
   local providerClassName
   providerClassName=$(basename -s ContextListener.java repoTemp/src/main/java/de/gerdiproject/harvest/*ContextListener.java)
 
   # check if a plan with the same ID already exists in CodeAnalysis
-  planKey="$(echo "$providerClassName" | sed -e "s~[a-z]~~g")HAR"
+  planKey="$(echo "$providerClassName" | sed -e "s~[a-z]~~g")$project"
   doPlansExist=$(IsUrlReachable "https://ci.gerdi-project.de/rest/api/latest/plan/CA-$planKey" "$atlassianUserName" "$atlassianPassword")
 
   if [ "$doPlansExist" = true ]; then
     echo "Plans with the key '$planKey' already exist!" >&2
-    DeleteGitRepository "$atlassianUserName" "$atlassianPassword" "HAR" "$repositorySlug"
+    DeleteGitRepository "$atlassianUserName" "$atlassianPassword" "$project" "$repositorySlug"
     exit 1
   fi
  
   # run Bamboo Specs
-  ./scripts/plans/util/create-jobs-for-harvester/setup-bamboo-jobs.sh "$atlassianUserName" "$atlassianPassword" "$providerClassName"
+  ./scripts/plans/util/create-jobs-for-harvester/setup-bamboo-jobs.sh "$atlassianUserName" "$atlassianPassword" "$providerClassName" "$project" "$repositorySlug"
 }
 
 Main "$@"

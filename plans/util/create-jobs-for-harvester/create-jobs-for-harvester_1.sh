@@ -134,6 +134,9 @@ Main() {
   local repositorySlug
   repositorySlug=$(GetRepositorySlugFromCloneLink "$gitCloneLink")
   
+  
+  echo "Repository: https://code.gerdi-project.de/projects/$project/repos/$repositorySlug/" >&2
+  
   local providerClassName
   providerClassName=$(GetProviderClassName "$atlassianUserName" "$atlassianPassword" "$project" "$repositorySlug")
   
@@ -158,7 +161,7 @@ Main() {
   UpdateRepository "$atlassianUserName" "$atlassianPassword" "$project" "$repositorySlug"
 
   # run Bamboo Specs
-  ./scripts/plans/util/create-jobs-for-harvester/setup-bamboo-jobs.sh "$atlassianUserName" "$atlassianPassword" "$providerClassName"
+  ./scripts/plans/util/create-jobs-for-harvester/setup-bamboo-jobs.sh "$atlassianUserName" "$atlassianPassword" "$providerClassName" "$project" "$repositorySlug"
 }
 
 Main "$@"
