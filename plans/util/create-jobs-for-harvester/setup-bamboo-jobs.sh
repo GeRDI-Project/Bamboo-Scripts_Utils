@@ -47,7 +47,7 @@ Main() {
 
   # add plan branches
   local planLabel
-  planLabel=$(GetPlanLabelByProjectAndName "CA" "$providerClassName Static Analysis" "$atlassianUserName" "$atlassianPassword")
+  planLabel=$(GetPlanLabelByProjectAndName "CA" "$providerClassName-Harvester Static Analysis" "$atlassianUserName" "$atlassianPassword")
   
   if [ -z "$planLabel" ]; then
     echo "Could not create plan!" >&2
