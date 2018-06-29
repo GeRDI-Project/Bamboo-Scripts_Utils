@@ -66,7 +66,7 @@ CreateRepository() {
 
   # copy placeholder project into the cloned repository
   cd ..
-  cp -r "harvesterSetup/placeHolderProject" "repoTemp"
+  cp -r "harvesterSetup/placeholderProject" "repoTemp"
   cd "repoTemp"
 
   # rename placeholders for the project
