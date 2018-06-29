@@ -153,7 +153,6 @@ Main() {
 
   if [ "$doPlansExist" = true ]; then
     echo "Plans with the key '$planKey' already exist!" >&2
-    DeleteGitRepository "$atlassianUserName" "$atlassianPassword" "HAR" "$repositorySlug"
     exit 1
   fi
   
