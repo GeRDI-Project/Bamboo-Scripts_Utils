@@ -43,7 +43,7 @@ Main() {
 
   # create Bamboo plans
   cd bambooSpecsTemp/plans
-  echo -e $(mvn -e compile -Dbamboo.specs.log.level=DEBUG -Dexec.args="'$atlassianUserName' '$atlassianPassword' '$providerClassName' '$project' '$repositorySlug'") >&2
+  echo -e $(mvn -e compile -Dbamboo.specs.log.level=DEBUG -Dexec.args="'$atlassianUserName' '$atlassianPassword' '$providerClassName' '$project' '$repositorySlug' '$atlassianUserName'") >&2
 
   # add plan branches
   local planName
@@ -69,7 +69,7 @@ Main() {
   
   # create Bamboo deployments
   cd ../deployments
-  echo -e $(mvn -e compile -Dexec.args="'$atlassianUserName' '$atlassianPassword' '$providerClassName' '$project' '$repositorySlug' '$atlassianUserName'") >&2
+  echo -e $(mvn -e compile -Dbamboo.specs.log.level=DEBUG -Dexec.args="'$atlassianUserName' '$atlassianPassword' '$providerClassName' '$project' '$repositorySlug' '$atlassianUserName'") >&2
 }
 
 Main "$@"
