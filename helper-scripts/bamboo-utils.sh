@@ -317,7 +317,7 @@ CreatePlanBranch() {
   userName="$3"
   password="$4"
   
-  echo "$(curl -sX PUT -u "$userName:$password" "https://ci.gerdi-project.de/rest/api/latest/plan/$planLabel/branch/$branch?vcsBranch=refs%2Fheads%2F$branch")" >&2
+  echo "$(curl -sX PUT -u "$userName:$password" "https://ci.gerdi-project.de/rest/api/latest/plan/$planLabel/branch/$branch?vcsBranch=$branch")" >&2
 }
 
 
