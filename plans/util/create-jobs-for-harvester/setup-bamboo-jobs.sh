@@ -69,7 +69,7 @@ Main() {
   
   # create Bamboo deployments
   cd ../deployments
-  echo -e $(mvn -e compile -Dexec.args="'$atlassianUserName' '$atlassianPassword' '$providerClassName' '$project' '$repositorySlug'") >&2
+  echo -e $(mvn -e compile -Dexec.args="'$atlassianUserName' '$atlassianPassword' '$providerClassName' '$project' '$repositorySlug' '$atlassianUserName'") >&2
 }
 
 Main "$@"

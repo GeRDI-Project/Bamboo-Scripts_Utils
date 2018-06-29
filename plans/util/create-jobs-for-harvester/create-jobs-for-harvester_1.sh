@@ -160,7 +160,7 @@ Main() {
   UpdateRepository "$atlassianUserName" "$atlassianPassword" "$project" "$repositorySlug"
 
   # run Bamboo Specs
-  ./scripts/plans/util/create-jobs-for-harvester/setup-bamboo-jobs.sh "$atlassianUserName" "$atlassianPassword" "$providerClassName" "$project" "$repositorySlug" "$atlassianUserName"
+  ./scripts/plans/util/create-jobs-for-harvester/setup-bamboo-jobs.sh "$atlassianUserName" "$atlassianPassword" "$providerClassName" "$project" "$repositorySlug"
 }
 
 Main "$@"
