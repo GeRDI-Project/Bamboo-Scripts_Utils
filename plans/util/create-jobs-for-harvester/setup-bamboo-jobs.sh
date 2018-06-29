@@ -49,10 +49,19 @@ Main() {
   local planLabel
   planLabel=$(GetPlanLabelByProjectAndName "CA" "$providerClassName-Harvester Static Analysis" "$atlassianUserName" "$atlassianPassword")
   
-  if [ -z "$planLabel" ]; then
-    echo "Could not create plan!" >&2
-	exit 1
-  fi
+  # work-around for latency in bamboo job creation
+  local retries=5
+  while [ -z "$planLabel" ]; do
+	sleep 3
+    planLabel=$(GetPlanLabelByProjectAndName "CA" "$providerClassName-Harvester Static Analysis" "$atlassianUserName" "$atlassianPassword")
+    responseCode=$?
+	
+	retries=$(expr "$retries" - 1)
+	if [ $retries -eq 0 ]; then
+      echo "Could not create plan!" >&2
+	  exit 1
+	fi
+  done
   
   CreatePlanBranch "$planLabel" "stage" "$atlassianUserName" "$atlassianPassword"
   CreatePlanBranch "$planLabel" "production" "$atlassianUserName" "$atlassianPassword"
