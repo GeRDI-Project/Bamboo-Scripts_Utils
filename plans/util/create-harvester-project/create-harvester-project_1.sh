@@ -58,6 +58,7 @@ CreateRepository() {
 
   # create temporary folder
   rm -fr "repoTemp"
+  mkdir "repoTemp"
   cd "repoTemp"
 
   # clone newly created repository
