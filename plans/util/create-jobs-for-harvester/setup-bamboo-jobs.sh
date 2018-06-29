@@ -54,10 +54,12 @@ Main() {
   while [ -z "$planLabel" ]; do
 	sleep 3
     planLabel=$(GetPlanLabelByProjectAndName "CA" "$providerClassName-Harvester Static Analysis" "$atlassianUserName" "$atlassianPassword")
-    responseCode=$?
+	
+	echo "$retries : curl https://ci.gerdi-project.de/rest/api/latest/search/plans?searchTerm=$providerClassName-Harvester Static Analysis"
+    echo $(curl -sX GET -u "$atlassianUserName:$atlassianPassword" "https://ci.gerdi-project.de/rest/api/latest/search/plans?searchTerm=$providerClassName-Harvester Static Analysis") >&2
 	
 	retries=$(expr "$retries" - 1)
-	if [ $retries -eq 0 ]; then
+	if [ -z "$planLabel" ] && [ $retries -eq 0 ]; then
       echo "Could not create plan!" >&2
 	  exit 1
 	fi
