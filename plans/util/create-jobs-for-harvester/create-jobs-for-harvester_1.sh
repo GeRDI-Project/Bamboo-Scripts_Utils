@@ -48,23 +48,23 @@ CreateBitbucketBranch() {
   local userName="$1"
   local password="$2"
   local project="$3"
-  local slug="$4"
+  local repositorySlug="$4"
   local branchName="$5"
   
-  hasBranch=$(curl -sX GET -u "$userName:$password" "https://code.gerdi-project.de/rest/api/latest/projects/$project/repos/$slug/branches/?filterText=$branchName"\
+  hasBranch=$(curl -sX GET -u "$userName:$password" "https://code.gerdi-project.de/rest/api/latest/projects/$project/repos/$repositorySlug/branches/?filterText=$branchName"\
              | grep -c "\"id\":\"refs/heads/$branchName\"")
 		   
   if [ "$hasBranch" = "0" ]; then	
-	revision=$(curl -sX GET -u "$userName:$password" "https://code.gerdi-project.de/rest/api/1.0/projects/$project/repos/$slug/branches/?filterText=master"\
+	revision=$(curl -sX GET -u "$userName:$password" "https://code.gerdi-project.de/rest/api/1.0/projects/$project/repos/$repositorySlug/branches/?filterText=master"\
 	          | grep -oP "(?<=\"id\":\"refs/heads/master\",\"displayId\":\"master\",\"type\":\"BRANCH\",\"latestCommit\":\")[^\"]+")
 			  
-    echo "Creating Bitbucket branch '$branchName' for repository '$project/$slug', revision '$revision'." >&2
+    echo "Creating Bitbucket branch '$branchName' for repository '$project/$repositorySlug', revision '$revision'." >&2
 	
     response=$(curl -sX POST -u "$userName:$password" -H "Content-Type: application/json" -d '{
       "name": "'"$branchName"'",
       "startPoint": "'"$revision"'",
       "message": "Bamboo automatically created this branch in order to support Continuous Deployment."
-    }' "https://code.gerdi-project.de/rest/api/1.0/projects/$project/repos/$slug/branches/")
+    }' "https://code.gerdi-project.de/rest/api/1.0/projects/$project/repos/$repositorySlug/branches/")
   fi
 }
 
@@ -74,13 +74,8 @@ CreateBitbucketBranch() {
 UpdateRepository() {
   local username="$1"
   local password="$2"
-  local gitCloneLink="$3"
-  
-  local project
-  project=$(GetProjectIdFromCloneLink "$gitCloneLink")
-
-  local repositorySlug
-  repositorySlug=$(GetRepositorySlugFromCloneLink "$gitCloneLink")
+  local project="$3"
+  local repositorySlug="$4"
 
   # grant the bamboo-agent the permission to tag the repository
   AddWritePermissionForRepository "$username" "$password" "$project" "$repositorySlug" "bamboo-agent"
@@ -96,13 +91,8 @@ UpdateRepository() {
 GetProviderClassName() {
   local username="$1"
   local password="$2"
-  local gitCloneLink="$3"
-  
-  local project
-  project="HAR"
-
-  local repositorySlug
-  repositorySlug="faostat"
+  local project="$3"
+  local repositorySlug="$4"
   
   local proviCLassName
   proviClassName=$(curl -sX GET -u "$userName:$password" "https://code.gerdi-project.de/rest/api/1.0/projects/$project/repos/$repositorySlug/files" \
@@ -135,10 +125,17 @@ Main() {
   ExitIfAtlassianCredentialsWrong "$atlassianUserName" "$atlassianPassword"
 
   # retrieve plan variables
+  local gitCloneLink
   gitCloneLink=$(GetValueOfPlanVariable gitCloneLink)
   
+  local project
+  project=$(GetProjectIdFromCloneLink "$gitCloneLink")
+
+  local repositorySlug
+  repositorySlug=$(GetRepositorySlugFromCloneLink "$gitCloneLink")
+  
   local providerClassName
-  providerClassName=$(GetProviderClassName "$atlassianUserName" "$atlassianPassword" "$gitCloneLink")
+  providerClassName=$(GetProviderClassName "$atlassianUserName" "$atlassianPassword" "$project" "$repositorySlug")
   echo "Provider Class Name: '$providerClassName'" >&2
   
   # check if a plan with the same ID already exists in CodeAnalysis
@@ -152,7 +149,7 @@ Main() {
   fi
   
   # update repository
-  UpdateRepository "$atlassianUserName" "$atlassianPassword" "$gitCloneLink" 
+  UpdateRepository "$atlassianUserName" "$atlassianPassword" "$project" "$repositorySlug"
 
   # run Bamboo Specs
   ./scripts/plans/util/create-jobs-for-harvester/setup-bamboo-jobs.sh "$atlassianUserName" "$atlassianPassword" "$providerClassName"
