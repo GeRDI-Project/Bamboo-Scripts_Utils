@@ -497,7 +497,7 @@ GetBitBucketProjectName() {
 }
 
 
-# Adds read permissions of a BitBucket repository to a specified user.
+# Adds read permission of a BitBucket repository to a specified user.
 #  Arguments:
 #  1 - a Bitbucket user name
 #  2 - the login password that belongs to argument 1
@@ -511,12 +511,12 @@ AddReadPermissionForRepository() {
   repositorySlug="$4"
   targetUser="$5"
 
-  echo "Adding Read-permission of repository '$project/$repositorySlug' for user '$targetUser'." >&2
+  echo "Adding read permission to repository '$project/$repositorySlug' for user '$targetUser'." >&2
   echo $(curl -sX PUT -u "$userName:$password" "https://code.gerdi-project.de/rest/api/1.0/projects/$project/repos/$repositorySlug/permissions/users?name=$targetUser&permission=REPO_READ") >&2
 }
 
 
-# Adds write permissions of a BitBucket repository to a specified user.
+# Adds write permission of a BitBucket repository to a specified user.
 #  Arguments:
 #  1 - a Bitbucket user name
 #  2 - the login password that belongs to argument 1
@@ -530,6 +530,6 @@ AddWritePermissionForRepository() {
   repositorySlug="$4"
   targetUser="$5"
   
-  echo "Adding Write-permission of repository '$project/$repositorySlug' for user '$targetUser'." >&2
+  echo "Adding write permission to repository '$project/$repositorySlug' for user '$targetUser'." >&2
   echo $(curl -sX PUT -u "$userName:$password" "https://code.gerdi-project.de/rest/api/1.0/projects/$project/repos/$repositorySlug/permissions/users?name=$targetUser&permission=REPO_WRITE") >&2
 }
