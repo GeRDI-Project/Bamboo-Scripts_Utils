@@ -176,10 +176,8 @@ Main() {
   local planKey
   planKey="$(echo "$providerClassName" | sed -e "s~[a-z]~~g")$BITBUCKET_PROJECT"
   
-  local doPlansExist
-  doPlansExist=$(IsUrlReachable "https://ci.gerdi-project.de/rest/api/latest/plan/CA-$planKey" "$atlassianUserName" "$atlassianPassword")
-
-  if [ "$doPlansExist" = true ]; then
+  # check if plans already exist
+  if $(IsUrlReachable "https://ci.gerdi-project.de/rest/api/latest/plan/CA-$planKey" "$atlassianUserName" "$atlassianPassword"); then
     echo "Plans with the key '$planKey' already exist!" >&2
     DeleteGitRepository "$atlassianUserName" "$atlassianPassword" "$BITBUCKET_PROJECT" "$repositorySlug"
     exit 1

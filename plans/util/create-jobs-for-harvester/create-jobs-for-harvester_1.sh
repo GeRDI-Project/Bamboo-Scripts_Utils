@@ -51,18 +51,17 @@ CreateBitbucketBranch() {
   local repositorySlug="$4"
   local branchName="$5"
   
-  local hasBranch
-  hasBranch=$(curl -sX GET -u "$userName:$password" "https://code.gerdi-project.de/rest/api/latest/projects/$project/repos/$repositorySlug/branches/?filterText=$branchName"\
-             | grep -c "\"id\":\"refs/heads/$branchName\"")
-		   
-  if [ "$hasBranch" = "0" ]; then
+  local response
+  response=$(curl -sX GET -u "$userName:$password" "https://code.gerdi-project.de/rest/api/latest/projects/$project/repos/$repositorySlug/branches/?filterText=$branchName")
+  
+  # make sure that no branch with the same name exists
+  if ! $(echo "$response" | grep -q "\"id\":\"refs/heads/$branchName\""); then
     local revision
 	revision=$(curl -sX GET -u "$userName:$password" "https://code.gerdi-project.de/rest/api/1.0/projects/$project/repos/$repositorySlug/branches/?filterText=master"\
 	          | grep -oP "(?<=\"id\":\"refs/heads/master\",\"displayId\":\"master\",\"type\":\"BRANCH\",\"latestCommit\":\")[^\"]+")
 			  
     echo "Creating Bitbucket branch '$branchName' for repository '$project/$repositorySlug', revision '$revision'." >&2
 	
-	local response
     response=$(curl -sX POST -u "$userName:$password" -H "Content-Type: application/json" -d '{
       "name": "'"$branchName"'",
       "startPoint": "'"$revision"'",
@@ -153,10 +152,8 @@ Main() {
   local planKey
   planKey="$(echo "$providerClassName" | sed -e "s~[a-z]~~g")HAR"
   
-  local doPlansExist
-  doPlansExist=$(IsUrlReachable "https://ci.gerdi-project.de/rest/api/latest/plan/CA-$planKey" "$atlassianUserName" "$atlassianPassword")
-
-  if [ "$doPlansExist" = true ]; then
+  # check if plans already exist
+  if $(IsUrlReachable "https://ci.gerdi-project.de/rest/api/latest/plan/CA-$planKey" "$atlassianUserName" "$atlassianPassword"); then
     echo "Plans with the key '$planKey' already exist!" >&2
     exit 1
   fi

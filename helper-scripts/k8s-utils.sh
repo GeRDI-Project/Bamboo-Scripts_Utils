@@ -77,7 +77,8 @@ GetFreeClusterIp() {
   do
     clusterIp="$ipPrefix$lastSegment"
 	
-	if [ -z "$(echo "$ipList" | grep -oP "(?<![0-9])$clusterIp(?![0-9])")" ]; then
+	# check if clusterIP is not within the list of assigned IPs
+	if ! $(echo "$ipList" | grep -qP "(?<![0-9])$clusterIp(?![0-9])") ; then
       echo "$clusterIp"
 	  exit 0
     fi

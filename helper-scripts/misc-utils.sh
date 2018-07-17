@@ -17,8 +17,8 @@
 # This script offers some generic utility functions.
 
 
-# Returns true, if a HEAD request to a specified URL returned 200.
-# Otherwise, false is returned.
+# Exits with 0, if a HEAD request to a specified URL returned 200.
+# Otherwise, it exits with 1.
 #  Arguments:
 #  1 - the URL that is tested
 #  2 - a username for Basic Authentication (optional)
@@ -32,10 +32,8 @@ IsUrlReachable() {
   local httpCode
   httpCode=$(GetHeadHttpCode "$url" "$userName" "$password")
   
-  if [ $httpCode -ge 200 ] && [ $httpCode -lt 400 ]; then
-    echo true
-  else
-    echo false
+  if [ $httpCode -lt 200 ] || [ $httpCode -ge 400 ]; then
+    exit 1
   fi
 }
 

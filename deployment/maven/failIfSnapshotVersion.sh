@@ -29,10 +29,8 @@ set -u
 # the main function that is executed in this script
 #
 Main() {
-  local isSnapshot
-  isSnapshot=$(echo "$bamboo_inject_maven_version" | grep -cP "\-SNAPSHOT\$")
-
-  if [ "$isSnapshot" = "1" ]; then
+  # ensure that version does not end with "-SNAPSHOT"
+  if $(echo "$bamboo_inject_maven_version" | grep -qP "\-SNAPSHOT\$"); then
     echo "Maven release deployments must not contain SNAPSHOT versions!" >&2
     exit 1
   fi

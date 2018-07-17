@@ -105,22 +105,17 @@ CreateGitRepository() {
     "forkable": true
   }' https://code.gerdi-project.de/rest/api/1.0/projects/$projectId/repos/)
 
-  # check for BitBucket errors
-  local errorsPrefix
-  errorsPrefix="\{\"errors\""
-  if [ -z "${response%$errorsPrefix*}" ]; then
-    echo "Could not create repository for the Harvester:" >&2
-    echo "$response" >&2
+  
+  local repositorySlug
+  repositorySlug=$(echo "$response" | grep -oP '(?<="slug":")[^"]+')
+  
+  # check if the slug was created
+  if [ -z "$repositorySlug" ]; then 
+    echo -e "Could not create repository for the Harvester:\n$response" >&2
     exit 1
   fi
 
-  # retrieve the urlencoded repository name from the curl response
-  local repositorySlug
-  repositorySlug=${response#*\{\"slug\":\"}
-  repositorySlug=${repositorySlug%%\"*}
-
   echo "Successfully created repository '$repositorySlug'." >&2
-  
   echo "$repositorySlug"
 }
 
@@ -172,10 +167,8 @@ DeleteBranch() {
   local branchInfo
   branchInfo=$(curl -sX GET -u "$userName:$password" https://code.gerdi-project.de/rest/api/latest/projects/$project/repos/$repositorySlug/branches?filterText=$branchName)
   
-  local wasBranchDeleted
-  wasBranchDeleted=$(echo "$branchInfo" | grep -o '{"size":0,')
-  
-  if [ -z "$wasBranchDeleted" ]; then
+  # only continue if the branch exists
+  if ! $(echo "$branchInfo" | grep -q '"size":0'); then
     echo "Deleting branch '$branchName' of '$project/$repositorySlug'" >&2
 	
 	local deleteResponse
@@ -316,11 +309,10 @@ GetPullRequestIdOfSourceBranch() {
   local allPullRequests
   allPullRequests=$(curl -sX GET -u "$userName:$password" https://code.gerdi-project.de/rest/api/latest/projects/$project/repos/$repositorySlug/pull-requests)
   
-  local hasNoOpenRequests
-  hasNoOpenRequests=$(echo "$allPullRequests" | grep -o '{"size":0,')
-  
   local pullRequestId
-  if [ -n "$hasNoOpenRequests" ]; then
+  
+  # check if there are no pull requests
+  if $(echo "$allPullRequests" | grep -q '"{size":0,'); then
     pullRequestId=""
   else
     pullRequestId=${allPullRequests%\"fromRef\":\{\"id\":\"refs/heads/$branchName*}

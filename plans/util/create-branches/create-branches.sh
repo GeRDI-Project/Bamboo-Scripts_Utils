@@ -64,10 +64,8 @@ UpdateBranchesOfRepository() {
   # clone repository
   $(CloneGitRepository "$ATLASSIAN_USER_NAME" "$ATLASSIAN_PASSWORD" "$projectId" "$slug")
   
-  # abort if branch exists
-  local hasBranch
-  hasBranch=$(git branch -a | grep -cx " *remotes/origin/$createdBranchName")
-  if [ "$hasBranch" = "1" ]; then
+  # abort if target branch already exists
+  if $(git branch -a | grep -qx " *remotes/origin/$createdBranchName"); then
     echo "Repository '$projectId/$slug' already has a '$createdBranchName' branch." >&2
     cd ..
     rm -rf "$slug"
@@ -75,8 +73,7 @@ UpdateBranchesOfRepository() {
   fi
   
   # abort if source branch does not exist
-  hasBranch=$(git branch -a | grep -cx " *remotes/origin/$sourceBranchName")
-  if [ "$hasBranch" = "0" ]; then
+  if ! $(git branch -a | grep -qx " *remotes/origin/$sourceBranchName"); then
     echo "Branch '$createdBranchName' cannot be created for repository '$projectId/$slug', because the source branch '$sourceBranchName' does not exist!" >&2
     cd ..
     rm -rf "$slug"
@@ -90,7 +87,6 @@ UpdateBranchesOfRepository() {
   # remove temp directory
   cd ..
   rm -rf "$slug"
-  exit 0
 }
 
 
@@ -133,10 +129,10 @@ UpdateBranchesOfArgument() {
   local sourceBranchName="$2"
   local createdBranchName="$3"
 
-  if [ "$(IsProject "$argument")" = "true" ]; then
+  if $(IsProject "$argument"); then
     echo $(UpdateBranchesOfProject "$argument" "$sourceBranchName" "$createdBranchName") >&2
 	
-  elif [ "$(IsCloneLink "$argument")" = "true" ]; then
+  elif $(IsCloneLink "$argument"); then
     echo $(UpdateBranchesOfRepository "$argument" "$sourceBranchName" "$createdBranchName") >&2
 
   else
@@ -153,19 +149,16 @@ UpdateBranchesOfArgument() {
 IsCloneLink() {
   local checkedArg="$1"
   
-  local greppedArg
-  greppedArg=$(echo "$checkedArg" | grep -cx "https:.*\.git")
-  
-  if [ "$greppedArg" = "1" ]; then
+  if $(echo "$checkedArg" | grep -qx "https:.*\.git"); then
     local projectId
 	projectId=$(GetProjectIdFromCloneLink "$checkedArg")
 	
 	local slug
     slug=$(GetRepositorySlugFromCloneLink "$checkedArg")
 	
-    echo $(IsUrlReachable "https://code.gerdi-project.de/rest/api/latest/projects/$projectId/repos/$slug" "$ATLASSIAN_USER_NAME" "$ATLASSIAN_PASSWORD")
+    IsUrlReachable "https://code.gerdi-project.de/rest/api/latest/projects/$projectId/repos/$slug" "$ATLASSIAN_USER_NAME" "$ATLASSIAN_PASSWORD"
   else
-    echo false
+    exit 1
   fi
 }
 
@@ -178,13 +171,10 @@ IsCloneLink() {
 IsProject() {
   local checkedArg="$1"
   
-  local greppedArg
-  greppedArg=$(echo "$checkedArg" | grep -cxP "[A-Za-z]+")
-  
-  if [ "$greppedArg" = "1" ]; then
-    echo $(IsUrlReachable "https://code.gerdi-project.de/rest/api/latest/projects/$checkedArg/" "$ATLASSIAN_USER_NAME" "$ATLASSIAN_PASSWORD")
+  if $(echo "$checkedArg" | grep -qxP "[A-Za-z]+"); then
+    IsUrlReachable "https://code.gerdi-project.de/rest/api/latest/projects/$checkedArg/" "$ATLASSIAN_USER_NAME" "$ATLASSIAN_PASSWORD"
   else
-    echo false
+    exit 1
   fi
 }
 

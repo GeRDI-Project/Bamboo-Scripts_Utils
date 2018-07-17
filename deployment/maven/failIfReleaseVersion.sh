@@ -29,10 +29,8 @@ set -u
 # the main function that is executed in this script
 #
 Main() {
-  local isSnapshot
-  isSnapshot=$(echo "$bamboo_inject_maven_version" | grep -cP "\-SNAPSHOT\$")
-
-  if [ "$isSnapshot" = "0" ]; then
+  # check if version ends with "-SNAPSHOT"
+  if ! $(echo "$bamboo_inject_maven_version" | grep -qP "\-SNAPSHOT\$"); then
     echo "Maven test deployments must always be SNAPSHOT versions!" >&2
     exit 1
   fi
