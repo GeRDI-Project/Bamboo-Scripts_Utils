@@ -61,6 +61,9 @@ source ./scripts/helper-scripts/misc-utils.sh
 CreateRepository() {
   local userName="$1"
   local password="$2"
+  
+  local providerName
+  providerName=$(GetValueOfPlanVariable providerName)
 
   local repositorySlug
   repositorySlug=$(CreateGitRepository "$userName" "$password" "$BITBUCKET_PROJECT" "$providerName")
@@ -81,10 +84,7 @@ CreateRepository() {
   # copy placeholder project into the cloned repository
   echo $(cp -rT "../harvesterSetup/placeholderProject/" "./") >&2
 
-  # get placeholder values
-  local providerName
-  providerName=$(GetValueOfPlanVariable providerName)
-  
+  # get placeholder values  
   local providerUrl
   providerUrl=$(GetValueOfPlanVariable providerUrl)
 
