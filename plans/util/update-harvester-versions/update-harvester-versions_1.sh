@@ -128,8 +128,8 @@ QueueParentPomUpdate(){
     
     # calculate next version
     TARGET_VERSION=$(GetTargetVersionForUpdate "$SOURCE_VERSION" "$TARGET_VERSION" "$sourceParentVersion" "$targetParentVersion")
-    echo "local pomContent=\"\$(cat \"$POM_FOLDER/pom.xml\")\"" >> $UPDATE_QUEUE_FILE
-    echo "local newParent=\"<parent>\${pomContent#*<parent>}\"" >> $UPDATE_QUEUE_FILE
+    echo "pomContent=\"\$(cat \"$POM_FOLDER/pom.xml\")\"" >> $UPDATE_QUEUE_FILE
+    echo "newParent=\"<parent>\${pomContent#*<parent>}\"" >> $UPDATE_QUEUE_FILE
     echo "newParent=\"\${newParent%%</parent>*}</parent>\"" >> $UPDATE_QUEUE_FILE
     echo "newParent=\$(echo \"\$newParent\" | sed -e \"s~<version>$sourceParentVersion</version>~<version>$targetParentVersion</version>~g\")" >> $UPDATE_QUEUE_FILE
     echo "rm -f \"$POM_FOLDER/pom.xml\"" >> $UPDATE_QUEUE_FILE
@@ -204,10 +204,10 @@ PrepareUpdate() {
   
   # get version from pom
   if [ -f "$POM_FOLDER/pom.xml" ]; then
-    ARTIFACT_ID=$(GetPomValue "project.ARTIFACT_ID" "$POM_FOLDER/pom.xml") 
-	echo "ARTIFACT_ID: $ARTIFACT_ID" >&2
+    ARTIFACT_ID=$(GetPomValue "project.artifactId" "$POM_FOLDER/pom.xml") 
+	echo "ArtifactId: $ARTIFACT_ID" >&2
     SOURCE_VERSION=$(GetPomValue "project.version" "$POM_FOLDER/pom.xml")
-	echo "current version: $SOURCE_VERSION" >&2
+	echo "Current version: $SOURCE_VERSION" >&2
     TARGET_VERSION="$SOURCE_VERSION"
   else
     # if no pom.xml exists, we cannot update it
@@ -325,63 +325,54 @@ BuildAndDeployLibrary() {
   local isVersionAlreadyBuilt
   isVersionAlreadyBuilt=$(IsMavenVersionDeployed "$ARTIFACT_ID" "$TARGET_VERSION")
   
-  if [ "$isVersionAlreadyBuilt" = false ]; then
-    local isEverythingSuccessful=1
-    
-    # get ID of deployment project
-	local deploymentId
-    deploymentId=$(GetDeploymentId "$planLabel" "$ATLASSIAN_USER_NAME" "$ATLASSIAN_PASSWORD")
-    
-    if [ -n "$deploymentId" ]; then
-      echo "deploymentId: $deploymentId" >&2
-    
-      # get ID of 'Maven Deploy' environment
-	  local environmentId
-      environmentId=$(GetMavenDeployEnvironmentId "$deploymentId" "$ATLASSIAN_USER_NAME" "$ATLASSIAN_PASSWORD")
-    
-      if [ -n "$environmentId" ]; then
-        echo "environmentId: $environmentId" >&2
-       
-        # get branch number of the plan
-		local planBranchId
-        planBranchId=$(GetPlanBranchId "$planLabel" "$BRANCH_NAME" "$ATLASSIAN_USER_NAME" "$ATLASSIAN_PASSWORD")
-       
-        if [ -n "$planBranchId" ]; then
-          echo "planLabel: $planLabel$planBranchId" >&2  
-
-		  local planResultKey
-          planResultKey="$planLabel$planBranchId-2"
-        
-          # wait for plan to finish
-          $(WaitForPlanToBeDone "$planResultKey" "$ATLASSIAN_USER_NAME" "$ATLASSIAN_PASSWORD")
-
-          # fail if the plan was not successful
-          if [ $? -eq 0 ]; then        
-            # start bamboo deployment
-			local deploymentResultId
-            deploymentResultId=$(StartBambooDeployment \
-			  "$deploymentId" \
-			  "$environmentId" \
-			  "$TARGET_VERSION($planResultKey)" \
-			  "$planResultKey" \
-			  "$ATLASSIAN_USER_NAME" \
-			  "$ATLASSIAN_PASSWORD")
-        
-            if [ -n "$deploymentResultId" ]; then
-              echo "deploymentResultId: $deploymentResultId" >&2
-              $(WaitForDeploymentToBeDone "$deploymentResultId" "$ATLASSIAN_USER_NAME" "$ATLASSIAN_PASSWORD")
-              isEverythingSuccessful=$?
-            fi
-          fi
-        fi
-      fi
-    fi
-    if [ $isEverythingSuccessful -ne 0 ]; then
-      echo "DID NOT FINISH BAMBOO PLAN/DEPLOYMENT $planLabel!" >&2
-    fi
-  else
+  if [ "$isVersionAlreadyBuilt" = true ]; then
     echo "Did not deploy $ARTIFACT_ID $TARGET_VERSION, because it already exists in the Sonatype repository." >&2
+	exit 0
   fi
+  
+  if ! $(echo "$TARGET_VERSION" | grep -q "-SNAPSHOT" ); then
+    echo "Cannot automatically deploy RELEASE versions, because it takes 15 minutes until they are accessible in the Maven Central repository!" >&2
+	exit 1
+  fi
+  
+  # get ID of deployment project
+  local deploymentId
+  deploymentId=$(GetDeploymentId "$planLabel" "$ATLASSIAN_USER_NAME" "$ATLASSIAN_PASSWORD")
+  if [ -z "$deploymentId" ]; then exit 1; fi
+  echo "deploymentId: $deploymentId" >&2
+  
+  # get ID of 'Maven Deploy' environment
+  local environmentId
+  environmentId=$(GetDeployEnvironmentId "$deploymentId" "Maven Snapshot" "$ATLASSIAN_USER_NAME" "$ATLASSIAN_PASSWORD")
+  if [ -z "$environmentId" ]; then exit 1; fi
+  echo "environmentId: $environmentId" >&2
+       
+  # get branch number of the plan
+  local planBranchId
+  planBranchId=$(GetPlanBranchId "$planLabel" "$BRANCH_NAME" "$ATLASSIAN_USER_NAME" "$ATLASSIAN_PASSWORD")
+  if [ -z "$planBranchId" ]; then exit 1; fi
+  echo "planLabel: $planLabel$planBranchId" >&2  
+
+  local planResultKey
+  planResultKey="$planLabel$planBranchId-2"
+        
+  # wait for plan to finish
+  WaitForPlanToBeDone "$planResultKey" "$ATLASSIAN_USER_NAME" "$ATLASSIAN_PASSWORD"
+     
+  # start bamboo deployment
+  local deploymentResultId
+  deploymentResultId=$(StartBambooDeployment \
+   "$deploymentId" \
+   "$environmentId" \
+   "$TARGET_VERSION($planResultKey)" \
+   "$planResultKey" \
+   "$ATLASSIAN_USER_NAME" \
+   "$ATLASSIAN_PASSWORD")
+        
+  if [ -z "$deploymentResultId" ]; then exit 1; fi
+  
+  echo "deploymentResultId: $deploymentResultId" >&2
+  WaitForDeploymentToBeDone "$deploymentResultId" "$ATLASSIAN_USER_NAME" "$ATLASSIAN_PASSWORD"
 }
 
 
@@ -438,7 +429,7 @@ Main() {
     QueueParentPomUpdate "$parentPomVersion"
     ExecuteUpdate "$atlassianUserEmail" "$atlassianUserDisplayName" "$reviewer"
 	local harvesterUtilsVersion="$TARGET_VERSION"
-    BuildAndDeployLibrary "CA-HU"
+    echo $(BuildAndDeployLibrary "CAHL-HU") >&2
   fi
 
   # update json library
@@ -448,7 +439,7 @@ Main() {
     QueuePropertyUpdate "harvesterutils.dependency.version" "$harvesterUtilsVersion"
     ExecuteUpdate "$atlassianUserEmail" "$atlassianUserDisplayName" "$reviewer"
 	local jsonLibVersion="$TARGET_VERSION"
-    BuildAndDeployLibrary "CA-JL"
+    echo $(BuildAndDeployLibrary "CAHL-JL") >&2
   fi
 
   # update harvester base library
@@ -458,7 +449,7 @@ Main() {
     QueuePropertyUpdate "gerdigson.dependency.version" "$jsonLibVersion"
     ExecuteUpdate "$atlassianUserEmail" "$atlassianUserDisplayName" "$reviewer"
     local harvesterLibVersion="$TARGET_VERSION"
-    BuildAndDeployLibrary "CA-HL"
+    echo $(BuildAndDeployLibrary "CAHL-HBL") >&2
   fi
 
   # update harvester parent pom
@@ -469,11 +460,11 @@ Main() {
     QueuePropertyUpdate "harvesterutils.dependency.version" "$harvesterUtilsVersion"
     ExecuteUpdate "$atlassianUserEmail" "$atlassianUserDisplayName" "$reviewer"
     local harvesterParentPomVersion="$TARGET_VERSION"
-    BuildAndDeployLibrary "CA-HPPSA"
+    echo $(BuildAndDeployLibrary "CAHL-HPP") >&2
   fi
 
   # update all other harvesters
-  UpdateAllHarvesters "$harvesterParentPomVersion" "$atlassianUserEmail" "$reviewer"
+  UpdateAllHarvesters "$harvesterParentPomVersion" "$atlassianUserEmail" "$atlassianUserDisplayName" "$reviewer"
 
   echo " " >&2
 

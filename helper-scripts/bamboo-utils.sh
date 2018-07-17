@@ -47,14 +47,15 @@ GetPlanBranchId() {
   local userName="$3"
   local password="$4"
   
-  local response
-  response=$(curl -sX GET -u "$userName:$password" https://ci.gerdi-project.de/rest/api/latest/plan/$planLabel/branch/$branch)
-  
   local planBranchId
-  planBranchId=${response#*key=\"$planLabel}
-  planBranchId=${planBranchId%%\"*}
-  
-  echo "$planBranchId"
+  planBranchId=$(curl -sX GET -u "$userName:$password" https://ci.gerdi-project.de/rest/api/latest/plan/$planLabel/branch/$branch \
+                 | grep -oP "(?<=key=\"$planLabel)[^\"]+" \
+                 | head -1)
+				 
+  if [ -z "$planBranchId" ]; then
+    echo "The plan branch $planLabel/$branch does not exist!" >&2
+	exit 1
+  fi
 }
 
 
@@ -69,20 +70,16 @@ GetDeploymentId() {
   local userName="$2"
   local password="$3"
   
-  local response
-  response=$(curl -sX GET -u "$userName:$password" -H "Content-Type: application/json" https://ci.gerdi-project.de/rest/api/latest/deploy/project/all)
-  
   local deploymentId
-  deploymentId=${response%\"planKey\":\{\"key\":\"$planLabel\"\}*}
+  deploymentId=$(curl -sX GET -u "$userName:$password"  "https://ci.gerdi-project.de/rest/api/latest/deploy/project/forPlan?planKey=$planLabel" \
+                 | grep -oP "(?<=\"id\":)\d+")
 
-  if [ ${#deploymentId} -eq ${#response} ]; then
+  # check if a plan with the specified label exists
+  if [ -z "$deploymentId" ]; then
     echo "The plan $planLabel does not have a deployment job" >&2
-    echo ""
-  else  
-    deploymentId=${deploymentId##*\{\"id\":}
-    deploymentId=${deploymentId%%,*}
-    echo "$deploymentId"
   fi
+  
+  echo "$deploymentId"
 }
 
 
@@ -128,23 +125,25 @@ GetLatestBambooPlanResultKey() {
 }
 
 
-# Returns the environment identifier of the "Maven Deploy" environment of a specified deployment job.
+# Returns the environment identifier of a specified environment of a specified deployment job.
 #  Arguments:
 #  1 - the identifier of the deployment job
-#  2 - a Bamboo user name that has the necessary permissions for this operation
-#  3 - a password for argument 2
+#  2 - the name of the requested environment
+#  3 - a Bamboo user name that has the necessary permissions for this operation
+#  4 - a password for argument 2
 #
-GetMavenDeployEnvironmentId() {
+GetDeployEnvironmentId() {
   local deploymentId="$1"
-  local userName="$2"
-  local password="$3"
+  local environmentName="$2"
+  local userName="$3"
+  local password="$4"
   
   local response
   response=$(curl -sX GET -u "$userName:$password" -H "Content-Type: application/json" https://ci.gerdi-project.de/rest/api/latest/deploy/project/$deploymentId)
   response=${response#*\"environments\":\[}
   
   local environmentId
-  environmentId=$(echo "$response" | grep -oP "(?<=\{\"id\":)\d+(?=,.*?\"name\":\"Maven Deploy\")")
+  environmentId=$(echo "$response" | grep -oP "(?<=\{\"id\":)\d+(?=,.*?\"name\":\"$environmentName\")")
   
   if [ -z "$environmentId" ]; then
     echo "Could not find a 'Maven Deploy' environment for deployment project $deploymentId!" >&2
