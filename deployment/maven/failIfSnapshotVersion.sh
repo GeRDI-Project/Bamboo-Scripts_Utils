@@ -21,9 +21,26 @@
 # treat unset variables as an error when substituting
 set -u
 
-isSnapshot=$(echo "$bamboo_inject_maven_version" | grep -cP "\-SNAPSHOT\$")
 
-if [ "$isSnapshot" = "1" ]; then
-  echo "Maven release deployments must not contain SNAPSHOT versions!" >&2
-  exit 1
-fi
+#########################
+#  FUNCTION DEFINITIONS #
+#########################
+
+# the main function that is executed in this script
+#
+Main() {
+  local isSnapshot
+  isSnapshot=$(echo "$bamboo_inject_maven_version" | grep -cP "\-SNAPSHOT\$")
+
+  if [ "$isSnapshot" = "1" ]; then
+    echo "Maven release deployments must not contain SNAPSHOT versions!" >&2
+    exit 1
+  fi
+}
+
+
+###########################
+#  BEGINNING OF EXECUTION #
+###########################
+
+Main "$@"

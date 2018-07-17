@@ -25,10 +25,11 @@
 #  3 - a password for Basic Authentication (optional)
 #
 IsUrlReachable() {
-  url="$1"
-  userName="$2"
-  password="$3"
+  local url="$1"
+  local userName="$2"
+  local password="$3"
 
+  local httpCode
   httpCode=$(GetHeadHttpCode "$url" "$userName" "$password")
   
   if [ $httpCode -ge 200 ] && [ $httpCode -lt 400 ]; then
@@ -46,8 +47,8 @@ IsUrlReachable() {
 #  2 - the second version that is compared
 #
 IsMajorVersionDifferent() {
-  majorVersionA=${1%%.*}
-  majorVersionB=${2%%.*}
+  local majorVersionA=${1%%.*}
+  local majorVersionB=${2%%.*}
   
   if [ "$majorVersionA" != "$majorVersionB" ]; then
     echo "true"
@@ -64,18 +65,18 @@ IsMajorVersionDifferent() {
 #  3 - a password for Basic Authentication (optional)
 #
 GetHeadHttpCode() {
-  url="$1"
-  userName="$2"
-  password="$3"
+  local url="$1"
+  local userName="$2"
+  local password="$3"
   
-  if [ "$userName" != "" ]; then
+  local response
+  if [ -n "$userName" ]; then
     response=$(curl -sIX HEAD -u "$userName:$password" $url)
   else
     response=$(curl -sIX HEAD $url)
   fi
   
-  httpCode=$(echo "$response" | grep -oP '(?<=HTTP/\d\.\d )\d+')
-  echo "$httpCode"
+  echo "$response" | grep -oP '(?<=HTTP/\d\.\d )\d+'
 }
 
 
@@ -86,9 +87,9 @@ GetHeadHttpCode() {
 #  2 - the name of the placeholder and local variable
 #
 SubstitutePlaceholderInFile() {
-  fileName="$1"
-  placeHolderName="$2"
-  placeHolderValue="${!placeHolderName}"
+  local fileName="$1"
+  local placeHolderName="$2"
+  local placeHolderValue="${!placeHolderName}"
   
   sed --in-place=.tmp -e "s~\${$placeHolderName}~$placeHolderValue~g" $fileName && rm -f $fileName.tmp
 }
@@ -99,11 +100,11 @@ SubstitutePlaceholderInFile() {
 #  1 - An optional error message that is printed only when the preceding operation failed
 #
 ExitIfLastOperationFailed() {
-  lastOpReturnCode=$?
-  errorMessage="$1"
+  local lastOpReturnCode=$?
+  local errorMessage="$1"
   
   if [ $lastOpReturnCode -ne 0 ]; then
-    if [ "$errorMessage" != "" ]; then
+    if [ -n "$errorMessage" ]; then
       echo "$errorMessage" >&2
 	fi
     exit 1

@@ -37,11 +37,15 @@ source ./scripts/helper-scripts/misc-utils.sh
 #  FUNCTION DEFINITIONS #
 #########################
 
-# FUNCTION THAT UPDATES THE LICENSE HEADERS OF ALL HARVESTERS
+# This function updates the license headers of all harvesters of the HAR project.
+#
 UpdateAllLicenseHeaders() {
+  local userName="$1"
+  local password="$2"
   
   # grep harvester clone URLs, and convert them to batch instructions
-  cloneLinks=$(curl -sX GET -u "$atlassianUserName:$atlassianPassword" https://code.gerdi-project.de/rest/api/latest/projects/HAR/repos \
+  local cloneLinks
+  cloneLinks=$(curl -sX GET -u "$userName:$password" https://code.gerdi-project.de/rest/api/latest/projects/HAR/repos \
   | python -m json.tool \
   | grep -oE '"http.*?git"' \
   | sed -e "s~\"http.*@\(.*\)\"~\\1~")
@@ -52,31 +56,37 @@ UpdateAllLicenseHeaders() {
   while read cloneLink
   do
     echo "Checking project: $cloneLink"
-    UpdateLicenseHeadersOfProject "$cloneLink"
+    UpdateLicenseHeadersOfRepository "$cloneLink" "$userName" "$password"
   done <<< "$(echo -e "$cloneLinks")"
   
   # clean up temporary folder
-  cd "$topDir"
-  rm -rf "$tempDir"
+  cd "$TOP_FOLDER"
+  rm -rf "$TEMP_FOLDER"
 }
 
 
-# FUNCTION THAT UPDATES A SINGLE HARVESTER'S PARENT POM
-UpdateLicenseHeadersOfProject() {
-  cloneLink="$1"
+# This function updates all license headers of a specified harvester repository.
+#
+UpdateLicenseHeadersOfRepository() {
+  local cloneLink="$1"
+  local userName="$2"
+  local password="$3"
 
+  local repositorySlug
   repositorySlug=$(GetRepositorySlugFromCloneLink "$cloneLink")
+  
+  local projectId
   projectId=$(GetProjectIdFromCloneLink "$cloneLink")
 
-  cd "$topDir"
+  cd "$TOP_FOLDER"
 
   # remove and (re-)create a temporary folder
-  rm -rf "$tempDir"
-  tempDir=$(mktemp -d)
-  cd "$tempDir"
+  rm -rf "$TEMP_FOLDER"
+  TEMP_FOLDER=$(mktemp -d)
+  cd "$TEMP_FOLDER"
 
   # clone repository
-  CloneGitRepository "$atlassianUserName" "$atlassianPassword" "$projectId" "$repositorySlug"
+  CloneGitRepository "$userName" "$password" "$projectId" "$repositorySlug"
 
   # check if a pom XML with the correct parent exists
   if [ ! -f "pom.xml" ]; then
@@ -97,7 +107,7 @@ UpdateLicenseHeadersOfProject() {
 
     # continue if the script was successful
     if [ $? -eq 0 ]; then
-      PushLicenseHeaderUpdate "$projectId" "$repositorySlug"
+      PushLicenseHeaderUpdate "$projectId" "$repositorySlug" "$userName" "$password"
 	else
 	  echo "Could not add license headers to $projectId/$repositorySlug!" >&2
     fi
@@ -105,60 +115,128 @@ UpdateLicenseHeadersOfProject() {
 }
 
 
-# FUNCTION FOR ATTEMPTING TO PUSH A LICENSE HEADER UPDATE
+# This function commits and pushes updated license headers of a specified repository.
+#
 PushLicenseHeaderUpdate() { 
-  projectId="$1" 
-  repositorySlug="$2"
+  local projectId="$1" 
+  local repositorySlug="$2"
+  local username="$3"
+  local password="$4"
+  
   if [ $(GetNumberOfUnstagedChanges) -ne 0 ]; then
     echo "License headers of $projectId/$repositorySlug need to be updated!" >&2
 	
 	# create JIRA ticket, if needed
-	if [ "$jiraKey" = "" ]; then 
- 	  jiraKey=""$(CreateJiraTicket \
+	if [ -z "$JIRA_KEY" ]; then 
+ 	  JIRA_KEY=""$(CreateJiraTicket \
 	    "Update Harvester License Headers" \
         "The license headers of some harvester projects are to be updated." \
-        "$atlassianUserName" \
-        "$atlassianPassword")
-      AddJiraTicketToCurrentSprint "$jiraKey" "$atlassianUserName" "$atlassianPassword"
-      StartJiraTask "$jiraKey" "$atlassianUserName" "$atlassianPassword"
+        "$username" \
+        "$password")
+      AddJiraTicketToCurrentSprint "$JIRA_KEY" "$username" "$password"
+      StartJiraTask "$JIRA_KEY" "$username" "$password"
     fi
 	
     # create sub-task
+	local subTaskKey
     subTaskKey=$(CreateJiraSubTask \
-	  "$jiraKey" \
+	  "$JIRA_KEY" \
 	  "Add license headers to $projectId/$repositorySlug" \
       "The license headers of $repositorySlug need to be updated and/or added." \
-	  "$atlassianUserName" \
-	  "$atlassianPassword")
+	  "$username" \
+	  "$password")
 	  
 	# start sub-task
-    StartJiraTask "$subTaskKey" "$atlassianUserName" "$atlassianPassword"
+    StartJiraTask "$subTaskKey" "$username" "$password"
   
     # create git branch
-    branchName="$jiraKey-$subTaskKey-UpdateLicenseHeaders"
+	local branchName
+    branchName="$JIRA_KEY-$subTaskKey-UpdateLicenseHeaders"
 	CreateBranch "$branchName"
     
 	# commit and push updates
-    commitMessage="$jiraKey $subTaskKey Updated license headers."
+	local commitMessage
+    commitMessage="$JIRA_KEY $subTaskKey Updated license headers."
+	
+	local atlassianUserEmail
+    atlassianUserEmail=$(GetAtlassianUserEmailAddress "$username" "$password" "$username")
+	
+	local atlassianUserDisplayName
+    atlassianUserDisplayName=$(GetAtlassianUserDisplayName "$username" "$password" "$username")
+	
 	echo $(PushAllFilesToGitRepository "$atlassianUserDisplayName" "$atlassianUserEmail" "$commitMessage") >&2
   
+    local reviewer
+    reviewer=$(GetValueOfPlanVariable reviewer)
+	
     # create pull request
-      echo $(CreatePullRequest \
-        "$atlassianUserName" \
-        "$atlassianPassword" \
+    echo $(CreatePullRequest \
+        "$username" \
+        "$password" \
         "$projectId" \
         "$repositorySlug" \
 	    "$branchName" \
         "master" \
         "$repositorySlug Update License Headers" \
         "Updated and/or added license headers." \
-        "$reviewer1" \
+        "$reviewer" \
         "") >&2
-      ReviewJiraTask "$subTaskKey" "$atlassianUserName" "$atlassianPassword"
-      FinishJiraTask "$subTaskKey" "$atlassianUserName" "$atlassianPassword"
+      ReviewJiraTask "$subTaskKey" "$username" "$password"
+      FinishJiraTask "$subTaskKey" "$username" "$password"
   else
     echo "All headers of $projectId/$repositorySlug are up-to-date!" >&2
   fi
+}
+
+
+# The main function that is executed in this script.
+#
+Main() {
+  # check early exit conditions
+  ExitIfNotLoggedIn
+  ExitIfPlanVariableIsMissing "atlassianPassword"
+  ExitIfPlanVariableIsMissing "reviewer"
+
+  local atlassianUserName
+  atlassianUserName=$(GetBambooUserName)
+
+  local atlassianPassword
+  atlassianPassword=$(GetValueOfPlanVariable "atlassianPassword")
+
+  # test Atlassian credentials
+  ExitIfAtlassianCredentialsWrong "$atlassianUserName" "$atlassianPassword"
+
+  # check pull-request reviewer
+  local reviewer=$(GetValueOfPlanVariable reviewer)
+  echo "Reviewer: $reviewer" >&2
+  if [ "$reviewer" = "$atlassianUserName" ]; then
+    echo "You cannot be a reviewer yourself! Please set the 'reviewer' variable to a proper value when running the plan customized!" >&2
+    exit 1
+  fi
+    
+  # init global variables
+  TOP_FOLDER="$PWD"
+  TEMP_FOLDER=""
+  JIRA_KEY=""
+
+  # fire in the hole!
+  UpdateAllLicenseHeaders "$atlassianUserName" "$atlassianPassword"
+
+  echo " " >&2
+
+  if [ -n "$JIRA_KEY" ]; then
+    ReviewJiraTask "$JIRA_KEY" "$atlassianUserName" "$atlassianPassword"
+    echo "-------------------------------------------------" >&2
+    echo "FINISHED UPDATING! PLEASE, CHECK THE JIRA TICKET:" >&2
+    echo "https://tasks.gerdi-project.de/browse/$JIRA_KEY" >&2
+    echo "-------------------------------------------------" >&2
+  else
+    echo "------------------------------" >&2
+    echo "NO PROJECTS HAD TO BE UPDATED!" >&2
+    echo "------------------------------" >&2
+  fi
+
+  echo " " >&2
 }
 
 
@@ -166,49 +244,4 @@ PushLicenseHeaderUpdate() {
 #  BEGINNING OF EXECUTION #
 ###########################
 
-# check early exit conditions
-ExitIfNotLoggedIn
-ExitIfPlanVariableIsMissing "atlassianPassword"
-ExitIfPlanVariableIsMissing "reviewer"
-
-atlassianUserName=$(GetBambooUserName)
-atlassianPassword=$(GetValueOfPlanVariable "atlassianPassword")
-
-# test Atlassian credentials
-ExitIfAtlassianCredentialsWrong "$atlassianUserName" "$atlassianPassword"
-
-# get more Atlassian user details
-atlassianUserEmail=$(GetAtlassianUserEmailAddress "$atlassianUserName" "$atlassianPassword" "$atlassianUserName")
-atlassianUserDisplayName=$(GetAtlassianUserDisplayName "$atlassianUserName" "$atlassianPassword" "$atlassianUserName")
-
-# check pull-request reviewer
-reviewer1=$(GetValueOfPlanVariable reviewer)
-echo "Reviewer: $reviewer1" >&2
-if [ "$reviewer1" = "$atlassianUserName" ]; then
-  echo "You cannot be a reviewer yourself! Please set the 'reviewer' variable to a proper value when running the plan customized!" >&2
-  exit 1
-fi
-  
-# init global variables
-jiraKey=""
-tempDir=""
-topDir="$PWD"
-
-# fire in the hole!
-UpdateAllLicenseHeaders
-
-echo " " >&2
-
-if [ "$jiraKey" != "" ]; then
-  ReviewJiraTask "$jiraKey" "$atlassianUserName" "$atlassianPassword"
-  echo "-------------------------------------------------" >&2
-  echo "FINISHED UPDATING! PLEASE, CHECK THE JIRA TICKET:" >&2
-  echo "https://tasks.gerdi-project.de/browse/$jiraKey" >&2
-  echo "-------------------------------------------------" >&2
-else
-  echo "------------------------------" >&2
-  echo "NO PROJECTS HAD TO BE UPDATED!" >&2
-  echo "------------------------------" >&2
-fi
-
-echo " " >&2
+Main "$@"

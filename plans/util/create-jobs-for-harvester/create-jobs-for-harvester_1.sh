@@ -51,15 +51,18 @@ CreateBitbucketBranch() {
   local repositorySlug="$4"
   local branchName="$5"
   
+  local hasBranch
   hasBranch=$(curl -sX GET -u "$userName:$password" "https://code.gerdi-project.de/rest/api/latest/projects/$project/repos/$repositorySlug/branches/?filterText=$branchName"\
              | grep -c "\"id\":\"refs/heads/$branchName\"")
 		   
-  if [ "$hasBranch" = "0" ]; then	
+  if [ "$hasBranch" = "0" ]; then
+    local revision
 	revision=$(curl -sX GET -u "$userName:$password" "https://code.gerdi-project.de/rest/api/1.0/projects/$project/repos/$repositorySlug/branches/?filterText=master"\
 	          | grep -oP "(?<=\"id\":\"refs/heads/master\",\"displayId\":\"master\",\"type\":\"BRANCH\",\"latestCommit\":\")[^\"]+")
 			  
     echo "Creating Bitbucket branch '$branchName' for repository '$project/$repositorySlug', revision '$revision'." >&2
 	
+	local response
     response=$(curl -sX POST -u "$userName:$password" -H "Content-Type: application/json" -d '{
       "name": "'"$branchName"'",
       "startPoint": "'"$revision"'",
@@ -98,7 +101,7 @@ GetProviderClassName() {
   proviClassName=$(curl -sX GET -u "$userName:$password" "https://code.gerdi-project.de/rest/api/1.0/projects/$project/repos/$repositorySlug/files" \
   | grep -oP "(?<=src/main/java/de/gerdiproject/harvest/)[^\"]+(?=ContextListener.java\")")
   
-  if [ "$proviClassName" = "" ]; then
+  if [ -z "$proviClassName" ]; then
     proviClassName=$(curl -sX GET "https://code.gerdi-project.de/rest/api/1.0/projects/$project/repos/$repositorySlug/files" \
     | grep -oP "(?<=src/main/java/de/gerdiproject/harvest/)[^\"]+(?=ContextListener.java\")")
   fi
@@ -134,7 +137,6 @@ Main() {
   local repositorySlug
   repositorySlug=$(GetRepositorySlugFromCloneLink "$gitCloneLink")
   
-  
   echo "Repository: https://code.gerdi-project.de/projects/$project/repos/$repositorySlug/" >&2
   
   local providerClassName
@@ -148,7 +150,10 @@ Main() {
   echo "Provider Class Name: '$providerClassName'" >&2
   
   # check if a plan with the same ID already exists in CodeAnalysis
+  local planKey
   planKey="$(echo "$providerClassName" | sed -e "s~[a-z]~~g")HAR"
+  
+  local doPlansExist
   doPlansExist=$(IsUrlReachable "https://ci.gerdi-project.de/rest/api/latest/plan/CA-$planKey" "$atlassianUserName" "$atlassianPassword")
 
   if [ "$doPlansExist" = true ]; then

@@ -48,6 +48,7 @@ Main() {
   # add plan branches
   local planName
   planName="$providerClassName-Harvester%20Static%20Analysis"
+  
   local planLabel
   planLabel=$(GetPlanLabelByProjectAndName "CA" "$planName" "$atlassianUserName" "$atlassianPassword")
   

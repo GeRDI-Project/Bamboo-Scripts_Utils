@@ -23,8 +23,9 @@
 #  1 - a link to the repository
 #
 GetRepositorySlugFromCloneLink() {
-  cloneLink="$1"
+  local cloneLink="$1"
   
+  local repositorySlug
   repositorySlug=${cloneLink##*/}
   repositorySlug=${repositorySlug%.git}
   
@@ -37,8 +38,9 @@ GetRepositorySlugFromCloneLink() {
 #  1 - a link to the repository
 #
 GetProjectIdFromCloneLink() {
-  cloneLink="$1"
+  local cloneLink="$1"
   
+  local projectId
   projectId=${cloneLink%/*}
   projectId=${projectId##*/}
   
@@ -62,14 +64,16 @@ GetNumberOfUnstagedChanges() {
 #  4 - the identifier of the repository
 #
 CloneGitRepository() {
-  userName="$(echo "$1" | sed -e "s/@/%40/g")"
-  password="$2"
-  projectId="$3"
-  repositorySlug="$4"
+  local userName="$(echo "$1" | sed -e "s/@/%40/g")"
+  local password="$2"
+  local projectId="$3"
+  local repositorySlug="$4"
   
+  local gitCredentials
   gitCredentials="$userName:$password"
   
   echo "Cloning repository code.gerdi-project.de/scm/$projectId/$repositorySlug.git" >&2
+  local response
   response=$(git clone -q "https://$gitCredentials@code.gerdi-project.de/scm/$projectId/$repositorySlug.git" .)
 
   if [ $?  -ne 0 ]; then
@@ -88,12 +92,13 @@ CloneGitRepository() {
 #  4 - a human readable name of the repository
 #
 CreateGitRepository() {
-  userName="$1"
-  password="$2"
-  projectId="$3"
-  repoName="$4"
+  local userName="$1"
+  local password="$2"
+  local projectId="$3"
+  local repoName="$4"
   
   echo "Creating repository '$repoName' in code.gerdi-project.de/scm/$projectId/" >&2
+  local response
   response=$(curl -sX POST -u "$userName:$password" -H "Content-Type: application/json" -d '{
     "name": "'"$repoName"'",
     "scmId": "git",
@@ -101,14 +106,16 @@ CreateGitRepository() {
   }' https://code.gerdi-project.de/rest/api/1.0/projects/$projectId/repos/)
 
   # check for BitBucket errors
+  local errorsPrefix
   errorsPrefix="\{\"errors\""
-  if [ "${response%$errorsPrefix*}" = "" ]; then
+  if [ -z "${response%$errorsPrefix*}" ]; then
     echo "Could not create repository for the Harvester:" >&2
     echo "$response" >&2
     exit 1
   fi
 
   # retrieve the urlencoded repository name from the curl response
+  local repositorySlug
   repositorySlug=${response#*\{\"slug\":\"}
   repositorySlug=${repositorySlug%%\"*}
 
@@ -126,11 +133,12 @@ CreateGitRepository() {
 #  4 - the identifier of the repository that is to be deleted
 #
 DeleteGitRepository() {
-  userName="$1"
-  password="$2"
-  projectId="$3"
-  repositorySlug="$4"
+  local userName="$1"
+  local password="$2"
+  local projectId="$3"
+  local repositorySlug="$4"
  
+  local response
   response=$(curl -sX DELETE -u "$userName:$password" https://code.gerdi-project.de/rest/api/1.0/projects/$projectId/repos/$repositorySlug)
 }
 
@@ -140,7 +148,7 @@ DeleteGitRepository() {
 #  1 - the name of the branch
 #
 CreateBranch() {
-  branchName="$1"
+  local branchName="$1"
   echo $(git checkout -b $branchName) >&2
   echo $(git push -q --set-upstream origin $branchName) >&2
 }
@@ -155,21 +163,27 @@ CreateBranch() {
 #  5 - the identifier of the branch that is to be deleted
 #
 DeleteBranch() {
-  userName="$1"
-  password="$2"
-  project="$3"
-  repositorySlug="$4"
-  branchName="$5"
+  local userName="$1"
+  local password="$2"
+  local project="$3"
+  local repositorySlug="$4"
+  local branchName="$5"
   
+  local branchInfo
   branchInfo=$(curl -sX GET -u "$userName:$password" https://code.gerdi-project.de/rest/api/latest/projects/$project/repos/$repositorySlug/branches?filterText=$branchName)
+  
+  local wasBranchDeleted
   wasBranchDeleted=$(echo "$branchInfo" | grep -o '{"size":0,')
   
-  if [ "$wasBranchDeleted" = "" ]; then
+  if [ -z "$wasBranchDeleted" ]; then
     echo "Deleting branch '$branchName' of '$project/$repositorySlug'" >&2
+	
+	local deleteResponse
     deleteResponse=$(curl -sX DELETE -u "$userName:$password" -H "Content-Type: application/json" -d '{
       "name": "refs/heads/'"$branchName"'",
       "dryRun": false
     }' https://code.gerdi-project.de/rest/branch-utils/latest/projects/$project/repos/$repositorySlug/branches/)
+	
     echo "$deleteResponse" >&2
   else
     echo "No need to delete branch '$branchName' of '$project/$repositorySlug', because it no longer exists." >&2
@@ -183,9 +197,9 @@ DeleteBranch() {
 #  3 - the commit message
 #
 PushAllFilesToGitRepository() {
-  userDisplayName="$1"
-  userEmailAddress="$2"
-  commitMessage="$3"
+  local userDisplayName="$1"
+  local userEmailAddress="$2"
+  local commitMessage="$3"
 
   echo "Adding files to Git" >&2
   git add -A
@@ -214,30 +228,30 @@ PushAllFilesToGitRepository() {
 #  10 - the Atlassian user name of another pull request reviewer (optional)
 #
 CreatePullRequest() {
-  userName="$1"
-  password="$2"
-  project="$3"
-  repositorySlug="$4"
-  branch="$5"
-  target="$6"
-  title="$7"
-  description="$8"
-  reviewer1="$9"
-  reviewer2="${10}"
+  local userName="$1"
+  local password="$2"
+  local project="$3"
+  local repositorySlug="$4"
+  local branch="$5"
+  local target="$6"
+  local title="$7"
+  local description="$8"
+  local reviewer1="$9"
+  local reviewer2="${10}"
   
   # print some debug log about the repository and reviewer(s)
   echo "Creating Pull-Request for repository '$repositorySlug' in project '$project'." >&2
   
-  reviewers="[]"
-  if [ "$reviewer1" != "" ] && [ "$reviewer2" != "" ]; then
+  local reviewers="[]"
+  if [ -n "$reviewer1" ] && [ -n "$reviewer2" ]; then
     echo "Reviewers are $reviewer1 and $reviewer2." >&2
     reviewers="[{ \"user\": { \"name\": \"$reviewer1\" }}, { \"user\": { \"name\": \"$reviewer2\" }}]"
 	
-  elif [ "$reviewer1" != "" ]; then
+  elif [ -n "$reviewer1" ]; then
     echo "Reviewer is $reviewer1." >&2
     reviewers="[{ \"user\": { \"name\": \"$reviewer1\" }}]"
 	
-  elif [ "$reviewer2" != "" ]; then
+  elif [ -n "$reviewer2" ]; then
     echo "Reviewer is $reviewer2." >&2
     reviewers="[{ \"user\": { \"name\": \"$reviewer2\" }}]"
 	
@@ -246,6 +260,7 @@ CreatePullRequest() {
   fi
   
   # create pull-request
+  local bitbucketPostResponse
   bitbucketPostResponse=$(curl -sX POST -u "$userName:$password" -H "Content-Type: application/json" -d '{
     "title": "'"$title"'",
     "description": "'"$description"'",
@@ -292,16 +307,20 @@ CreatePullRequest() {
 #  5 - the identifier of the source branch
 #
 GetPullRequestIdOfSourceBranch() {
-  userName="$1"
-  password="$2"
-  project="$3"
-  repositorySlug="$4"
-  branchName="$5"
+  local userName="$1"
+  local password="$2"
+  local project="$3"
+  local repositorySlug="$4"
+  local branchName="$5"
   
+  local allPullRequests
   allPullRequests=$(curl -sX GET -u "$userName:$password" https://code.gerdi-project.de/rest/api/latest/projects/$project/repos/$repositorySlug/pull-requests)
+  
+  local hasNoOpenRequests
   hasNoOpenRequests=$(echo "$allPullRequests" | grep -o '{"size":0,')
   
-  if [ "$hasNoOpenRequests" != "" ]; then
+  local pullRequestId
+  if [ -n "$hasNoOpenRequests" ]; then
     pullRequestId=""
   else
     pullRequestId=${allPullRequests%\"fromRef\":\{\"id\":\"refs/heads/$branchName*}
@@ -322,13 +341,14 @@ GetPullRequestIdOfSourceBranch() {
 #  5 - the version of the pull request
 #
 MergePullRequest() {
-  userName="$1"
-  password="$2"
-  project="$3"
-  repositorySlug="$4"
-  pullRequestId="$5"
-  pullRequestVersion="$6"
+  local userName="$1"
+  local password="$2"
+  local project="$3"
+  local repositorySlug="$4"
+  local pullRequestId="$5"
+  local pullRequestVersion="$6"
   
+  local mergeResponse
   mergeResponse=$(curl -sX POST -u "$userName:$password" -H "Content-Type:application/json" https://code.gerdi-project.de/rest/api/latest/projects/$project/repos/$repositorySlug/pull-requests/$pullRequestId/merge?version=$pullRequestVersion) >&2
 }
 
@@ -343,14 +363,18 @@ MergePullRequest() {
 #  5 - the identifier of the source branch
 #
 MergeAndCleanPullRequest() {
-  userName="$1"
-  password="$2"
-  project="$3"
-  repositorySlug="$4"
-  branchName="$5"
+  local userName="$1"
+  local password="$2"
+  local project="$3"
+  local repositorySlug="$4"
+  local branchName="$5"
   
+  local pullRequestId
   pullRequestId=$(GetPullRequestIdOfSourceBranch "$userName" "$password" "$project" "$repositorySlug" "$branchName")
-  if [ "$pullRequestId" != "" ]; then
+  
+  local pullRequestInfoJson
+  local pullRequestStatus
+  if [ -n "$pullRequestId" ]; then
     pullRequestInfoJson=$(GetPullRequestInfoJson "$userName" "$password" "$project" "$repositorySlug" "$pullRequestId")
     pullRequestStatus=$(GetStatusFromPullRequestInfoJson "$pullRequestInfoJson")
   else
@@ -363,8 +387,10 @@ MergeAndCleanPullRequest() {
 	
   elif [ "$pullRequestStatus" = "APPROVED" ]; then
     echo "Merging https://code.gerdi-project.de/projects/$project/repos/$repositorySlug/pull-requests/$pullRequestId/" >&2
-	  
+	
+	local pullRequestVersion
     pullRequestVersion=$(GetVersionFromPullRequestInfoJson "$pullRequestInfoJson")
+	
     MergePullRequest "$userName" "$password" "$project" "$repositorySlug" "$pullRequestId" "$pullRequestVersion" >&2
     DeleteBranch "$userName" "$password" "$project" "$repositorySlug" "$branchName"
 	
@@ -384,38 +410,43 @@ MergeAndCleanPullRequest() {
 #  3 - the identifier of the JIRA ticket of which all pull requests are merged
 #
 MergeAllPullRequestsOfJiraTicket() {
-  userName="$1"
-  password="$2"
-  jiraKey="$3"
+  local userName="$1"
+  local password="$2"
+  local jiraKey="$3"
   
   # get all commits of JIRA ticket
+  local allCommits
   allCommits=$(curl -sX GET -u "$userName:$password" https://code.gerdi-project.de/rest/jira/latest/issues/$jiraKey/commits?maxChanges\=1)
   
   # extract clone links from commits with messages that start with the JIRA ticket number
+  local cloneLinkList
   cloneLinkList=$(printf "%s" "$allCommits" \
   | grep -oP '{"fromCommit".*?"message":"'"$jiraKey"'.*?}}}' \
   | sed -e 's~.*"message":"'"$jiraKey"'.*\?"href":"\(http[^"]\+\?git\)".*~\1~g')
   
   # check if we have a list of clone links
-  if [ "$cloneLinkList" = "" ]; then
+  if [ -z "$cloneLinkList" ]; then
     echo "Could not retrieve commits from JIRA ticket $jiraKey:" >&2
 	echo "$allCommits" >&2
     exit 1
   fi
   
   # execute merge of all pull-requests
-  failedMerges=0
+  local project
+  local repositorySlug
+  local branchName
+  local failedMerges=0
   printf '%s\n' "$cloneLinkList" | ( while IFS= read -r cloneLink
   do 
     project=$(GetProjectIdFromCloneLink "$cloneLink")
     repositorySlug=$(GetRepositorySlugFromCloneLink "$cloneLink")
 	
 	  # get full branch name by looking for branches that start with the JIRA ticket number
-    jiraBranchJson=$(curl -sX GET -u "$userName:$password" https://code.gerdi-project.de/rest/api/latest/projects/$project/repos/$repositorySlug/branches?filterText=$jiraKey)
-	  branchName=$(echo $jiraBranchJson | grep -oP "(?<=\"id\":\"refs/heads/)[^\"]+")
+    branchName=$(curl -sX GET -u "$userName:$password" "https://code.gerdi-project.de/rest/api/latest/projects/$project/repos/$repositorySlug/branches?filterText=$jiraKey" \
+	| grep -oP "(?<=\"id\":\"refs/heads/)[^\"]+")
 	
-	  if [ "$branchName" != "" ]; then
-      $(MergeAndCleanPullRequest "$userName" "$password" "$project" "$repositorySlug" "$branchName")
+	  if [ -n "$branchName" ]; then
+        $(MergeAndCleanPullRequest "$userName" "$password" "$project" "$repositorySlug" "$branchName")
 	    isMerged=$?
 	    failedMerges=$(expr $failedMerges + $isMerged)
 	  fi
@@ -433,11 +464,11 @@ MergeAllPullRequestsOfJiraTicket() {
 #  5 - the identifier of the pull request
 #
 GetPullRequestInfoJson() {
-  userName="$1"
-  password="$2"
-  project="$3"
-  repositorySlug="$4"
-  pullRequestId="$5"
+  local userName="$1"
+  local password="$2"
+  local project="$3"
+  local repositorySlug="$4"
+  local pullRequestId="$5"
   
   echo $(curl -sX GET -u "$userName:$password" https://code.gerdi-project.de/rest/api/latest/projects/$project/repos/$repositorySlug/pull-requests/$pullRequestId)
 }
@@ -448,7 +479,7 @@ GetPullRequestInfoJson() {
 #  1 - a JSON string created by calling GetPullRequestInfoJson()
 #
 GetVersionFromPullRequestInfoJson() {
-  pullRequestInfo="$1"
+  local pullRequestInfo="$1"
   echo "$pullRequestInfo" | grep -oP '(?<="version":)\d+'
 }
 
@@ -458,23 +489,27 @@ GetVersionFromPullRequestInfoJson() {
 #  1 - a JSON string created by calling GetPullRequestInfoJson()
 #
 GetStatusFromPullRequestInfoJson() {
-  pullRequestInfo="$1"
+  local pullRequestInfo="$1"
   
+  local reviewerInfo
   reviewerInfo=${pullRequestInfo#*\"reviewers\":\[}
   reviewerInfo=${reviewerInfo%%\],\"participants\":\[}
   
   # is the request already merged ? 
+  local mergedStatus
   mergedStatus=$(echo "$pullRequestInfo" | grep -o '"state":"MERGED","open":false,')
   
   # did any reviewer set the status to 'NEEDS_WORK' ?
+  local needsWorkStatus
   needsWorkStatus=$(echo "$reviewerInfo" | grep -o '"status":"NEEDS_WORK"')
 
-  # at least one reviewer set the status to 'APPROVED'  
+  # at least one reviewer set the status to 'APPROVED'
+  local approvedStatus
   approvedStatus=$(echo "$reviewerInfo" | grep -o '"status":"APPROVED"')
   
-  if [ "$mergedStatus" != "" ]; then
+  if [ -n "$mergedStatus" ]; then
     echo "MERGED"
-  elif [ "$needsWorkStatus" = "" ] && [ "$approvedStatus" != "" ]; then
+  elif [ -z "$needsWorkStatus" ] && [ -n "$approvedStatus" ]; then
     echo "APPROVED"
   else
     echo "NEEDS_WORK"
@@ -489,9 +524,11 @@ GetStatusFromPullRequestInfoJson() {
 #  3 - the ID of the project to which the repository belongs
 #
 GetBitBucketProjectName() {
-  userName="$1"
-  password="$2"
-  project="$3"
+  local userName="$1"
+  local password="$2"
+  local project="$3"
+  
+  local response
   response=$(curl -sX GET -u "$userName:$password" https://code.gerdi-project.de/rest/api/latest/projects/$project/)
   echo "$response" | grep -oP "(?<=\"name\":\")[^\"]+"
 }
@@ -505,11 +542,11 @@ GetBitBucketProjectName() {
 #  4 - the identifier of the repository
 #  5 - the Bitbucket user name of the user for who the permissions will be granted
 AddReadPermissionForRepository() {
-  userName="$1"
-  password="$2"
-  project="$3"
-  repositorySlug="$4"
-  targetUser="$5"
+  local userName="$1"
+  local password="$2"
+  local project="$3"
+  local repositorySlug="$4"
+  local targetUser="$5"
 
   echo "Adding read permission to repository '$project/$repositorySlug' for user '$targetUser'." >&2
   echo $(curl -sX PUT -u "$userName:$password" "https://code.gerdi-project.de/rest/api/1.0/projects/$project/repos/$repositorySlug/permissions/users?name=$targetUser&permission=REPO_READ") >&2
@@ -524,11 +561,11 @@ AddReadPermissionForRepository() {
 #  4 - the identifier of the repository
 #  5 - the Bitbucket user name of the user for who the permissions will be granted
 AddWritePermissionForRepository() {
-  userName="$1"
-  password="$2"
-  project="$3"
-  repositorySlug="$4"
-  targetUser="$5"
+  local userName="$1"
+  local password="$2"
+  local project="$3"
+  local repositorySlug="$4"
+  local targetUser="$5"
   
   echo "Adding write permission to repository '$project/$repositorySlug' for user '$targetUser'." >&2
   echo $(curl -sX PUT -u "$userName:$password" "https://code.gerdi-project.de/rest/api/1.0/projects/$project/repos/$repositorySlug/permissions/users?name=$targetUser&permission=REPO_WRITE") >&2

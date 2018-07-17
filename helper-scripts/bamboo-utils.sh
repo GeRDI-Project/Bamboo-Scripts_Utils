@@ -22,7 +22,7 @@
 #  1 - the name of the plan variable as it appears in the Bamboo front-end
 #
 GetValueOfPlanVariable() {
-  internalVarName="bamboo_$1"
+  local internalVarName="bamboo_$1"
   echo "${!internalVarName}"
 }
 
@@ -42,12 +42,15 @@ GetBambooUserName() {
 #  4 - a password for argument 3
 #
 GetPlanBranchId() {
-  planLabel="$1"
-  branch="$2"
-  userName="$3"
-  password="$4"
+  local planLabel="$1"
+  local branch="$2"
+  local userName="$3"
+  local password="$4"
   
+  local response
   response=$(curl -sX GET -u "$userName:$password" https://ci.gerdi-project.de/rest/api/latest/plan/$planLabel/branch/$branch)
+  
+  local planBranchId
   planBranchId=${response#*key=\"$planLabel}
   planBranchId=${planBranchId%%\"*}
   
@@ -62,11 +65,14 @@ GetPlanBranchId() {
 #  3 - a password for argument 2
 #
 GetDeploymentId() {
-  planLabel="$1"
-  userName="$2"
-  password="$3"
+  local planLabel="$1"
+  local userName="$2"
+  local password="$3"
   
+  local response
   response=$(curl -sX GET -u "$userName:$password" -H "Content-Type: application/json" https://ci.gerdi-project.de/rest/api/latest/deploy/project/all)
+  
+  local deploymentId
   deploymentId=${response%\"planKey\":\{\"key\":\"$planLabel\"\}*}
 
   if [ ${#deploymentId} -eq ${#response} ]; then
@@ -88,17 +94,24 @@ GetDeploymentId() {
 #  4 - a password for argument 3
 #
 GetLatestBambooPlanResultKey() {
-  planLabel="$1"
-  planBranchId="$2"
-  userName="$3"
-  password="$4"
+  local planLabel="$1"
+  local planBranchId="$2"
+  local userName="$3"
+  local password="$4"
   
   # check latest finished build
+  local response
   response=$(curl -sX GET -u "$userName:$password" -H "Content-Type: application/json"  https://ci.gerdi-project.de/rest/api/latest/result/$planLabel$planBranchId?max-results=1)
+  
+  local planResultKey
   planResultKey=$(echo "$response" | grep -oP '(?<=<buildResultKey>).+(?=</buildResultKey>)')
   
   # check if a build is in progress
-  if [ "$planResultKey" != "" ]; then
+  local nextBuildNumber
+  local nextPlanResultKey
+  local httpCode
+  
+  if [ -n "$planResultKey" ]; then
     nextBuildNumber=${planResultKey##*-}
 	nextBuildNumber=$(expr $nextBuildNumber + 1)
     nextPlanResultKey="${planResultKey%-*}-$nextBuildNumber"
@@ -122,15 +135,18 @@ GetLatestBambooPlanResultKey() {
 #  3 - a password for argument 2
 #
 GetMavenDeployEnvironmentId() {
-  deploymentId="$1"
-  userName="$2"
-  password="$3"
+  local deploymentId="$1"
+  local userName="$2"
+  local password="$3"
   
+  local response
   response=$(curl -sX GET -u "$userName:$password" -H "Content-Type: application/json" https://ci.gerdi-project.de/rest/api/latest/deploy/project/$deploymentId)
   response=${response#*\"environments\":\[}
+  
+  local environmentId
   environmentId=$(echo "$response" | grep -oP "(?<=\{\"id\":)\d+(?=,.*?\"name\":\"Maven Deploy\")")
   
-  if [ "$environmentId" = "" ]; then
+  if [ -z "$environmentId" ]; then
     echo "Could not find a 'Maven Deploy' environment for deployment project $deploymentId!" >&2
   fi
   echo "$environmentId"
@@ -146,11 +162,12 @@ GetMavenDeployEnvironmentId() {
 #  4 - a password for argument 3
 #
 GetPlanLabelByProjectAndName() {
-  projectId="$1"
-  planName="$2"
-  userName="$3"
-  password="$4"
+  local projectId="$1"
+  local planName="$2"
+  local userName="$3"
+  local password="$4"
   
+  local response
   response=$(curl -sX GET -u "$userName:$password" "https://ci.gerdi-project.de/rest/api/latest/search/plans?searchTerm=$planName")
   echo "$response" | grep -oP "(?<=\<key\>)$projectId-.+?(?=\</key\>)" | head -n1
 }
@@ -164,17 +181,19 @@ GetPlanLabelByProjectAndName() {
 #  3 - a password for argument 2
 #
 StartBambooPlan() {
-  planLabel="$1"
-  userName="$2"
-  password="$3"
+  local planLabel="$1"
+  local userName="$2"
+  local password="$3"
   
+  local response
   response=$(curl -sX POST -u "$userName:$password" -H "Content-Type: application/json" -d '{}' https://ci.gerdi-project.de/rest/api/latest/queue/$planLabel?stage\&executeAllStages)
+  
+  local buildNumber
   buildNumber=$(echo "$response" | grep -oP '(?<=buildNumber=")\d+(?=")')
   
   # return plan result key
-  if [ "$buildNumber" = "" ]; then
+  if [ -z "$buildNumber" ]; then
     echo "Could not start Bamboo Plan $planLabel: $response" >&2
-    echo ""
   else
     echo "$planLabel-$buildNumber"
   fi
@@ -189,16 +208,18 @@ StartBambooPlan() {
 #  3 - a password for argument 2
 #
 WaitForPlanToBeDone() {
-  planResultKey="$1"
-  userName="$2"
-  password="$3"
+  local planResultKey="$1"
+  local userName="$2"
+  local password="$3"
   
   echo "Waiting for plan $planResultKey to finish..." >&2
   
   # send a head-request to check if a plan result page exists
+  local resultsUrl
   resultsUrl="https://ci.gerdi-project.de/rest/api/latest/result/$planResultKey"
   $(curl -sfX HEAD -u "$userName:$password" $resultsUrl)
-  responseCode=$?
+  
+  local responseCode=$?
   
   # wait 3 seconds and re-send the head-request if needed
   while [ $responseCode -ne 0 ]; do
@@ -208,8 +229,10 @@ WaitForPlanToBeDone() {
   done
   
   # there is a small transition period during which the build state is unknown, though the job is finished:
+  local buildState
   buildState=$(curl -sX GET -u "$userName:$password" $resultsUrl | grep -oP "(?<=\<buildState\>)\w+?(?=\</buildState\>)")
-  while [ "$buildState" = "Unknown" ] || [ "$buildState" = "" ]; do
+  
+  while [ "$buildState" = "Unknown" ] || [ -z "$buildState" ]; do
     sleep 3
 	buildState=$(curl -sX GET -u "$userName:$password" $resultsUrl | grep -oP "(?<=\<buildState\>)\w+?(?=\</buildState\>)")
   done
@@ -233,19 +256,22 @@ WaitForPlanToBeDone() {
 #  6 - a password for argument 5
 #
 StartBambooDeployment() {
-  deploymentId="$1"
-  environmentId="$2"
-  deploymentVersion="$3"
-  planResultKey="$4"
-  userName="$5"
-  password="$6"
+  local deploymentId="$1"
+  local environmentId="$2"
+  local deploymentVersion="$3"
+  local planResultKey="$4"
+  local userName="$5"
+  local password="$6"
   
-  requestSuffix=""
-  versionId=""
-  tries=1
+  local requestSuffix=""
+  local versionId=""
+  local tries=1
   
   # build a version. if it already exists, append _(1)
-  while [ "$versionId" = "" ]; do  
+  local response
+  local hasError
+  
+  while [ -z "$versionId" ]; do  
     response=$(curl -sX POST -u "$userName:$password" -H "Content-Type: application/json" -d '{
       "planResultKey":"'"$planResultKey"'",
       "name":"'"$deploymentVersion$requestSuffix"'"
@@ -262,10 +288,12 @@ StartBambooDeployment() {
   done
   
   response=$(curl -sX POST -u "$userName:$password" -H "Content-Type: application/json" https://ci.gerdi-project.de/rest/api/latest/queue/deployment?environmentId=$environmentId\&versionId=$versionId)
+  
+  local deploymentResultId
   deploymentResultId=$(echo "$response" | grep -oP '(?<="deploymentResultId":)\d+(?=,)')
   
   # return plan result key
-  if [ "$deploymentResultId" = "" ]; then
+  if [ -z "$deploymentResultId" ]; then
     echo "Could not start Bamboo Plan $planLabel: $response" >&2
   fi
   echo "$deploymentResultId"
@@ -280,15 +308,16 @@ StartBambooDeployment() {
 #  3 - a password for argument 2
 #
 WaitForDeploymentToBeDone() {
-  deploymentResultId="$1"
-  userName="$2"
-  password="$3"
+  local deploymentResultId="$1"
+  local userName="$2"
+  local password="$3"
   
-  deploymentState="UNKNOWN"
+  local deploymentState="UNKNOWN"
   
   echo "Waiting for deployment $deploymentResultId to finish..." >&2
   
   # wait 5 seconds and send a get-request to check if the plan is still running
+  local response
   while [ "$deploymentState" = "UNKNOWN" ]; do
     response=$(curl -sX GET -u "$userName:$password" -H "Content-Type: application/json" https://ci.gerdi-project.de/rest/api/latest/deploy/result/$deploymentResultId)
     deploymentState=${response#*\"deploymentState\":\"}
@@ -312,10 +341,10 @@ WaitForDeploymentToBeDone() {
 #  4 - a password for argument 3
 #
 CreatePlanBranch() {
-  planLabel="$1"
-  branch="$2"
-  userName="$3"
-  password="$4"
+  local planLabel="$1"
+  local branch="$2"
+  local userName="$3"
+  local password="$4"
   
   echo "$(curl -sX PUT -u "$userName:$password" "https://ci.gerdi-project.de/rest/api/latest/plan/$planLabel/branch/$branch?vcsBranch=$branch")" >&2
 }
@@ -324,7 +353,7 @@ CreatePlanBranch() {
 # Fails with exit code 1 if the Bamboo user is not logged in.
 #
 ExitIfNotLoggedIn() {
-  if [ "$bamboo_ManualBuildTriggerReason_userName" = "" ]; then
+  if [ -z "$bamboo_ManualBuildTriggerReason_userName" ]; then
     echo "You need to be logged in to run this job!" >&2
 	exit 1
   fi
@@ -336,11 +365,15 @@ ExitIfNotLoggedIn() {
 #  1 - the name of the plan variable as it appears in the Bamboo front-end
 #
 ExitIfPlanVariableIsMissing() {
-  frontEndVarName="$1"
+  local frontEndVarName="$1"
+  
+  local internalVarName
   internalVarName="bamboo_$frontEndVarName"
+  
+  local internalVarValue
   internalVarValue="${!internalVarName}"
 
-  if [ "$internalVarValue" = "" ]; then
+  if [ -z "$internalVarValue" ]; then
     echo "You need to run the plan customized and overwrite the '$frontEndVarName' plan variable!" >&2
 	exit 1
   fi

@@ -43,10 +43,18 @@ source ./scripts/helper-scripts/misc-utils.sh
 #
 # Arguments:
 #  1 - the git clone link of the repository
+#  2 - the name of the source branch from which the branch is to be created
+#  3 - the name of the branch that is to be created
 #
 UpdateBranchesOfRepository() {
-  cloneLink="$1"
+  local cloneLink="$1"
+  local sourceBranchName="$2"
+  local createdBranchName="$3"
+  
+  local projectId
   projectId=$(GetProjectIdFromCloneLink "$cloneLink")
+  
+  local slug
   slug=$(GetRepositorySlugFromCloneLink "$cloneLink")
   
   # create temp directory
@@ -54,9 +62,10 @@ UpdateBranchesOfRepository() {
   cd "$slug"
   
   # clone repository
-  $(CloneGitRepository "$atlassianUserName" "$atlassianPassword" "$projectId" "$slug")
+  $(CloneGitRepository "$ATLASSIAN_USER_NAME" "$ATLASSIAN_PASSWORD" "$projectId" "$slug")
   
   # abort if branch exists
+  local hasBranch
   hasBranch=$(git branch -a | grep -cx " *remotes/origin/$createdBranchName")
   if [ "$hasBranch" = "1" ]; then
     echo "Repository '$projectId/$slug' already has a '$createdBranchName' branch." >&2
@@ -85,21 +94,26 @@ UpdateBranchesOfRepository() {
 }
 
 
-# Adds production branches to all repositories of a bitbucket project.
+# Adds a new branch to each repository of a bitbucket project.
 #
 # Arguments:
 #  1 - the bitbucket project abbreviation
+#  2 - the name of the source branch from which the branch is to be created
+#  3 - the name of the branch that is to be created
 #
 UpdateBranchesOfProject() {
-  projectId="$1"
+  local projectId="$1"
+  local sourceBranchName="$2"
+  local createdBranchName="$3"
   
-  repoUrls=$(curl -sX GET -u "$atlassianUserName:$atlassianPassword" "https://code.gerdi-project.de/rest/api/latest/projects/$projectId/repos" | python -m json.tool | grep -oP '(?<=")http.*?git(?=")') 
+  local repoUrls
+  repoUrls=$(curl -sX GET -u "$ATLASSIAN_USER_NAME:$ATLASSIAN_PASSWORD" "https://code.gerdi-project.de/rest/api/latest/projects/$projectId/repos" | python -m json.tool | grep -oP '(?<=")http.*?git(?=")') 
 
   # execute update of all repositories
   echo "Updating all repositories of project '$projectId':" >&2
   while read cloneLink
   do 
-    $(UpdateBranchesOfRepository "$cloneLink")
+    $(UpdateBranchesOfRepository "$cloneLink" "$sourceBranchName" "$createdBranchName")
   done <<< "$(echo -e "$repoUrls")"
   
   exit 0
@@ -109,14 +123,21 @@ UpdateBranchesOfProject() {
 # Processes an argument and checks if it is a git clone link or a project ID,
 # in order to update either a single branch, or an entire project.
 #
+# Arguments:
+#  1 - either a Bitbucket Project key or a git clone link
+#  2 - the name of the source branch from which the branch is to be created
+#  3 - the name of the branch that is to be created
+#
 UpdateBranchesOfArgument() {
-  argument="$1"
+  local argument="$1"
+  local sourceBranchName="$2"
+  local createdBranchName="$3"
 
   if [ "$(IsProject "$argument")" = "true" ]; then
-    echo $(UpdateBranchesOfProject "$argument") >&2
+    echo $(UpdateBranchesOfProject "$argument" "$sourceBranchName" "$createdBranchName") >&2
 	
   elif [ "$(IsCloneLink "$argument")" = "true" ]; then
-    echo $(UpdateBranchesOfRepository "$argument") >&2
+    echo $(UpdateBranchesOfRepository "$argument" "$sourceBranchName" "$createdBranchName") >&2
 
   else
     echo "Argument '$argument' is neither a valid git clone link, nor a BitBucket project!" >&2
@@ -126,14 +147,23 @@ UpdateBranchesOfArgument() {
 
 # Returns true if the argument is a git clone link.
 #
+# Arguments:
+#  1 - the argument that is to be tested
+#
 IsCloneLink() {
-  checkedArg="$1"
+  local checkedArg="$1"
+  
+  local greppedArg
   greppedArg=$(echo "$checkedArg" | grep -cx "https:.*\.git")
   
   if [ "$greppedArg" = "1" ]; then
-    projectId=$(GetProjectIdFromCloneLink "$checkedArg")
+    local projectId
+	projectId=$(GetProjectIdFromCloneLink "$checkedArg")
+	
+	local slug
     slug=$(GetRepositorySlugFromCloneLink "$checkedArg")
-    echo $(IsUrlReachable "https://code.gerdi-project.de/rest/api/latest/projects/$projectId/repos/$slug" "$atlassianUserName" "$atlassianPassword")
+	
+    echo $(IsUrlReachable "https://code.gerdi-project.de/rest/api/latest/projects/$projectId/repos/$slug" "$ATLASSIAN_USER_NAME" "$ATLASSIAN_PASSWORD")
   else
     echo false
   fi
@@ -142,48 +172,60 @@ IsCloneLink() {
 
 # Returns true if the argument is a project.
 #
+# Arguments:
+#  1 - the argument that is to be tested
+#
 IsProject() {
-  checkedArg="$1"
+  local checkedArg="$1"
+  
+  local greppedArg
   greppedArg=$(echo "$checkedArg" | grep -cxP "[A-Za-z]+")
   
   if [ "$greppedArg" = "1" ]; then
-    echo $(IsUrlReachable "https://code.gerdi-project.de/rest/api/latest/projects/$checkedArg/" "$atlassianUserName" "$atlassianPassword")
+    echo $(IsUrlReachable "https://code.gerdi-project.de/rest/api/latest/projects/$checkedArg/" "$ATLASSIAN_USER_NAME" "$ATLASSIAN_PASSWORD")
   else
     echo false
   fi
 }
 
 
+# Main function that is executed by this script
+#
+Main() {
+  # check early exit conditions
+  ExitIfNotLoggedIn
+  ExitIfPlanVariableIsMissing "atlassianPassword"
+  ExitIfPlanVariableIsMissing "projectsAndCloneLinks"
+  ExitIfPlanVariableIsMissing "createdBranchName"
+  ExitIfPlanVariableIsMissing "sourceBranchName"
+
+  ATLASSIAN_USER_NAME=$(GetBambooUserName)
+  ATLASSIAN_PASSWORD=$(GetValueOfPlanVariable "atlassianPassword")
+
+  # test Atlassian credentials
+  ExitIfAtlassianCredentialsWrong "$ATLASSIAN_USER_NAME" "$ATLASSIAN_PASSWORD"
+
+  # get plan variables
+  local createdBranchName
+  createdBranchName=$(GetValueOfPlanVariable createdBranchName)
+  
+  local sourceBranchName
+  sourceBranchName=$(GetValueOfPlanVariable sourceBranchName)
+  
+  local projectsAndCloneLinks
+  projectsAndCloneLinks=$(GetValueOfPlanVariable "projectsAndCloneLinks" | tr -d " " | tr "," "\n")
+
+  # iterate through all clone links and/or projects
+  while read projectOrCloneLink
+  do 
+    $(UpdateBranchesOfArgument "$projectOrCloneLink" "$sourceBranchName" "$createdBranchName")
+  done <<< "$(echo -e "$projectsAndCloneLinks")"
+}
+
 
 ###########################
 #  BEGINNING OF EXECUTION #
 ###########################
 
-# check early exit conditions
-ExitIfNotLoggedIn
-ExitIfPlanVariableIsMissing "atlassianPassword"
-ExitIfPlanVariableIsMissing "projectsAndCloneLinks"
-ExitIfPlanVariableIsMissing "createdBranchName"
-ExitIfPlanVariableIsMissing "sourceBranchName"
-
-atlassianUserName=$(GetBambooUserName)
-atlassianPassword=$(GetValueOfPlanVariable "atlassianPassword")
-
-# test Atlassian credentials
-ExitIfAtlassianCredentialsWrong "$atlassianUserName" "$atlassianPassword"
-  
-# get more Atlassian user details
-atlassianUserEmail=$(GetAtlassianUserEmailAddress "$atlassianUserName" "$atlassianPassword" "$atlassianUserName")
-atlassianUserDisplayName=$(GetAtlassianUserDisplayName "$atlassianUserName" "$atlassianPassword" "$atlassianUserName")
-
-# get plan variables
-createdBranchName=$(GetValueOfPlanVariable createdBranchName)
-sourceBranchName=$(GetValueOfPlanVariable sourceBranchName)
-projectsAndCloneLinks=$(GetValueOfPlanVariable "projectsAndCloneLinks" | tr -d " " | tr "," "\n")
-
-# iterate through all clone links and/or projects
-while read projectOrCloneLink
-do 
-  $(UpdateBranchesOfArgument $projectOrCloneLink)
-done <<< "$(echo -e "$projectsAndCloneLinks")"
+Main "$@"
 

@@ -16,7 +16,6 @@
 
 # This script offers helper functions that concern GeRDI Maven projects.
 
-mavenExecVersion="1.6.0"
   
 # Returns true if a specified version and artifact of a specified GeRDI Maven project exist in Sonatype or in Maven Central.
 #  Arguments:
@@ -24,16 +23,18 @@ mavenExecVersion="1.6.0"
 #  2 - the version of the GeRDI Maven project
 #
 IsMavenVersionDeployed() {
-  artifactId="$1"
-  version="$2"
+  local artifactId="$1"
+  local version="$2"
   
   # check Sonatype if it is a snapshot version
+  local response
   if [ "${version%-SNAPSHOT}" != "$version" ]; then
     response=$(curl -sI -X HEAD https://oss.sonatype.org/content/repositories/snapshots/de/gerdi-project/$artifactId/$version/)
   else
     response=$(curl -sI -X HEAD http://central.maven.org/maven2/de/gerdi-project/$artifactId/$version/)
   fi
   
+  local httpCode
   httpCode=$(echo "$response" | grep -oP '(?<=HTTP/\d\.\d )\d+')
   if [ $httpCode -eq 200 ]; then
     echo true
@@ -49,10 +50,11 @@ IsMavenVersionDeployed() {
 #  2 - if true, also the versions in the Sonatype repository are checked
 #
 GetLatestMavenVersion() {
-  artifactId="$1"
-  includeSnapshots="$2"
+  local artifactId="$1"
+  local includeSnapshots="$2"
+  local metaData
   
-  releaseVersion=""
+  local releaseVersion=""
   metaData=$(curl -fsX GET http://central.maven.org/maven2/de/gerdi-project/$artifactId/maven-metadata.xml)
   if [ $? -eq 0 ]; then
     releaseVersion=${metaData%</versions>*}
@@ -60,7 +62,7 @@ GetLatestMavenVersion() {
     releaseVersion=${releaseVersion%</version>*}
   fi
   
-  snapshotVersion=""
+  local snapshotVersion=""
   if [ "$includeSnapshots" = true ]; then
     metaData=$(curl -fsX GET https://oss.sonatype.org/content/repositories/snapshots/de/gerdi-project/$artifactId/maven-metadata.xml)
     if [ $? -eq 0 ]; then
@@ -70,7 +72,7 @@ GetLatestMavenVersion() {
 	fi
   fi
   
-  if [ "$snapshotVersion" = "" ] || [ "$releaseVersion" \> "$snapshotVersion" ]; then
+  if [ -z "$snapshotVersion" ] || [ "$releaseVersion" \> "$snapshotVersion" ]; then
     echo "$releaseVersion"
   else  
     echo "$snapshotVersion"
@@ -84,12 +86,12 @@ GetLatestMavenVersion() {
 #  2 - the path to the pom.xml (optional)
 #
 GetPomValue() {
-  valueKey="$1"
-  pomPath="$2"
+  local valueKey="$1"
+  local pomPath="$2"
   
-  if [ "$pomPath" = "" ]; then
-    echo $(mvn -q -Dexec.executable="echo" -Dexec.args='${'"$valueKey"'}' --non-recursive org.codehaus.mojo:exec-maven-plugin:$mavenExecVersion:exec)
+  if [ -z "$pomPath" ]; then
+    echo $(mvn -q -Dexec.executable="echo" -Dexec.args='${'"$valueKey"'}' --non-recursive org.codehaus.mojo:exec-maven-plugin:1.6.0:exec)
   else
-    echo $(mvn -q -Dexec.executable="echo" -Dexec.args='${'"$valueKey"'}' --non-recursive org.codehaus.mojo:exec-maven-plugin:$mavenExecVersion:exec -f"$pomPath")
+    echo $(mvn -q -Dexec.executable="echo" -Dexec.args='${'"$valueKey"'}' --non-recursive org.codehaus.mojo:exec-maven-plugin:1.6.0:exec -f"$pomPath")
   fi
 }

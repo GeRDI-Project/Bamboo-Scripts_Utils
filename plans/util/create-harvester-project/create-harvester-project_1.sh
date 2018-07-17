@@ -37,6 +37,12 @@
 # treat unset variables as an error when substituting
 set -u
 
+
+# define global constants
+BITBUCKET_PROJECT="HAR"
+TEMP_FOLDER="repoTemp"
+  
+  
 # load helper scripts
 source ./scripts/helper-scripts/atlassian-utils.sh
 source ./scripts/helper-scripts/bamboo-utils.sh
@@ -45,44 +51,87 @@ source ./scripts/helper-scripts/maven-utils.sh
 source ./scripts/helper-scripts/misc-utils.sh
 
 
+#########################
+#  FUNCTION DEFINITIONS #
+#########################
+
 # Creates a Harvester repository with the current branch model and bamboo-agent permissions
 # in Bitbucket.
 #
 CreateRepository() {
-  local project="$1"
-  repositorySlug=$(CreateGitRepository "$atlassianUserName" "$atlassianPassword" "$project" "$providerName")
+  local userName="$1"
+  local password="$2"
+
+  local repositorySlug
+  repositorySlug=$(CreateGitRepository "$userName" "$password" "$BITBUCKET_PROJECT" "$providerName")
+  
   ExitIfLastOperationFailed ""
 
   # grant the bamboo-agent the permission to tag the repository
-  AddWritePermissionForRepository "$atlassianUserName" "$atlassianPassword" "$project" "$repositorySlug" "bamboo-agent"
+  AddWritePermissionForRepository "$userName" "$password" "$BITBUCKET_PROJECT" "$repositorySlug" "bamboo-agent"
 
   # create temporary folder
-  rm -fr "repoTemp"
-  mkdir "repoTemp"
-  cd "repoTemp"
+  rm -fr "$TEMP_FOLDER"
+  mkdir "$TEMP_FOLDER"
+  cd "$TEMP_FOLDER"
 
   # clone newly created repository
-  CloneGitRepository "$atlassianUserName" "$atlassianPassword" "$project" "$repositorySlug"
+  CloneGitRepository "$userName" "$password" "$BITBUCKET_PROJECT" "$repositorySlug"
 
   # copy placeholder project into the cloned repository
-  cp -rT "../harvesterSetup/placeholderProject/" "./"
+  echo $(cp -rT "../harvesterSetup/placeholderProject/" "./") >&2
 
+  # get placeholder values
+  local providerName
+  providerName=$(GetValueOfPlanVariable providerName)
+  
+  local providerUrl
+  providerUrl=$(GetValueOfPlanVariable providerUrl)
+
+  # get name of author. if not present, use bamboo user name
+  local atlassianUserDisplayName
+  atlassianUserDisplayName=$(GetAtlassianUserDisplayName "$userName" "$password" "$userName")
+  
+  local authorFullName
+  authorFullName=$(GetValueOfPlanVariable optionalAuthorName)
+  if [ -z "$authorFullName" ]; then
+    authorFullName="$atlassianUserDisplayName"
+  fi
+
+  # get email address of author. if not present, use bamboo user email address
+  local atlassianUserEmail
+  atlassianUserEmail=$(GetAtlassianUserEmailAddress "$userName" "$password" "$userName")
+  
+  local authorEmail
+  authorEmail=$(GetValueOfPlanVariable optionalAuthorEmail)
+  if [ -z "$authorEmail" ]; then
+    authorEmail="$atlassianUserEmail"
+  fi
+  
+  local authorOrganization
+  authorOrganization=$(GetValueOfPlanVariable authorOrganization)
+  
+  local authorOrganizationUrl
+  authorOrganizationUrl=$(GetValueOfPlanVariable authorOrganizationUrl)
+  
+  local parentPomVersion
+  parentPomVersion=$(GetLatestMavenVersion "GeRDI-parent-harvester" true)
+  
   # rename placeholders for the project
-  ./../harvesterSetup/scripts/renameSetup.sh\
+  echo $(./../harvesterSetup/scripts/renameSetup.sh\
   "$providerName"\
   "$providerUrl"\
   "$authorFullName"\
   "$authorEmail"\
   "$authorOrganization"\
   "$authorOrganizationUrl"\
-  "$parentPomVersion"
+  "$parentPomVersion") >&2
  
   # run file formatter
-  ./scripts/formatting/astyle-format.sh
+  echo $(./scripts/formatting/astyle-format.sh) >&2
 
   # commit and push all files
-  PushAllFilesToGitRepository "$atlassianUserDisplayName" "$atlassianUserEmail" "Bamboo: Created harvester repository for the provider '$bamboo_providerName'."
-  ExitIfLastOperationFailed ""
+  echo $(PushAllFilesToGitRepository "$atlassianUserDisplayName" "$atlassianUserEmail" "Bamboo: Created harvester repository for the provider '$providerName'.") >&2
 
   # create branch model
   CreateBranch "stage"
@@ -91,6 +140,8 @@ CreateRepository() {
   ExitIfLastOperationFailed ""
 
   cd ..
+  
+  echo "$repositorySlug"
 }
 
 
@@ -104,58 +155,43 @@ Main() {
   ExitIfPlanVariableIsMissing "providerUrl"
   ExitIfPlanVariableIsMissing "authorOrganization"
   ExitIfPlanVariableIsMissing "authorOrganizationUrl"
-
+  
+  local atlassianUserName
   atlassianUserName=$(GetBambooUserName)
+  
+  local atlassianPassword
   atlassianPassword=$(GetValueOfPlanVariable "atlassianPassword")
 
   # test Atlassian credentials
   ExitIfAtlassianCredentialsWrong "$atlassianUserName" "$atlassianPassword"
 
-  # get details of bamboo user
-  atlassianUserEmail=$(GetAtlassianUserEmailAddress "$atlassianUserName" "$atlassianPassword" "$atlassianUserName")
-  atlassianUserDisplayName=$(GetAtlassianUserDisplayName "$atlassianUserName" "$atlassianPassword" "$atlassianUserName")
-
-  # get plan variables
-  providerName=$(GetValueOfPlanVariable providerName)
-  providerUrl=$(GetValueOfPlanVariable providerUrl)
-  authorOrganization=$(GetValueOfPlanVariable authorOrganization)
-  authorOrganizationUrl=$(GetValueOfPlanVariable authorOrganizationUrl)
-
-  # get name of author. if not present, use bamboo user name
-  authorFullName=$(GetValueOfPlanVariable optionalAuthorName)
-  if [ "$authorFullName" = "" ]; then
-    authorFullName="$atlassianUserDisplayName"
-  fi
-
-  # get email address of author. if not present, use bamboo user email address
-  authorEmail=$(GetValueOfPlanVariable optionalAuthorEmail)
-  if [ "$authorEmail" = "" ]; then
-    authorEmail="$atlassianUserEmail"
-  fi
-  
-  local project="HAR"
-
-  # get latest version of the Harvester Parent Pom
-  parentPomVersion=$(GetLatestMavenVersion "GeRDI-parent-harvester" true)
-
-  CreateRepository "$project"
+  local repositorySlug
+  repositorySlug=$(CreateRepository "$atlassianUserName" "$atlassianPassword")
  
   # retrieve name of the provider from the file name of the context listener
   local providerClassName
-  providerClassName=$(basename -s ContextListener.java repoTemp/src/main/java/de/gerdiproject/harvest/*ContextListener.java)
+  providerClassName=$(basename -s ContextListener.java "$TEMP_FOLDER/src/main/java/de/gerdiproject/harvest/*ContextListener.java")
 
   # check if a plan with the same ID already exists in CodeAnalysis
-  planKey="$(echo "$providerClassName" | sed -e "s~[a-z]~~g")$project"
+  local planKey
+  planKey="$(echo "$providerClassName" | sed -e "s~[a-z]~~g")$BITBUCKET_PROJECT"
+  
+  local doPlansExist
   doPlansExist=$(IsUrlReachable "https://ci.gerdi-project.de/rest/api/latest/plan/CA-$planKey" "$atlassianUserName" "$atlassianPassword")
 
   if [ "$doPlansExist" = true ]; then
     echo "Plans with the key '$planKey' already exist!" >&2
-    DeleteGitRepository "$atlassianUserName" "$atlassianPassword" "$project" "$repositorySlug"
+    DeleteGitRepository "$atlassianUserName" "$atlassianPassword" "$BITBUCKET_PROJECT" "$repositorySlug"
     exit 1
   fi
  
   # run Bamboo Specs
-  ./scripts/plans/util/create-jobs-for-harvester/setup-bamboo-jobs.sh "$atlassianUserName" "$atlassianPassword" "$providerClassName" "$project" "$repositorySlug"
+  ./scripts/plans/util/create-jobs-for-harvester/setup-bamboo-jobs.sh "$atlassianUserName" "$atlassianPassword" "$providerClassName" "$BITBUCKET_PROJECT" "$repositorySlug"
 }
+
+
+###########################
+#  BEGINNING OF EXECUTION #
+###########################
 
 Main "$@"

@@ -27,10 +27,4 @@ set -u
 # load helper scripts
 source ./scripts/helper-scripts/k8s-utils.sh
 
-hasDuplicates=$(CheckDuplicateClusterIps "gerdireleases/k8s-deployment")
-
-if [ "$hasDuplicates" = true ]; then
-  exit 1
-fi
-
-exit 0
+! $(CheckDuplicateClusterIps "gerdireleases/k8s-deployment")
