@@ -129,7 +129,7 @@ SubmitYamlFile() {
   local serviceType="$2"
   local sourceBranch="$3"
   local userName="$4"
-  local password"$5"
+  local password="$5"
   
   cd gerdireleases
   
@@ -224,7 +224,7 @@ CreateClusterIp() {
 GetServiceType() {
   local gitCloneLink="$1"
   local userName="$2"
-  local password"$3"
+  local password="$3"
 
   local projectAbbrev
   projectAbbrev=$(GetProjectIdFromCloneLink "$gitCloneLink")

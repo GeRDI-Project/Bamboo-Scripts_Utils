@@ -128,6 +128,7 @@ CreateRepository() {
   "$parentPomVersion") >&2
  
   # run file formatter
+  local mavenResult=$(mvn compile)
   echo $(./scripts/formatting/astyle-format.sh) >&2
 
   # commit and push all files
@@ -170,8 +171,8 @@ Main() {
  
   # retrieve name of the provider from the file name of the context listener
   local providerClassName
-  providerClassName=$(basename -s ContextListener.java "$TEMP_FOLDER/src/main/java/de/gerdiproject/harvest/*ContextListener.java")
-
+  providerClassName=$(basename -s ContextListener.java $TEMP_FOLDER/src/main/java/de/gerdiproject/harvest/*ContextListener.java)
+  
   # check if a plan with the same ID already exists in CodeAnalysis
   local planKey
   planKey="$(echo "$providerClassName" | sed -e "s~[a-z]~~g")$BITBUCKET_PROJECT"
