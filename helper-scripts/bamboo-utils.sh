@@ -56,6 +56,8 @@ GetPlanBranchId() {
     echo "The plan branch $planLabel/$branch does not exist!" >&2
 	exit 1
   fi
+  
+  echo "$planBranchId"
 }
 
 
@@ -148,6 +150,7 @@ GetDeployEnvironmentId() {
   if [ -z "$environmentId" ]; then
     echo "Could not find a 'Maven Deploy' environment for deployment project $deploymentId!" >&2
   fi
+  
   echo "$environmentId"
 }
 

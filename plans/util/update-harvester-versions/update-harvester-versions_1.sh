@@ -438,7 +438,9 @@ Main() {
     QueueParentPomUpdate "$parentPomVersion"
     ExecuteUpdate "$atlassianUserEmail" "$atlassianUserDisplayName" "$reviewer"
 	local harvesterUtilsVersion="$TARGET_VERSION"
-    echo $(BuildAndDeployLibrary "CAHL-HU") >&2
+    if ! $(BuildAndDeployLibrary "CAHL-HU"); then
+	  echo "DID NOT BUILD $ARTIFACT_ID $TARGET_VERSION !" >&2
+	fi
   fi
 
   # update json library
@@ -448,7 +450,9 @@ Main() {
     QueuePropertyUpdate "harvesterutils.dependency.version" "$harvesterUtilsVersion"
     ExecuteUpdate "$atlassianUserEmail" "$atlassianUserDisplayName" "$reviewer"
 	local jsonLibVersion="$TARGET_VERSION"
-    echo $(BuildAndDeployLibrary "CAHL-JL") >&2
+    if ! $(BuildAndDeployLibrary "CAHL-JL"); then
+	  echo "DID NOT BUILD $ARTIFACT_ID $TARGET_VERSION !" >&2
+	fi
   fi
 
   # update harvester base library
@@ -458,7 +462,9 @@ Main() {
     QueuePropertyUpdate "gerdigson.dependency.version" "$jsonLibVersion"
     ExecuteUpdate "$atlassianUserEmail" "$atlassianUserDisplayName" "$reviewer"
     local harvesterLibVersion="$TARGET_VERSION"
-    echo $(BuildAndDeployLibrary "CAHL-HBL") >&2
+    if ! $(BuildAndDeployLibrary "CAHL-HBL"); then
+	  echo "DID NOT BUILD $ARTIFACT_ID $TARGET_VERSION !" >&2
+	fi
   fi
 
   # update harvester parent pom
@@ -469,7 +475,9 @@ Main() {
     QueuePropertyUpdate "harvesterutils.dependency.version" "$harvesterUtilsVersion"
     ExecuteUpdate "$atlassianUserEmail" "$atlassianUserDisplayName" "$reviewer"
     local harvesterParentPomVersion="$TARGET_VERSION"
-    echo $(BuildAndDeployLibrary "CAHL-HPP") >&2
+    if ! $(BuildAndDeployLibrary "CAHL-HPP"); then
+	  echo "DID NOT BUILD $ARTIFACT_ID $TARGET_VERSION !" >&2
+	fi
   fi
 
   # update all other harvesters
