@@ -97,10 +97,35 @@ GetTargetVersionForUpdate(){
   newVersion="$newMajor.$newMinor.$newBugfix$sourceSuffix"
   
   # if the new version is higher than the previously calculated one, return it
-  if [ "$currentTargetVersion" \> "$newVersion" ]; then
-    echo "$currentTargetVersion"
-  else  
+  if $(IsVersionHigher "$newVersion" "$currentTargetVersion"); then
     echo "$newVersion"
+  else  
+    echo "$currentTargetVersion"
+  fi
+}
+
+
+# CHECKS IF ONE MAVEN VERSION IS HIGHER THAN ANOTHER
+IsVersionHigher() {
+  local newVersion="$1"
+  local oldVersion="$2"
+  
+  local oldPrefix=${oldVersion%-*}
+  local newPrefix=${newVersion%-*}
+  local newSuffix=${newVersion##*-}
+  
+  if [ -z "$newVersion" ]; then
+    exit 1
+	
+  elif [ -z "$oldVersion" ]; then
+    exit 0
+  fi
+  
+  if [ "$newPrefix" \< "$oldPrefix" ]; then
+    exit 1
+	
+  elif [ "$newPrefix" = "$oldPrefix" ] && [ "$newSuffix" = "SNAPSHOT" ]; then
+    exit 1
   fi
 }
 
@@ -112,7 +137,7 @@ QueueParentPomUpdate(){
   local sourceParentVersion
   sourceParentVersion=$(GetPomValue "project.parent.version" "$POM_FOLDER/pom.xml")
 
-  if [ -n "$sourceParentVersion" ] && [ "$sourceParentVersion" != "$targetParentVersion" ]; then
+  if $(IsVersionHigher "$targetParentVersion" "$sourceParentVersion"); then 
     echo "Queueing to update parent-pom version of $ARTIFACT_ID from $sourceParentVersion to $targetParentVersion" >&2
   
     # create main task if does not exist
@@ -128,6 +153,8 @@ QueueParentPomUpdate(){
     
     # calculate next version
     TARGET_VERSION=$(GetTargetVersionForUpdate "$SOURCE_VERSION" "$TARGET_VERSION" "$sourceParentVersion" "$targetParentVersion")
+	
+	# write update instructions to queue
     echo "pomContent=\"\$(cat \"$POM_FOLDER/pom.xml\")\"" >> $UPDATE_QUEUE_FILE
     echo "newParent=\"<parent>\${pomContent#*<parent>}\"" >> $UPDATE_QUEUE_FILE
     echo "newParent=\"\${newParent%%</parent>*}</parent>\"" >> $UPDATE_QUEUE_FILE
@@ -135,6 +162,7 @@ QueueParentPomUpdate(){
     echo "rm -f \"$POM_FOLDER/pom.xml\"" >> $UPDATE_QUEUE_FILE
     echo "echo \"\${pomContent%%<parent>*}\$newParent\${pomContent#*</parent>}\" >> \"$POM_FOLDER/pom.xml\"" >> $UPDATE_QUEUE_FILE
 
+	# write sub task description and commit message
     SUB_TASK_DESCRIPTION="$SUB_TASK_DESCRIPTION \\n- Updated *parent-pom* version to *$targetParentVersion*"
     echo "Updated parent-pom version to $targetParentVersion." >> $COMMIT_DESCRIPTION_FILE
   fi
@@ -149,7 +177,7 @@ QueuePropertyUpdate(){
   local sourcePropertyVersion
   sourcePropertyVersion=$(cat "$POM_FOLDER/pom.xml" | grep -oP "(?<=\<$targetPropertyName\>)[^\<]*")
   
-  if [ -n "$sourcePropertyVersion" ] && [ "$sourcePropertyVersion" != "$targetPropertyVersion" ]; then
+  if $(IsVersionHigher "$targetPropertyVersion" "$sourcePropertyVersion"); then
     echo "Queueing to update <$targetPropertyName> property of $ARTIFACT_ID from $sourcePropertyVersion to $targetPropertyVersion" >&2
   
     # create main task if does not exist
@@ -164,18 +192,23 @@ QueuePropertyUpdate(){
     fi
     
     # calculate next version
-  TARGET_VERSION=$(GetTargetVersionForUpdate "$SOURCE_VERSION" "$TARGET_VERSION" "$sourcePropertyVersion" "$targetPropertyVersion")
-  echo "sed --in-place=.tmp -e \"s~<$targetPropertyName>$sourcePropertyVersion</$targetPropertyName>~<$targetPropertyName>$targetPropertyVersion</$targetPropertyName>~g\" $POM_FOLDER/pom.xml && rm -f $POM_FOLDER/pom.xml.tmp" >> $UPDATE_QUEUE_FILE
-  SUB_TASK_DESCRIPTION="$SUB_TASK_DESCRIPTION \\n- Updated *<$targetPropertyName>* property to *$targetPropertyVersion*"
-  echo "Updated $targetPropertyName property to $targetPropertyVersion." >> $COMMIT_DESCRIPTION_FILE
+    TARGET_VERSION=$(GetTargetVersionForUpdate "$SOURCE_VERSION" "$TARGET_VERSION" "$sourcePropertyVersion" "$targetPropertyVersion")
+    
+	# write update instructions to queue
+	echo "sed --in-place=.tmp -e \"s~<$targetPropertyName>$sourcePropertyVersion</$targetPropertyName>~<$targetPropertyName>$targetPropertyVersion</$targetPropertyName>~g\" $POM_FOLDER/pom.xml && rm -f $POM_FOLDER/pom.xml.tmp" >> $UPDATE_QUEUE_FILE
+    
+	# write sub task description and commit message
+	SUB_TASK_DESCRIPTION="$SUB_TASK_DESCRIPTION \\n- Updated *<$targetPropertyName>* property to *$targetPropertyVersion*"
+    echo "Updated $targetPropertyName property to $targetPropertyVersion." >> $COMMIT_DESCRIPTION_FILE
   fi
 }
 
 
 # FUNCTION FOR INITIALIZING A VERSION UPDATE FOR A PROJECT
 PrepareUpdate() {
-  SLUG="$1"
-  POM_FOLDER="$TOP_FOLDER/tempDir/$2"
+  PROJECT="$1"
+  SLUG="$2"
+  POM_FOLDER="$TOP_FOLDER/tempDir/$3"
   
   cd "$TOP_FOLDER"
 
@@ -200,7 +233,7 @@ PrepareUpdate() {
   cd tempDir
   
   # clone JsonLibraries
-  CloneGitRepository "$ATLASSIAN_USER_NAME" "$ATLASSIAN_PASSWORD" "HAR" "$SLUG"
+  CloneGitRepository "$ATLASSIAN_USER_NAME" "$ATLASSIAN_PASSWORD" "$PROJECT" "$SLUG"
   
   # get version from pom
   if [ -f "$POM_FOLDER/pom.xml" ]; then
@@ -211,7 +244,7 @@ PrepareUpdate() {
     TARGET_VERSION="$SOURCE_VERSION"
   else
     # if no pom.xml exists, we cannot update it
-	echo "Cannot update 'HAR/$SLUG' because the pom.xml is missing!" >&2
+	echo "Cannot update '$PROJECT/$SLUG' because the pom.xml is missing!" >&2
     ARTIFACT_ID=""
 	SOURCE_VERSION=""
 	TARGET_VERSION=""
@@ -260,7 +293,7 @@ ExecuteUpdate() {
       echo $(CreatePullRequest \
         "$ATLASSIAN_USER_NAME" \
         "$ATLASSIAN_PASSWORD" \
-        "HAR" \
+        "$PROJECT" \
         "$SLUG" \
 	    "$BRANCH_NAME" \
         "master" \
@@ -310,7 +343,7 @@ UpdateHarvester() {
   local atlassianUserDisplayName="$4"
   local reviewer="$5"
   
-  PrepareUpdate "$(GetRepositorySlugFromCloneLink "$cloneLink")" "."
+  PrepareUpdate "HAR" "$(GetRepositorySlugFromCloneLink "$cloneLink")" "."
   if [ -n "$SOURCE_VERSION" ]; then
     QueueParentPomUpdate "$newParentVersion"
     ExecuteUpdate "$atlassianUserEmail" "$atlassianUserDisplayName" "$reviewer"
@@ -417,6 +450,7 @@ Main() {
   COMMIT_DESCRIPTION_FILE=""
   UPDATE_QUEUE_FILE=""
   BRANCH_NAME=""
+  PROJECT=""
 
   # get parent pom version  
   local parentPomVersion
@@ -424,7 +458,7 @@ Main() {
   echo "ParentPom Version: $parentPomVersion" >&2
 
   # update harvester utils
-  PrepareUpdate "harvesterutils" "."
+  PrepareUpdate "HL" "harvesterutils" "."
   if [ -n "$SOURCE_VERSION" ]; then
     QueueParentPomUpdate "$parentPomVersion"
     ExecuteUpdate "$atlassianUserEmail" "$atlassianUserDisplayName" "$reviewer"
@@ -433,7 +467,7 @@ Main() {
   fi
 
   # update json library
-  PrepareUpdate "jsonlibraries" "."
+  PrepareUpdate "HL" "jsonlibraries" "."
   if [ -n "$SOURCE_VERSION" ]; then
     QueueParentPomUpdate "$parentPomVersion"
     QueuePropertyUpdate "harvesterutils.dependency.version" "$harvesterUtilsVersion"
@@ -443,7 +477,7 @@ Main() {
   fi
 
   # update harvester base library
-  PrepareUpdate "harvesterbaselibrary" "."
+  PrepareUpdate "HL" "harvesterbaselibrary" "."
   if [ -n "$SOURCE_VERSION" ]; then
     QueueParentPomUpdate "$parentPomVersion"
     QueuePropertyUpdate "gerdigson.dependency.version" "$jsonLibVersion"
@@ -453,7 +487,7 @@ Main() {
   fi
 
   # update harvester parent pom
-  PrepareUpdate "parentpoms" "harvester"
+  PrepareUpdate "HL" "parentpoms" "harvester"
   if [ -n "$SOURCE_VERSION" ]; then
     QueueParentPomUpdate "$parentPomVersion"
     QueuePropertyUpdate "restfulharvester.dependency.version" "$harvesterLibVersion"
