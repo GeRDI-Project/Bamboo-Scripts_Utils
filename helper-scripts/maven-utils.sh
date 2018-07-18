@@ -90,22 +90,19 @@ IsMavenVersionHigher() {
   local oldVersion="$2"
   
   local oldPrefix=${oldVersion%-*}
+  local oldSuffix=${oldVersion##*-}
   local newPrefix=${newVersion%-*}
   local newSuffix=${newVersion##*-}
   
-  if [ -z "$newVersion" ]; then
-    exit 1
-	
-  elif [ -z "$oldVersion" ]; then
-    exit 0
+  if [ -n "$newVersion" ]; then
+    if [ -z "$oldVersion" ] || [ "$newPrefix" \> "$oldPrefix" ]; then
+      exit 0
+    elif [ "$newPrefix" = "$oldPrefix" ] && [ -z "$newSuffix" ] && [ -n "$oldSuffix" ]; then
+      exit 0
+    fi
   fi
   
-  if [ "$newPrefix" \< "$oldPrefix" ]; then
-    exit 1
-	
-  elif [ "$newPrefix" = "$oldPrefix" ] && [ "$newSuffix" = "SNAPSHOT" ]; then
-    exit 1
-  fi
+  exit 1
 }
 
 
