@@ -35,53 +35,79 @@ source ./scripts/helper-scripts/bamboo-utils.sh
 source ./scripts/helper-scripts/jira-utils.sh
 source ./scripts/helper-scripts/git-utils.sh
 
-# check early exit conditions
-ExitIfNotLoggedIn
-ExitIfPlanVariableIsMissing "atlassianPassword"
-ExitIfPlanVariableIsMissing "jiraIssueKey"
 
-atlassianUserName=$(GetBambooUserName)
-atlassianPassword=$(GetValueOfPlanVariable "atlassianPassword")
-atlassianCredentials="$atlassianUserName:$atlassianPassword"
+#########################
+#  FUNCTION DEFINITIONS #
+#########################
 
-# test Atlassian credentials
-ExitIfAtlassianCredentialsWrong "$atlassianUserName" "$atlassianPassword"
+Main() {
+  # check early exit conditions
+  ExitIfNotLoggedIn
+  ExitIfPlanVariableIsMissing "atlassianPassword"
+  ExitIfPlanVariableIsMissing "jiraIssueKey"
 
-# check if a JIRA key was specified
-jiraKey=$(GetValueOfPlanVariable "jiraIssueKey")
+  local atlassianUserName
+  atlassianUserName=$(GetBambooUserName)
   
-if [ "$jiraKey" = "" ]; then
-  echo "No JIRA issue key was specified. Trying to retrieve it from the last build of https://ci.gerdi-project.de/browse/UTIL-UHV master." >&2
-  latestPlanId=$(GetLatestBambooPlanResultKey "UTIL-UHV" "" "$atlassianUserName" "$atlassianPassword")
-  latestPlanLog=$(curl -sX GET -u "$atlassianCredentials" https://ci.gerdi-project.de/download/UTIL-UHV-JOB1/build_logs/UTIL-UHV-JOB1-$latestPlanId.log)
-  jiraKey=$(echo "$latestPlanLog" | grep -oP '(?<=Created JIRA task )\w+?-\d+')
+  local atlassianPassword
+  atlassianPassword=$(GetValueOfPlanVariable "atlassianPassword")
   
-  if [ "$jiraKey" != "" ]; then
+  local atlassianCredentials
+  atlassianCredentials="$atlassianUserName:$atlassianPassword"
+
+  # test Atlassian credentials
+  ExitIfAtlassianCredentialsWrong "$atlassianUserName" "$atlassianPassword"
+
+  # check if a JIRA key was specified
+  local jiraKey
+  jiraKey=$(GetValueOfPlanVariable "jiraIssueKey")
+    
+  if [ -z "$jiraKey" ]; then
+    echo "No JIRA issue key was specified. Trying to retrieve it from the last build of https://ci.gerdi-project.de/browse/UTIL-UHV master." >&2
+	
+	local latestPlanId
+    latestPlanId=$(GetLatestBambooPlanResultKey "UTIL-UHV" "" "$atlassianUserName" "$atlassianPassword")
+	
+	local latestPlanLog
+    latestPlanLog=$(curl -sX GET -u "$atlassianCredentials" https://ci.gerdi-project.de/download/UTIL-UHV-JOB1/build_logs/UTIL-UHV-JOB1-$latestPlanId.log)
+	
+    jiraKey=$(echo "$latestPlanLog" | grep -oP '(?<=Created JIRA task )\w+?-\d+')
+    
+    if [ -n "$jiraKey" ]; then
     echo "Retrieved JIRA issue key: $jiraKey" >&2
-  else
+    else
     echo "Could not retrieve JIRA issue key. Please, run the plan customized and specify the variable!" >&2
     exit 1
+    fi
   fi
-fi
 
-# merge all pull-requests
-failedMerges=$(MergeAllPullRequestsOfJiraTicket "$atlassianUserName" "$atlassianPassword" "$jiraKey")
+  # merge all pull-requests
+  local failedMerges
+  failedMerges=$(MergeAllPullRequestsOfJiraTicket "$atlassianUserName" "$atlassianPassword" "$jiraKey")
 
-if [ $? -eq 0 ]; then
-  if [ $failedMerges -eq 0 ]; then
+  if [ $? -eq 0 ]; then
     echo " " >&2
-    FinishJiraTask "$jiraKey" "$atlassianUserName" "$atlassianPassword"
+    if [ $failedMerges -eq 0 ]; then
+      FinishJiraTask "$jiraKey" "$atlassianUserName" "$atlassianPassword"
 
-    echo "----------------------------------------" >&2
-    echo "FINISHED MERGING ALL OPEN PULL_REQUESTS!" >&2
-    echo "----------------------------------------" >&2
+      echo "----------------------------------------" >&2
+      echo "FINISHED MERGING ALL OPEN PULL_REQUESTS!" >&2
+      echo "----------------------------------------" >&2
+    else
+      echo "-----------------------------------------------------------------" >&2
+      echo "UNABLE TO MERGE $failedMerges PULL_REQUEST(S)! PLEASE, CHECK THE JIRA TICKET:" >&2
+      echo "https://tasks.gerdi-project.de/browse/$jiraKey" >&2
+      echo "-----------------------------------------------------------------" >&2
+    fi
+    echo " " >&2
   else
-    echo "-----------------------------------------------------------------" >&2
-    echo "UNABLE TO MERGE $failedMerges PULL_REQUEST(S)! PLEASE, CHECK THE JIRA TICKET:" >&2
-    echo "https://tasks.gerdi-project.de/browse/$jiraKey" >&2
-    echo "-----------------------------------------------------------------" >&2
+    exit 1  
   fi
-  echo " " >&2
-else
-  exit 1  
-fi
+}
+
+
+###########################
+#  BEGINNING OF EXECUTION #
+###########################
+
+Main "$@"

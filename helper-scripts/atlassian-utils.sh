@@ -24,10 +24,11 @@
 #  3 - the Atlassian user name of the user of which the email address is to be retrieved
 #
 GetAtlassianUserEmailAddress() {
-  userName="$1"
-  password="$2"
-  checkedUserName="$3"
+  local userName="$1"
+  local password="$2"
+  local checkedUserName="$3"
   
+  local userProfile
   userProfile=$(curl -sX GET -u "$userName:$password" https://tasks.gerdi-project.de/rest/api/2/user?username="$checkedUserName")
   echo "$userProfile" | grep -oP "(?<=\"emailAddress\":\")[^\"]+"
 }
@@ -40,10 +41,11 @@ GetAtlassianUserEmailAddress() {
 #  3 - the Atlassian user name of the user of which the display name is to be retrieved
 #
 GetAtlassianUserDisplayName() {
-  userName="$1"
-  password="$2"
-  checkedUserName="$3"
+  local userName="$1"
+  local password="$2"
+  local checkedUserName="$3"
   
+  local userProfile
   userProfile=$(curl -sX GET -u "$userName:$password" https://tasks.gerdi-project.de/rest/api/2/user?username="$checkedUserName")
   echo "$userProfile" | grep -oP "(?<=\"displayName\":\")[^\"]+"
 }
@@ -55,8 +57,8 @@ GetAtlassianUserDisplayName() {
 #  2 - the login password that belongs to argument 1
 #
 ExitIfAtlassianCredentialsWrong() {
-  userName="$1"
-  password="$2"
+  local userName="$1"
+  local password="$2"
   
   $(curl -sfX HEAD -u "$userName:$password" "https://code.gerdi-project.de/rest/api/latest/projects/")
   if [ $? -ne 0 ]; then

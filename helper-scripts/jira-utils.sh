@@ -24,16 +24,17 @@
 #  3 - a password for argument 2
 #
 StartJiraTask() {
-  taskKey="$1"
-  userName="$2"
-  password="$3"
+  local taskKey="$1"
+  local userName="$2"
+  local password="$3"
   
-  #echo "Setting $taskKey to 'Selected for Development'" >&2
+  local response
   response=$(curl -sX POST -u "$userName:$password" -H "Content-Type: application/json" -d '{
     "transition": {"id": 111}
   }' https://tasks.gerdi-project.de/rest/api/latest/issue/$taskKey/transitions?expand=transitions.fields)
   
   echo "Setting $taskKey to 'In Progress'" >&2
+  
   response=$(curl -sX POST -u "$userName:$password" -H "Content-Type: application/json" -d '{
     "transition": {"id": 81}
   }' https://tasks.gerdi-project.de/rest/api/latest/issue/$taskKey/transitions?expand=transitions.fields)
@@ -48,12 +49,14 @@ StartJiraTask() {
 #  3 - a password for argument 2
 #
 ReviewJiraTask() {
-  taskKey="$1"
-  userName="$2"
-  password="$3"
+  local taskKey="$1"
+  local userName="$2"
+  local password="$3"
   
   # set to Review
   echo "Setting $taskKey to 'In Review'" >&2
+  
+  local response
   response=$(curl -sX POST -u "$userName:$password" -H "Content-Type: application/json" -d '{
     "transition": {"id": 101}
   }' https://tasks.gerdi-project.de/rest/api/latest/issue/$taskKey/transitions?expand=transitions.fields)
@@ -67,11 +70,13 @@ ReviewJiraTask() {
 #  3 - a password for argument 2
 #
 FinishJiraTask() {
-  taskKey="$1"
-  userName="$2"
-  password="$3"
+  local taskKey="$1"
+  local userName="$2"
+  local password="$3"
   
   echo "Setting $taskKey to 'Done'" >&2
+  
+  local response
   response=$(curl -sX POST -u "$userName:$password" -H "Content-Type: application/json" -d '{
     "transition": {"id": 71}
   }' https://tasks.gerdi-project.de/rest/api/latest/issue/$taskKey/transitions?expand=transitions.fields)
@@ -86,13 +91,15 @@ FinishJiraTask() {
 #  4 - a password for argument 3
 #
 AbortJiraTask() {
-  taskKey="$1"
-  reason="$2"
-  userName="$3"
-  password="$4"
+  local taskKey="$1"
+  local reason="$2"
+  local userName="$3"
+  local password="$4"
   
   # set to WNF
   echo "Setting $taskKey to 'Will not Fix'" >&2
+  
+  local response
   response=$(curl -sX POST -u "$userName:$password" -H "Content-Type: application/json" -d '{
     "transition": {"id": 181},
   "update": {
@@ -110,11 +117,12 @@ AbortJiraTask() {
 #  4 - a password for argument 3
 #
 CreateJiraTicket() {
-  title="$1"
-  description="$2"
-  userName="$3"
-  password="$4"
+  local title="$1"
+  local description="$2"
+  local userName="$3"
+  local password="$4"
   
+  local response
   response=$(curl -sX POST -u "$userName:$password" -H "Content-Type: application/json" -d '{
     "fields": {
       "summary": "'"$title"'",
@@ -125,6 +133,7 @@ CreateJiraTicket() {
     }
   }' https://tasks.gerdi-project.de/rest/api/latest/issue)
   
+  local jiraKey
   jiraKey=${response#*\"key\":\"}
   jiraKey=${jiraKey%%\"*}
   
@@ -143,12 +152,13 @@ CreateJiraTicket() {
 #  5 - a password for argument 4
 #
 CreateJiraSubTask() {
-  jiraParentKey="$1"
-  title="$2"
-  description="$3"
-  userName="$4"
-  password="$5"
+  local jiraParentKey="$1"
+  local title="$2"
+  local description="$3"
+  local userName="$4"
+  local password="$5"
   
+  local response
   response=$(curl -sX POST -u "$userName:$password" -H "Content-Type: application/json" -d '{
     "fields": {
       "summary": "'"$title"'",
@@ -159,6 +169,7 @@ CreateJiraSubTask() {
     }
   }' https://tasks.gerdi-project.de/rest/api/latest/issue)
   
+  local subTaskKey
   subTaskKey=${response#*\"key\":\"}
   subTaskKey=${subTaskKey%%\"*}
   
@@ -175,12 +186,15 @@ CreateJiraSubTask() {
 #  3 - a password for argument 3
 #
 AddJiraTicketToCurrentSprint() {
-  jiraKeyToAdd="$1"
-  userName="$2"
-  password="$3"
+  local jiraKeyToAdd="$1"
+  local userName="$2"
+  local password="$3"
     
   # retrieve active sprint name
-  response=$(curl -sX GET -u "$userName:$password" -H "Content-Type: application/json" https://tasks.gerdi-project.de/rest/agile/latest/board/25/sprint)    
+  local response
+  response=$(curl -sX GET -u "$userName:$password" -H "Content-Type: application/json" https://tasks.gerdi-project.de/rest/agile/latest/board/25/sprint) 
+
+  local sprintId  
   sprintId=${response##*\"id\":}
   sprintId=${sprintId%%,*}
    

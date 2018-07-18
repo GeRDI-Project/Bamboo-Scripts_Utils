@@ -65,12 +65,12 @@ GetTagUrl() {
 GetTagBody() {
   local tagName="$1"
   
-  local tagMessage="https://ci.gerdi-project.de/browse/${bamboo.planKey}-${bamboo.buildNumber}"
+  local tagMessage="https://ci.gerdi-project.de/browse/$bamboo_planKey-$bamboo_buildNumber"
   
   echo '{
-    "name": "'${tagName}'",
-    "startPoint": "'${bamboo.planRepository.1.revision}'",
-    "message": "'${tagMessage}'"
+    "name": "'"$tagName"'",
+    "startPoint": "'"$bamboo_planRepository_1_revision"'",
+    "message": "'"$tagMessage"'"
   }'
 }
 

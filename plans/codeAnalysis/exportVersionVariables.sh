@@ -43,7 +43,7 @@ GetBuildNumber() {
   local previousTag
   previousTag=$(git tag --sort="taggerdate" -l "$tagPrefix*" | tail -n1)
   
-  if [ "$previousTag" != "" ]; then
+  if [ -n "$previousTag" ]; then
     echo $(expr 1 + ${previousTag#$tagPrefix})
   else
     echo 1
@@ -86,7 +86,7 @@ GetTagVersion() {
     buildNumber=""
   fi
 
-  if [ "$tagPrefix" != "" ]; then
+  if [ -n "$tagPrefix" ]; then
     echo "$tagPrefix$buildNumber"
   else
     echo ""

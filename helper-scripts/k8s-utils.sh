@@ -23,26 +23,31 @@
 # Arguments:
 #  1 - the root directory in which YAML files are being searched
 #
-# Return: true, if there are duplicate clusterIDs
+# Exit: 0, if there are duplicate clusterIDs
 #
 CheckDuplicateClusterIps() {
-  serviceFolder="$1"
+  local serviceFolder="$1"
   
+  local ipList
   ipList=$(GetClusterIpList "$serviceFolder" | tr " " "\n")
-  hasDuplicate=false
   
-  while [ "$ipList" != "" ]; do
+  local hasDuplicates=1
+  
+  local clusterIp
+  local occurences
+  while [ -n "$ipList" ]; do
     clusterIp="$(echo "$ipList" | head -1)"
     occurences=$(echo "$ipList" | grep -c "$clusterIp")
     if [ "$occurences" -gt 1 ]; then
-      hasDuplicate=true
+      hasDuplicates=0
 	  printf "%-15s occurs $occurences times\n" "$clusterIp" >&2
     else
 	  printf "%-15s occurs once\n" "$clusterIp" >&2
 	fi
 	ipList=$(echo "$ipList" | grep -v "^$clusterIp$")
   done
-  echo "$hasDuplicate"
+  
+  exit $hasDuplicates
 }
 
 
@@ -59,18 +64,21 @@ CheckDuplicateClusterIps() {
 #  a free clusterIP within the specified range
 #
 GetFreeClusterIp() {
-  serviceFolder="$1"
-  ipPrefix="$2"
-  rangeFrom=$3
-  rangeTo=$4
+  local serviceFolder="$1"
+  local ipPrefix="$2"
+  local rangeFrom="$3"
+  local rangeTo="$4"
   
+  local ipList
   ipList=$(GetClusterIpList "$serviceFolder")
   
+  local clusterIp
   for ((lastSegment=$rangeFrom;lastSegment <= $rangeTo;lastSegment++))
   do
     clusterIp="$ipPrefix$lastSegment"
 	
-	if [ "$(echo "$ipList" | grep -oP "(?<![0-9])$clusterIp(?![0-9])")" = "" ]; then
+	# check if clusterIP is not within the list of assigned IPs
+	if ! $(echo "$ipList" | grep -qP "(?<![0-9])$clusterIp(?![0-9])") ; then
       echo "$clusterIp"
 	  exit 0
     fi
@@ -90,21 +98,23 @@ GetFreeClusterIp() {
 #  a space-separated list of clusterIPs
 #
 GetClusterIpList() {
-  serviceFolder="$1"
-  ipList=""
-    
+  local serviceFolder="$1"
+  local ipList=""
+  
+  local dirIpList
   for file in "$serviceFolder"/*
   do
     if [ -d "$file" ]; then
       dirIpList=$(GetClusterIpList "$file")
 
       # if there is a clusterIP in a subfolder, check if it is higher than the current highest
-      if [ "$dirIpList" != "" ]; then
+      if [ -n "$dirIpList" ]; then
         ipList="$ipList $dirIpList"
 	  fi
     fi
   done
   
+  local clusterIp
   while read file; do
     clusterIp=""
     if [ -f "$serviceFolder/$file" ] && [ "${file##*.}" = "yml" ]; then
@@ -112,12 +122,12 @@ GetClusterIpList() {
     fi
     
     # if there is a clusterIP, check if it is higher than the current highest
-    if [ "$clusterIp" != "" ] && [ "$clusterIp" != "None" ]; then
+    if [ -n "$clusterIp" ] && [ "$clusterIp" != "None" ]; then
         ipList="$ipList $clusterIp"
     fi
   done <<< "$(ls "$serviceFolder")"
   
-  if [ "$ipList" != "" ]; then
+  if [ -n "$ipList" ]; then
     ipList="${ipList# }"
   fi
   echo "$ipList"

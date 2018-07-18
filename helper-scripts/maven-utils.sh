@@ -16,7 +16,6 @@
 
 # This script offers helper functions that concern GeRDI Maven projects.
 
-mavenExecVersion="1.6.0"
   
 # Returns true if a specified version and artifact of a specified GeRDI Maven project exist in Sonatype or in Maven Central.
 #  Arguments:
@@ -24,16 +23,18 @@ mavenExecVersion="1.6.0"
 #  2 - the version of the GeRDI Maven project
 #
 IsMavenVersionDeployed() {
-  artifactId="$1"
-  version="$2"
+  local artifactId="$1"
+  local version="$2"
   
   # check Sonatype if it is a snapshot version
+  local response
   if [ "${version%-SNAPSHOT}" != "$version" ]; then
     response=$(curl -sI -X HEAD https://oss.sonatype.org/content/repositories/snapshots/de/gerdi-project/$artifactId/$version/)
   else
     response=$(curl -sI -X HEAD http://central.maven.org/maven2/de/gerdi-project/$artifactId/$version/)
   fi
   
+  local httpCode
   httpCode=$(echo "$response" | grep -oP '(?<=HTTP/\d\.\d )\d+')
   if [ $httpCode -eq 200 ]; then
     echo true
@@ -49,10 +50,11 @@ IsMavenVersionDeployed() {
 #  2 - if true, also the versions in the Sonatype repository are checked
 #
 GetLatestMavenVersion() {
-  artifactId="$1"
-  includeSnapshots="$2"
+  local artifactId="$1"
+  local includeSnapshots="$2"
+  local metaData
   
-  releaseVersion=""
+  local releaseVersion=""
   metaData=$(curl -fsX GET http://central.maven.org/maven2/de/gerdi-project/$artifactId/maven-metadata.xml)
   if [ $? -eq 0 ]; then
     releaseVersion=${metaData%</versions>*}
@@ -60,7 +62,7 @@ GetLatestMavenVersion() {
     releaseVersion=${releaseVersion%</version>*}
   fi
   
-  snapshotVersion=""
+  local snapshotVersion=""
   if [ "$includeSnapshots" = true ]; then
     metaData=$(curl -fsX GET https://oss.sonatype.org/content/repositories/snapshots/de/gerdi-project/$artifactId/maven-metadata.xml)
     if [ $? -eq 0 ]; then
@@ -70,11 +72,37 @@ GetLatestMavenVersion() {
 	fi
   fi
   
-  if [ "$snapshotVersion" = "" ] || [ "$releaseVersion" \> "$snapshotVersion" ]; then
+  if [ -z "$snapshotVersion" ] || [ "$releaseVersion" \> "$snapshotVersion" ]; then
     echo "$releaseVersion"
   else  
     echo "$snapshotVersion"
   fi
+}
+
+
+# Checks if one maven version is higher than another and exits with 1 if it is not.
+#  Arguments:
+#  1 - the supposedly higher version
+#  2 - the supposedly older version
+#
+IsMavenVersionHigher() {
+  local newVersion="$1"
+  local oldVersion="$2"
+  
+  local oldPrefix=${oldVersion%-*}
+  local oldSuffix=${oldVersion##*-}
+  local newPrefix=${newVersion%-*}
+  local newSuffix=${newVersion##*-}
+  
+  if [ -n "$newVersion" ]; then
+    if [ -z "$oldVersion" ] || [ "$newPrefix" \> "$oldPrefix" ]; then
+      exit 0
+    elif [ "$newPrefix" = "$oldPrefix" ] && [ -z "$newSuffix" ] && [ -n "$oldSuffix" ]; then
+      exit 0
+    fi
+  fi
+  
+  exit 1
 }
 
 
@@ -84,73 +112,12 @@ GetLatestMavenVersion() {
 #  2 - the path to the pom.xml (optional)
 #
 GetPomValue() {
-  valueKey="$1"
-  pomPath="$2"
+  local valueKey="$1"
+  local pomPath="$2"
   
-  if [ "$pomPath" = "" ]; then
-    echo $(mvn -q -Dexec.executable="echo" -Dexec.args='${'"$valueKey"'}' --non-recursive org.codehaus.mojo:exec-maven-plugin:$mavenExecVersion:exec)
+  if [ -z "$pomPath" ]; then
+    echo $(mvn -q -Dexec.executable="echo" -Dexec.args='${'"$valueKey"'}' --non-recursive org.codehaus.mojo:exec-maven-plugin:1.6.0:exec)
   else
-    echo $(mvn -q -Dexec.executable="echo" -Dexec.args='${'"$valueKey"'}' --non-recursive org.codehaus.mojo:exec-maven-plugin:$mavenExecVersion:exec -f"$pomPath")
-  fi
-}
-
-
-# Creates a pom.xml that extends the GeRDI-harvester-setup project with either a specified or the latest version.
-#  Arguments:
-#  1 - a version of GeRDI-harvester-setup (optional)
-#
-CreateHarvesterSetupPom() {
-  harvesterSetupVersion="$1"
-  
-  # get the latest version of the Harvester Parent Pom, if no version was specified
-  if [ "$harvesterSetupVersion" = "" ]; then
-    harvesterSetupVersion=$(GetLatestMavenVersion "GeRDI-harvester-setup" true)
-  fi
-  
-  # create a basic pom.xml that will fetch the harvester setup
-  echo "Creating temporary pom.xml for HarvesterSetup $harvesterSetupVersion" >&2
-  
-  # check if a pom.xml already exists
-  if [ -e pom.xml ]; then
-    echo "Could not create file '$PWD/pom.xml', because it already exists!" >&2
-    exit 1
-  fi
-  
-  echo '<project>
-  <modelVersion>4.0.0</modelVersion>
-  <parent>
-    <groupId>de.gerdi-project</groupId>
-    <artifactId>GeRDI-harvester-setup</artifactId>
-    <version>'"$harvesterSetupVersion"'</version>
-  </parent>
-  <artifactId>temporary-harvester-setup</artifactId>
-  <repositories>
-    <repository>
-      <id>Sonatype</id>
-      <url>https://oss.sonatype.org/content/repositories/snapshots/</url>
-    </repository>
-  </repositories>
-</project>' >> pom.xml
-
-  echo "Successfully created file '$PWD/pom.xml'." >&2
-}
-
-
-# Creates a temporary credentials file and runs Bamboo Specs from a pom.xml,
-# which creates Bamboo jobs.
-#  Arguments:
-#  1 - a Bamboo user name of a user that is allowed to create jobs
-#  2 - the login password that belongs to argument 1
-#
-RunBambooSpecs() {
-  userName="$1"
-  password="$2"
-  
-  echo "Running Bamboo-Specs" >&2
-  mvn -e compile -Dexec.args="'$userName' '$password'" 
-  
-  if [ $?  -ne 0 ]; then
-    echo "Error creating Bamboo Jobs!" >&2
-    exit 1
+    echo $(mvn -q -Dexec.executable="echo" -Dexec.args='${'"$valueKey"'}' --non-recursive org.codehaus.mojo:exec-maven-plugin:1.6.0:exec -f"$pomPath")
   fi
 }
