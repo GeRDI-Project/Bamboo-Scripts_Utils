@@ -80,6 +80,35 @@ GetLatestMavenVersion() {
 }
 
 
+# Checks if one maven version is higher than another and exits with 1 if it is not.
+#  Arguments:
+#  1 - the supposedly higher version
+#  2 - the supposedly older version
+#
+IsMavenVersionHigher() {
+  local newVersion="$1"
+  local oldVersion="$2"
+  
+  local oldPrefix=${oldVersion%-*}
+  local newPrefix=${newVersion%-*}
+  local newSuffix=${newVersion##*-}
+  
+  if [ -z "$newVersion" ]; then
+    exit 1
+	
+  elif [ -z "$oldVersion" ]; then
+    exit 0
+  fi
+  
+  if [ "$newPrefix" \< "$oldPrefix" ]; then
+    exit 1
+	
+  elif [ "$newPrefix" = "$oldPrefix" ] && [ "$newSuffix" = "SNAPSHOT" ]; then
+    exit 1
+  fi
+}
+
+
 # Returns a specified value of a pom.xml.
 #  Arguments:
 #  1 - the path to the tag of which the value is retrieved (e.g. project.version)

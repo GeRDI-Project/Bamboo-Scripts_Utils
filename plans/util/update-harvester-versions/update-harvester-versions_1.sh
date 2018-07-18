@@ -97,35 +97,10 @@ GetTargetVersionForUpdate(){
   newVersion="$newMajor.$newMinor.$newBugfix$sourceSuffix"
   
   # if the new version is higher than the previously calculated one, return it
-  if $(IsVersionHigher "$newVersion" "$currentTargetVersion"); then
+  if $(IsMavenVersionHigher "$newVersion" "$currentTargetVersion"); then
     echo "$newVersion"
   else  
     echo "$currentTargetVersion"
-  fi
-}
-
-
-# CHECKS IF ONE MAVEN VERSION IS HIGHER THAN ANOTHER
-IsVersionHigher() {
-  local newVersion="$1"
-  local oldVersion="$2"
-  
-  local oldPrefix=${oldVersion%-*}
-  local newPrefix=${newVersion%-*}
-  local newSuffix=${newVersion##*-}
-  
-  if [ -z "$newVersion" ]; then
-    exit 1
-	
-  elif [ -z "$oldVersion" ]; then
-    exit 0
-  fi
-  
-  if [ "$newPrefix" \< "$oldPrefix" ]; then
-    exit 1
-	
-  elif [ "$newPrefix" = "$oldPrefix" ] && [ "$newSuffix" = "SNAPSHOT" ]; then
-    exit 1
   fi
 }
 
@@ -137,7 +112,7 @@ QueueParentPomUpdate(){
   local sourceParentVersion
   sourceParentVersion=$(GetPomValue "project.parent.version" "$POM_FOLDER/pom.xml")
 
-  if $(IsVersionHigher "$targetParentVersion" "$sourceParentVersion"); then 
+  if $(IsMavenVersionHigher "$targetParentVersion" "$sourceParentVersion"); then 
     echo "Queueing to update parent-pom version of $ARTIFACT_ID from $sourceParentVersion to $targetParentVersion" >&2
   
     # create main task if does not exist
@@ -177,7 +152,7 @@ QueuePropertyUpdate(){
   local sourcePropertyVersion
   sourcePropertyVersion=$(cat "$POM_FOLDER/pom.xml" | grep -oP "(?<=\<$targetPropertyName\>)[^\<]*")
   
-  if $(IsVersionHigher "$targetPropertyVersion" "$sourcePropertyVersion"); then
+  if $(IsMavenVersionHigher "$targetPropertyVersion" "$sourcePropertyVersion"); then
     echo "Queueing to update <$targetPropertyName> property of $ARTIFACT_ID from $sourcePropertyVersion to $targetPropertyVersion" >&2
   
     # create main task if does not exist
@@ -363,7 +338,7 @@ BuildAndDeployLibrary() {
 	exit 0
   fi
   
-  if ! $(echo "$TARGET_VERSION" | grep -q "-SNAPSHOT" ); then
+  if ! $(echo "$TARGET_VERSION" | grep -q "\-SNAPSHOT" ); then
     echo "Cannot automatically deploy RELEASE versions, because it takes 15 minutes until they are accessible in the Maven Central repository!" >&2
 	exit 1
   fi
