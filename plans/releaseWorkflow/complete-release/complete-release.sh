@@ -48,7 +48,9 @@ ChangeGlobalReleaseVariable() {
     stagingVersion="0.0.0"
   fi
 
-  echo $(SetGlobalVariable "PRODUCTION_VERSION" "$stagingVersion" "$userName" "$password") >&2
+  if $(SetGlobalVariable "PRODUCTION_VERSION" "$stagingVersion" "$userName" "$password"); then
+    echo "Set PRODUCTION_VERSION to $stagingVersion!" >&2
+  fi
   
   echo "$stagingVersion"  
 }

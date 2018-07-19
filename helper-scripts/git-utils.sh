@@ -138,6 +138,104 @@ DeleteGitRepository() {
 }
 
 
+# Retrieves the commitID of a specified branch.
+#
+# Arguments:
+#  1 - Bitbucket user name
+#  2 - Bitbucket user password
+#  3 - Bitbucket Project ID
+#  4 - Repository slug
+#  5 - The name of the branch of which the last commit is retrieved
+GetLatestCommit() {
+  local userName="$1"
+  local password="$2"
+  local projectId="$3"
+  local repositorySlug="$4"
+  local branch="$5"
+  
+  curl -sX GET -u "$userName:$password" "https://code.gerdi-project.de/rest/api/1.0/projects/$projectId/repos/$repositorySlug/branches/" \
+     | grep -oP '(?<="displayId":"'"$branch"'","type":"BRANCH","latestCommit":")[^"]+'
+}
+
+
+# Retrieves a JSON object representing a tag in a Bitbucket repository.
+#
+# Arguments:
+#  1 - Bitbucket user name
+#  2 - Bitbucket user password
+#  3 - Bitbucket Project ID
+#  4 - Repository slug
+#  5 - The name of the tag to be retrieved
+#
+GetBitbucketTag() {
+  local userName="$1"
+  local password="$2"
+  local projectId="$3"
+  local repositorySlug="$4"
+  local tagName="$5"
+  curl -sX GET -u "$userName:$password" "https://code.gerdi-project.de/rest/api/1.0/projects/$projectId/repos/$repositorySlug/tags/$tagName"
+}
+
+
+# Checks if a tag in a Bitbucket repository exists and exits with 1 if it does not.
+#
+# Arguments:
+#  1 - Bitbucket user name
+#  2 - Bitbucket user password
+#  3 - Bitbucket Project ID
+#  4 - Repository slug
+#  5 - The name of the tag to be retrieved
+#
+HasBitbucketTag() {
+  local userName="$1"
+  local password="$2"
+  local projectId="$3"
+  local repositorySlug="$4"
+  local tagName="$5"
+  local response
+  httpCode=$(curl -sIX HEAD -u "$userName:$password" "https://code.gerdi-project.de/rest/api/1.0/projects/$projectId/repos/$repositorySlug/tags/$tagName" \
+  | grep -oP '(?<=HTTP/\d\.\d )\d+')
+  
+  if [ "$httpCode" != "200" ]; then
+    exit 1
+  fi
+}
+
+
+# Tags a Bitbucket repository on a specified branch.
+#
+# Arguments:
+#  1 - Bitbucket user name
+#  2 - Bitbucket user password
+#  3 - Bitbucket Project ID
+#  4 - Repository slug
+#  5 - The name of the branch that is to be tagged
+#  6 - The name of the tag to be added
+#  7 - The message that is added to the tag
+#
+AddBitbucketTag() {
+  local userName="$1"
+  local password="$2"
+  local projectId="$3"
+  local repositorySlug="$4"
+  local branch="$5"
+  local tagName="$6"
+  local tagMessage="$7"
+  
+  local revision=$(GetLatestRevision "$userName" "$password" "$projectId" "$repositorySlug" "$branch")
+  
+  if [ -z "$revision" ]; then
+    exit 1
+  fi
+  
+  curl -sX POST -u "$userName:$password" -H "Content-Type: application/json" -d '{
+    "name": "'"$tagName"'",
+    "startPoint": "'"$revision"'",
+    "message": "'"$tagMessage"'"
+  }' "https://code.gerdi-project.de/rest/api/1.0/projects/$projectId/repos/$repositorySlug/tags"
+}
+
+
 # Checks if a branch exists in a Bitbucket, without having to checkout the repository.
 #
 # Arguments:
