@@ -138,6 +138,27 @@ DeleteGitRepository() {
 }
 
 
+# Checks if a branch exists in a Bitbucket, without having to checkout the repository.
+#
+# Arguments:
+#  1 - Bitbucket user name
+#  2 - Bitbucket user password
+#  3 - Bitbucket Project ID
+#  4 - Repository slug
+#  5 - The name of the branch that is to be checked
+#
+HasBitbucketBranch() {
+  local userName="$1"
+  local password="$2"
+  local project="$3"
+  local repositorySlug="$4"
+  local branchName="$5"
+  
+  curl -sX GET -u "$userName:$password" "https://code.gerdi-project.de/rest/api/latest/projects/$project/repos/$repositorySlug/branches/?filterText=$branchName" \
+    | grep -q "\"id\":\"refs/heads/$branchName\""
+}
+
+
 # Creates a remote Git branch of the current repository.
 #  Arguments:
 #  1 - the name of the branch
@@ -254,7 +275,7 @@ CreatePullRequest() {
   
   # create pull-request
   local bitbucketPostResponse
-  bitbucketPostResponse=$(curl -sX POST -u "$userName:$password" -H "Content-Type: application/json" -d '{
+  curl -sX POST -u "$userName:$password" -H "Content-Type: application/json" -d '{
     "title": "'"$title"'",
     "description": "'"$description"'",
     "state": "OPEN",
@@ -287,7 +308,7 @@ CreatePullRequest() {
             null
         ]
     }
-  }' https://code.gerdi-project.de/rest/api/latest/projects/$project/repos/$repositorySlug/pull-requests)
+  }' https://code.gerdi-project.de/rest/api/latest/projects/$project/repos/$repositorySlug/pull-requests
 }
 
 
