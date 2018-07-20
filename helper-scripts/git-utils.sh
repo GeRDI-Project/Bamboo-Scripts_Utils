@@ -566,6 +566,79 @@ MergeAllPullRequestsOfJiraTicket() {
 }
 
 
+# Approves a Bitbucket pull request.
+#
+# Arguments:
+#  1 - The Bitbucket user that approves
+#  2 - The Bitbucket user password
+#  3 - Bitbucket Project ID
+#  4 - Repository slug
+#  5 - The ID of the pull request
+#
+ApprovePullRequest() {
+  local userName="$1"
+  local password="$2"
+  local projectId="$3"
+  local repositorySlug="$4"
+  local pullRequestId="$5"
+  
+  if !(curl -sfX HEAD -u "$userName:$password" "https://code.gerdi-project.de/rest/api/1.0/projects/$projectId/repos/$repositorySlug/pull-requests/$pullRequestId"); then
+    echo "Could not approve pull-request '$projectId/$repositorySlug/$pullRequestId': The pull-request does not exist!" >&2
+    exit 1
+  fi
+  
+  local userSlug
+  userSlug=$(curl -sX GET -u "$userName:$password" "https://code.gerdi-project.de/rest/api/1.0/projects/$projectId/repos/$repositorySlug/pull-requests/$pullRequestId/participants/" \
+            | grep -oP '"name":"'"$userName"'",.*?"slug":"[^"]+"' \
+            | grep -oP '(?<="slug":")[^"]+')
+  if [ -z "$userSlug" ]; then
+    echo "Could not approve pull-request '$projectId/$repositorySlug/$pullRequestId': $userName is not a reviewer!" >&2
+    exit 1
+  fi
+  
+  local response
+  response=$(curl -sfX PUT -u "$userName:$password" -H "Content-Type: application/json" -d '{
+	  "status": "APPROVED"
+  }' "https://code.gerdi-project.de/rest/api/1.0/projects/$projectId/repos/$repositorySlug/pull-requests/$pullRequestId/participants/$userSlug")
+  
+  if [ $? -eq 0 ]; then
+    echo "User $userName approved pull-request $projectId/$repositorySlug/$pullRequestId!" >&2
+  else
+    echo "Could not approve pull-request '$projectId/$repositorySlug/$pullRequestId': Reason unknown!" >&2
+    exit 1
+  fi
+}
+
+
+# Approves all pull-requests of which the titles contain a specified string.
+# Only pull-requests of a specified user are treated.
+#
+# Arguments:
+#  1 - The Bitbucket user that reviews the pull-requests 
+#  2 - The Bitbucket user password
+#  3 - A sub-string of the pull-request titles that are to be approved
+#
+ApproveAllPullRequestsWithTitle() {
+  local userName="$1"
+  local password="$2"
+  local title="$3"
+
+  local myOpenPullRequests
+  myOpenPullRequests=$(curl -sX GET -u "$userName:$password" "https://code.gerdi-project.de/rest/api/1.0/dashboard/pull-requests?state=open&role=REVIEWER&participantStatus=UNAPPROVED")
+
+  local argumentsList  
+  argumentsList=$(echo "$myOpenPullRequests" \
+  | perl -pe 's~.*?{"id":(\d+),"version":\d+?,"title":"[^"]*?'"$title"'[^"]*?",.*?"toRef":.*?"slug":"(.+?)",.*?"project":\{"key":"(\w+?)"~'"'\3' '\2' '\1'\n"'~gi' \
+  | head -n -1)
+  
+  # approve all matching pull-requests
+  while read arguments
+  do
+    $(eval ApprovePullRequest "'$userName' '$password' $arguments")
+  done <<< "$(echo -e "$argumentsList")"
+}
+
+
 # Requests and returns a JSON object containing information about a pull request.
 #  Arguments:
 #  1 - a Bitbucket user name
