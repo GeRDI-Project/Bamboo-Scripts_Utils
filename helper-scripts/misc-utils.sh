@@ -93,6 +93,45 @@ SubstitutePlaceholderInFile() {
 }
 
 
+# Exits with 1 if a specified argument is not a reachable git clone link.
+#
+# Arguments:
+#  1 - the argument that is to be tested
+#
+IsCloneLink() {
+  local checkedArg="$1"
+  local userName="$2"
+  local password="$3"
+  
+  if $(echo "$checkedArg" | grep -qx "\(https\?\|ssh\)://.*\.git"); then
+    local slug=$(echo "$checkedArg" | grep -oP "[^/.]+(?=\.git$)")
+    local projectId=$(echo "$checkedArg" | grep -oP "[^/.]+(?=/$slug\.git)")
+	
+    IsUrlReachable "https://code.gerdi-project.de/rest/api/latest/projects/$projectId/repos/$slug" "$userName" "$password"
+  else
+    exit 1
+  fi
+}
+
+
+# Exits with 1 if a specified argument is not a project.
+#
+# Arguments:
+#  1 - the argument that is to be tested
+#
+IsProject() {
+  local checkedArg="$1"
+  local userName="$2"
+  local password="$3"
+  
+  if $(echo "$checkedArg" | grep -qx "[A-Z]\+\|[a-z]\+"); then
+    IsUrlReachable "https://code.gerdi-project.de/rest/api/latest/projects/$checkedArg/" "$userName" "$password"
+  else
+    exit 1
+  fi
+}
+
+
 # This function fails with exit code 1, if the preceding operation did not exit with exit code 0.
 #  Arguments:
 #  1 - An optional error message that is printed only when the preceding operation failed

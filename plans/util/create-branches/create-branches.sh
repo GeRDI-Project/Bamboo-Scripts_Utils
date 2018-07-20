@@ -31,7 +31,6 @@ source ./scripts/helper-scripts/atlassian-utils.sh
 source ./scripts/helper-scripts/bamboo-utils.sh
 source ./scripts/helper-scripts/jira-utils.sh
 source ./scripts/helper-scripts/git-utils.sh
-source ./scripts/helper-scripts/maven-utils.sh
 source ./scripts/helper-scripts/misc-utils.sh
 
 
@@ -129,52 +128,14 @@ UpdateBranchesOfArgument() {
   local sourceBranchName="$2"
   local createdBranchName="$3"
 
-  if $(IsProject "$argument"); then
+  if $(IsProject "$argument" "$ATLASSIAN_USER_NAME" "$ATLASSIAN_PASSWORD"); then
     echo $(UpdateBranchesOfProject "$argument" "$sourceBranchName" "$createdBranchName") >&2
 	
-  elif $(IsCloneLink "$argument"); then
+  elif $(IsCloneLink "$argument" "$ATLASSIAN_USER_NAME" "$ATLASSIAN_PASSWORD"); then
     echo $(UpdateBranchesOfRepository "$argument" "$sourceBranchName" "$createdBranchName") >&2
 
   else
     echo "Argument '$argument' is neither a valid git clone link, nor a BitBucket project!" >&2
-  fi
-}
-
-
-# Returns true if the argument is a git clone link.
-#
-# Arguments:
-#  1 - the argument that is to be tested
-#
-IsCloneLink() {
-  local checkedArg="$1"
-  
-  if $(echo "$checkedArg" | grep -qx "https:.*\.git"); then
-    local projectId
-	projectId=$(GetProjectIdFromCloneLink "$checkedArg")
-	
-	local slug
-    slug=$(GetRepositorySlugFromCloneLink "$checkedArg")
-	
-    IsUrlReachable "https://code.gerdi-project.de/rest/api/latest/projects/$projectId/repos/$slug" "$ATLASSIAN_USER_NAME" "$ATLASSIAN_PASSWORD"
-  else
-    exit 1
-  fi
-}
-
-
-# Returns true if the argument is a project.
-#
-# Arguments:
-#  1 - the argument that is to be tested
-#
-IsProject() {
-  local checkedArg="$1"
-  
-  if $(echo "$checkedArg" | grep -qxP "[A-Za-z]+"); then
-    IsUrlReachable "https://code.gerdi-project.de/rest/api/latest/projects/$checkedArg/" "$ATLASSIAN_USER_NAME" "$ATLASSIAN_PASSWORD"
-  else
-    exit 1
   fi
 }
 
