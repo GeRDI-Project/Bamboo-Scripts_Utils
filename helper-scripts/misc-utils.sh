@@ -107,9 +107,9 @@ GetHeadHttpCode() {
   
   local response
   if [ -n "$userName" ]; then
-    response=$(curl -sIX HEAD -u "$userName:$password" $url)
+    response=$(curl -sIX HEAD -u "$userName:$password" "$url")
   else
-    response=$(curl -sIX HEAD $url)
+    response=$(curl -sIX HEAD "$url")
   fi
   
   echo "$response" | grep -oP '(?<=HTTP/\d\.\d )\d+'
