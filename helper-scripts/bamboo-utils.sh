@@ -352,6 +352,60 @@ CreatePlanBranch() {
 }
 
 
+# Deletes a Bamboo global variable.
+#  Arguments:
+#  1 - the name of the global variable
+#  2 - the name of a Bamboo admin user
+#  3 - the password the Bamboo user
+#
+DeleteGlobalVariable() {
+  local globalVarName="$1"
+  local userName="$2"
+  local password="$3"
+  
+  local globalVariableId
+  globalVariableId=$(curl -sX GET -u "$userName:$password" "https://ci.gerdi-project.de/rest/admin/latest/globalVariables" \
+                     | grep -oP '(?<="id":)\d+(?=,"name":"'"$globalVarName"'")')
+  
+  if [ -n "$globalVariableId" ]; then
+    # if the global variable exists, change its value
+    curl -sX DELETE -u "$userName:$password" "https://ci.gerdi-project.de/rest/admin/latest/globalVariables/$globalVariableId"
+  fi
+}
+
+
+# Changes the value of a Bamboo global variable. If the variable does not exist, it is created.
+#  Arguments:
+#  1 - the name of the global variable
+#  2 - the new value of the global variable
+#  3 - the name of a Bamboo admin user
+#  4 - the password the Bamboo user
+#
+SetGlobalVariable() {
+  local globalVarName="$1"
+  local globalVarValue="$2"
+  local userName="$3"
+  local password="$4"
+  
+  local globalVariableId
+  globalVariableId=$(curl -sX GET -u "$userName:$password" "https://ci.gerdi-project.de/rest/admin/latest/globalVariables" \
+                     | grep -oP '(?<="id":)\d+(?=,"name":"'"$globalVarName"'")')
+  
+  if [ -n "$globalVariableId" ]; then
+    # if the global variable exists, change its value
+    curl -sX PUT -u "$userName:$password" -H "Content-Type: application/json" -d '{
+	          "value":"'"$globalVarValue"'"
+            }' "https://ci.gerdi-project.de/rest/admin/latest/globalVariables/$globalVariableId"
+  else
+    # if the global variable does not exist, create it
+    curl -sX POST -u "$userName:$password" -H "Content-Type: application/json" -d '{
+              "name":"'"$globalVarName"'",
+	            "value":"'"$globalVarValue"'"
+            }' "https://ci.gerdi-project.de/rest/admin/latest/globalVariables"
+  fi
+}
+
+
 # Fails with exit code 1 if the Bamboo user is not logged in.
 #
 ExitIfNotLoggedIn() {

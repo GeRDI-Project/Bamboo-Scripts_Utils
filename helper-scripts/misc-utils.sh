@@ -56,6 +56,44 @@ IsMajorVersionDifferent() {
 }
 
 
+# Return a given version with the major, minor or bufix version compoment incremented
+# (and "components to right" set to zero)
+#
+# Arguments:
+# 1 - fixed string (minor, major, bugfix) denoting which part is to be incremented 
+# 2 - a version of the schema 'major.minor.bugfix'
+#
+IncrementVersion() {
+
+  local versionType=$1
+
+  local majorVersion=${2%%.*}
+  local minorVersion=${2%.*}
+        minorVersion=${minorVersion#*.}
+  local bugfixVersion=${2##*.}
+
+  case $versionType in
+	  major)
+		  majorVersion=$((majorVersion+1))
+                  minorVersion=0
+                  bugfixVersion=0
+                  ;;
+          minor)
+                  minorVersion=$((minorVersion+1))
+                  bugfixVersion=0
+                  ;;
+          bugfix)
+                  bugfixVersion=$((bugfixVersion+1))
+                  ;;
+                *)
+                  echo "Unknown version type '$versionType'! Valid values are 'major', 'minor', 'bugfix'." >&2
+                  exit 1
+  esac
+
+  echo $majorVersion.$minorVersion.$bugfixVersion
+}
+
+
 # Returns the HTTP response code of a HEAD request to a specified URL.
 #  Arguments:
 #  1 - the URL that is tested
@@ -69,9 +107,9 @@ GetHeadHttpCode() {
   
   local response
   if [ -n "$userName" ]; then
-    response=$(curl -sIX HEAD -u "$userName:$password" $url)
+    response=$(curl -sIX HEAD -u "$userName:$password" "$url")
   else
-    response=$(curl -sIX HEAD $url)
+    response=$(curl -sIX HEAD "$url")
   fi
   
   echo "$response" | grep -oP '(?<=HTTP/\d\.\d )\d+'
