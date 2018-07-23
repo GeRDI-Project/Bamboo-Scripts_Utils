@@ -174,9 +174,9 @@ Main() {
   
   local repoArguments="'$atlassianUserName' '$atlassianPassword'"
   ProcessListOfProjectsAndRepositories \
-    "$userName" \
-    "$password" \
-    "$bamboo_RELEASED_REPOSITORIES" \
+    "$atlassianUserName" \
+    "$atlassianPassword" \
+    "$projectsAndCloneLinks" \
     "ProcessRepository" \
     "$repoArguments"
 }
