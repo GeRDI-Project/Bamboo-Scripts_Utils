@@ -75,8 +75,8 @@ Main() {
 	ExitIfPlanVariableIsMissing "reviewer"
 
 	# get and verify Atlassian credentials
-	ATLASSIAN_USER_NAME=$(GetBambooUserName)
-	ATLASSIAN_PASSWORD=$(GetValueOfPlanVariable "atlassianPassword")
+	local ATLASSIAN_USER_NAME=$(GetBambooUserName)
+	local ATLASSIAN_PASSWORD=$(GetValueOfPlanVariable "atlassianPassword")
 	ExitIfAtlassianCredentialsWrong "$ATLASSIAN_USER_NAME" "$ATLASSIAN_PASSWORD"
 
 
