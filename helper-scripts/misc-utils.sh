@@ -132,6 +132,80 @@ IsProject() {
 }
 
 
+# Retrieves git clone links for each repository in a Bitbucket project and calls a specified
+# function on each clone link.
+#
+# Arguments:
+#  1 - An Atlassian administrator user name
+#  2 - The password for the Atlassian administrator
+#  3 - The key of the Bitbucket project that is to be processed
+#  4 - The name of the function that is to be called for each repository
+#      Its first argument must be a git clone link, the following arguments
+#      must match the argument 5.
+#  5 - A space-separated list of arguments for the called function.
+#      Each argument must be surrounded by single-quotes.
+#
+ProcessRepositoriesOfProject() {
+  local userName="$1"
+  local password="$2"
+  local projectId="$3"
+  local repoFunctionName="$4"
+  local repoFunctionArguments="$5"
+  
+  local repoUrls
+  repoUrls=$(curl -sX GET -u "$userName:$password" "https://code.gerdi-project.de/rest/api/latest/projects/$projectId/repos" \
+              | grep -oP '(?<="clone":\[\{"href":")[^"]+')
+         #    | python -m json.tool \
+         #    | grep -oP '(?<=")http.*?git(?=")') 
+             
+             
+             echo "$repoUrls" >&2
+
+  # execute update of all repositories
+  while read cloneLink
+  do 
+    $(eval "$repoFunctionName" "'$cloneLink' $repoFunctionArguments")
+  done <<< "$(echo -e "$repoUrls")"
+}
+
+
+# Processes a list of git clone links and Bitbucket project keys and calls
+# a function for each repository.
+#
+# Arguments:
+#  1 - An Atlassian administrator user name
+#  2 - The password for the Atlassian administrator
+#  3 - A comma-separated list of Bitbucket Project keys and git clone links
+#  4 - The name of the function that is to be called for each repository
+#      Its first argument must be a git clone link, the following arguments
+#      must match the argument 5.
+#  5 - A space-separated list of arguments for the called function.
+#      Each argument must be surrounded by single-quotes.
+#
+ProcessListOfProjectsAndRepositories() {
+  local userName="$1"
+  local password="$2"
+  local projectsAndCloneLinks=$(echo "$3" | tr -d " " | tr "," "\n")
+  local repoFunctionName="$4"
+  local repoFunctionArguments="$5"
+  
+  # iterate through all clone links and/or projects
+  while read projectOrCloneLink
+  do 
+    if $(IsProject "$projectOrCloneLink" "$userName" "$password"); then
+      $(ProcessRepositoriesOfProject "$userName" "$password" "$projectOrCloneLink" "$repoFunctionName" "$repoFunctionArguments")
+	
+    elif $(IsCloneLink "$projectOrCloneLink" "$userName" "$password"); then
+      $(eval "$repoFunctionName" "'$projectOrCloneLink' $repoFunctionArguments")
+
+    else
+      echo "Argument '$projectOrCloneLink' is neither a valid git clone link, nor a BitBucket project!" >&2
+    fi
+  done <<< "$(echo -e "$projectsAndCloneLinks")"
+}
+
+
+
 # This function fails with exit code 1, if the preceding operation did not exit with exit code 0.
 #  Arguments:
 #  1 - An optional error message that is printed only when the preceding operation failed

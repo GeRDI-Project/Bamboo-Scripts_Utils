@@ -222,17 +222,25 @@ AddBitbucketTag() {
   local tagName="$6"
   local tagMessage="$7"
   
-  local revision=$(GetLatestRevision "$userName" "$password" "$projectId" "$repositorySlug" "$branch")
+  local revision=$(GetLatestCommit "$userName" "$password" "$projectId" "$repositorySlug" "$branch")
   
   if [ -z "$revision" ]; then
+    echo "Could not add tag '$tagName' to repository '$projectId/$repositorySlug'! Branch '$branch' does not exist." >&2
     exit 1
   fi
   
-  curl -sX POST -u "$userName:$password" -H "Content-Type: application/json" -d '{
+  local response=$(curl -sfX POST -u "$userName:$password" -H "Content-Type: application/json" -d '{
     "name": "'"$tagName"'",
     "startPoint": "'"$revision"'",
     "message": "'"$tagMessage"'"
-  }' "https://code.gerdi-project.de/rest/api/1.0/projects/$projectId/repos/$repositorySlug/tags"
+  }' "https://code.gerdi-project.de/rest/api/1.0/projects/$projectId/repos/$repositorySlug/tags")
+  
+  if [ $? -eq 0 ]; then
+    echo "Added tag '$tagName' to repository '$projectId/$repositorySlug' on branch '$branch'." >&2
+  else
+    echo "Could not add tag '$tagName' to repository '$projectId/$repositorySlug' on branch '$branch'!" >&2
+    exit 1
+  fi
 }
 
 
@@ -563,6 +571,35 @@ MergeAllPullRequestsOfJiraTicket() {
 	  fi
   done
   echo $failedMerges )
+}
+
+
+# Merges all approved pull-requests of which the titles contain a specified string.
+# Only pull-requests of a specified user are treated.
+#
+# Arguments:
+#  1 - The Bitbucket user that reviews the pull-requests 
+#  2 - The Bitbucket user password
+#  3 - A sub-string of the pull-request titles that are to be merged
+#
+MergeAllPullRequestsWithTitle() {
+  local userName="$1"
+  local password="$2"
+  local title="$3"
+
+  local myApprovedPullRequests
+  myApprovedPullRequests=$(curl -sX GET -u "$userName:$password" "https://code.gerdi-project.de/rest/api/1.0/dashboard/pull-requests?state=open&role=REVIEWER&participantStatus=APPROVED")
+
+  local argumentsList  
+  argumentsList=$(echo "$myApprovedPullRequests" \
+  | perl -pe 's~.*?{"id":(\d+),"version":(\d+)?,"title":"[^"]*?'"$title"'[^"]*?",.*?"toRef":.*?"slug":"(.+?)",.*?"project":\{"key":"(\w+?)"~'"'\4' '\3' '\1' '\2'\n"'~gi' \
+  | head -n -1)
+  
+  # merge all matching pull-requests
+  while read arguments
+  do    
+    $(eval MergePullRequest "'$userName' '$password' $arguments")
+  done <<< "$(echo -e "$argumentsList")"
 }
 
 

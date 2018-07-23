@@ -38,6 +38,10 @@ source ./scripts/helper-scripts/misc-utils.sh
 # Changes the global bamboo variable 'PRODUCTION_VERSION' to the
 # 'STAGING_VERSION' and returns the new value.
 #
+# Arguments:
+#  1 - the Atlassian user name of an administrator
+#  2 - the corresponding Atlassian password
+#
 ChangeGlobalReleaseVariable() {
   local userName="$1"
   local password="$2"
@@ -64,13 +68,13 @@ Main() {
   ExitIfPlanVariableIsMissing "RELEASED_REPOSITORIES"
   ExitIfPlanVariableIsMissing "reviewer"
 
-  ATLASSIAN_USER_NAME=$(GetBambooUserName)
-  ATLASSIAN_PASSWORD=$(GetValueOfPlanVariable "atlassianPassword")
+  local atlassianUserName=$(GetBambooUserName)
+  local atlassianPassword=$(GetValueOfPlanVariable "atlassianPassword")
 
   # test Atlassian credentials
-  ExitIfAtlassianCredentialsWrong "$ATLASSIAN_USER_NAME" "$ATLASSIAN_PASSWORD"
+  ExitIfAtlassianCredentialsWrong "$atlassianUserName" "$atlassianPassword"
   
-  nextReleaseVersion=$(ChangeGlobalReleaseVariable "$ATLASSIAN_USER_NAME" "$ATLASSIAN_PASSWORD")
+  nextReleaseVersion=$(ChangeGlobalReleaseVariable "$atlassianUserName" "$atlassianPassword")
   
   local title
   title="Merge to Production $nextReleaseVersion"
@@ -85,8 +89,8 @@ Main() {
   projectsAndCloneLinks=$(GetValueOfPlanVariable "RELEASED_REPOSITORIES")
   
   ./scripts/plans/releaseWorkflow/merge-branches.sh \
-   "$ATLASSIAN_USER_NAME" \
-   "$ATLASSIAN_PASSWORD" \
+   "$atlassianUserName" \
+   "$atlassianPassword" \
    "stage" \
    "production" \
    "$bamboo_RELEASED_REPOSITORIES" \
