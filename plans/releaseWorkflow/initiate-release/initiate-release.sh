@@ -15,7 +15,7 @@
 # limitations under the License.
 
 
-##################################################################################
+#######################################################################################################################
 #
 # SYNOPSIS
 #	initiate-release.sh  [NewTestVersion]
@@ -36,27 +36,34 @@
 #	(e. g. in case of a major release).
 #
 # EXPECTED BAMBOO PLAN VARIABLES
-#	ManualBuildTriggerReason_userName: login name of the current user
-#	atlassianPassword                : Atlassian password of the current user
-#	reviewer                         : reviewer for the pull request
+#	ManualBuildTriggerReason_userName :  login name of the current user
+#	atlassianPassword                 :  Atlassian password of current user
+#	reviewer                          :  reviewer for the pull request
 #
-##################################################################################
+# EXPECTED GLOBAL BAMBOO VARIABLES
+#	RELEASED_REPOSITORIES
+#	STAGING_VERSION
+#	TEST_VERSION
+#
+#######################################################################################################################
 
-###################
-#  IMPORTS        #
-###################
 
 # treat unset variables as an error when substituting
 set -u
+
+
+#######################################################################################################################
+#  IMPORTS        
+#######################################################################################################################
 
 source ./scripts/helper-scripts/atlassian-utils.sh
 source ./scripts/helper-scripts/bamboo-utils.sh
 source ./scripts/helper-scripts/misc-utils.sh
 
 
-###################
-#  MAIN FUNCTION  #
-###################
+#######################################################################################################################
+#  MAIN FUNCTION  
+#######################################################################################################################
 
 Main() {
 	#
@@ -106,8 +113,8 @@ Main() {
 
 
 
-###########################
-#  BEGINNING OF EXECUTION #
-###########################
+#######################################################################################################################
+#  BEGINNING OF EXECUTION 
+#######################################################################################################################
 
 Main "$@"
