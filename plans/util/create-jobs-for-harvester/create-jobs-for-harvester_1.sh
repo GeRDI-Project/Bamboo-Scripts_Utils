@@ -108,27 +108,12 @@ GetProviderClassName() {
   echo "$proviClassName"
 }
 
-
-# The main function of this script.
+# Creates jobs for a specified repository.
 #
-Main() {
-  # check early exit conditions
-  ExitIfNotLoggedIn
-  ExitIfPlanVariableIsMissing "atlassianPassword"
-  ExitIfPlanVariableIsMissing "gitCloneLink"
-
-  local atlassianUserName
-  atlassianUserName=$(GetBambooUserName)
-  
-  local atlassianPassword
-  atlassianPassword=$(GetValueOfPlanVariable "atlassianPassword")
-
-  # test Atlassian credentials
-  ExitIfAtlassianCredentialsWrong "$atlassianUserName" "$atlassianPassword"
-
-  # retrieve plan variables
-  local gitCloneLink
-  gitCloneLink=$(GetValueOfPlanVariable gitCloneLink)
+ProcessRepository() {
+  local gitCloneLink="$1"
+  local atlassianUserName="$2"
+  local atlassianPassword="$3"
   
   local project
   project=$(GetProjectIdFromCloneLink "$gitCloneLink")
@@ -163,6 +148,37 @@ Main() {
 
   # run Bamboo Specs
   ./scripts/plans/util/create-jobs-for-harvester/setup-bamboo-jobs.sh "$atlassianUserName" "$atlassianPassword" "$providerClassName" "$project" "$repositorySlug"
+}
+
+
+# The main function of this script.
+#
+Main() {
+  # check early exit conditions
+  ExitIfNotLoggedIn
+  ExitIfPlanVariableIsMissing "atlassianPassword"
+  ExitIfPlanVariableIsMissing "projectsAndCloneLinks"
+
+  local atlassianUserName
+  atlassianUserName=$(GetBambooUserName)
+  
+  local atlassianPassword
+  atlassianPassword=$(GetValueOfPlanVariable "atlassianPassword")
+
+  # test Atlassian credentials
+  ExitIfAtlassianCredentialsWrong "$atlassianUserName" "$atlassianPassword"
+  
+  # retrieve plan variables
+  local projectsAndCloneLinks
+  projectsAndCloneLinks=$(GetValueOfPlanVariable projectsAndCloneLinks)
+  
+  local repoArguments="'$atlassianUserName' '$atlassianPassword'"
+  ProcessListOfProjectsAndRepositories \
+    "$userName" \
+    "$password" \
+    "$bamboo_RELEASED_REPOSITORIES" \
+    "ProcessRepository" \
+    "$repoArguments"
 }
 
 Main "$@"
