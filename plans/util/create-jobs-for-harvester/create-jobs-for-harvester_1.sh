@@ -114,6 +114,7 @@ ProcessRepository() {
   local gitCloneLink="$1"
   local atlassianUserName="$2"
   local atlassianPassword="$3"
+  local overwriteExistingJobs="$4"
   
   local project
   project=$(GetProjectIdFromCloneLink "$gitCloneLink")
@@ -138,7 +139,7 @@ ProcessRepository() {
   planKey="$(echo "$providerClassName" | sed -e "s~[a-z]~~g")HAR"
   
   # check if plans already exist
-  if $(IsUrlReachable "https://ci.gerdi-project.de/rest/api/latest/plan/CA-$planKey" "$atlassianUserName" "$atlassianPassword"); then
+  if [ "$overwriteExistingJobs" = "false" ] && $(IsUrlReachable "https://ci.gerdi-project.de/rest/api/latest/plan/CA-$planKey" "$atlassianUserName" "$atlassianPassword"); then
     echo "Plans with the key '$planKey' already exist!" >&2
     exit 1
   fi
@@ -158,6 +159,7 @@ Main() {
   ExitIfNotLoggedIn
   ExitIfPlanVariableIsMissing "atlassianPassword"
   ExitIfPlanVariableIsMissing "projectsAndCloneLinks"
+  ExitIfPlanVariableIsMissing "overwriteExistingJobs"
 
   local atlassianUserName
   atlassianUserName=$(GetBambooUserName)
@@ -168,11 +170,14 @@ Main() {
   # test Atlassian credentials
   ExitIfAtlassianCredentialsWrong "$atlassianUserName" "$atlassianPassword"
   
-  # retrieve plan variables
+  # retrieve other plan variables
   local projectsAndCloneLinks
   projectsAndCloneLinks=$(GetValueOfPlanVariable projectsAndCloneLinks)
   
-  local repoArguments="'$atlassianUserName' '$atlassianPassword'"
+  local overwriteExistingJobs
+  overwriteExistingJobs=$(GetValueOfPlanVariable overwriteExistingJobs)
+  
+  local repoArguments="'$atlassianUserName' '$atlassianPassword' '$overwriteExistingJobs'"
   ProcessListOfProjectsAndRepositories \
     "$atlassianUserName" \
     "$atlassianPassword" \

@@ -193,11 +193,6 @@ ProcessRepositoriesOfProject() {
   local repoUrls
   repoUrls=$(curl -sX GET -u "$userName:$password" "https://code.gerdi-project.de/rest/api/latest/projects/$projectId/repos" \
               | grep -oP '(?<="clone":\[\{"href":")[^"]+')
-         #    | python -m json.tool \
-         #    | grep -oP '(?<=")http.*?git(?=")') 
-             
-             
-             echo "$repoUrls" >&2
 
   # execute update of all repositories
   while read cloneLink
