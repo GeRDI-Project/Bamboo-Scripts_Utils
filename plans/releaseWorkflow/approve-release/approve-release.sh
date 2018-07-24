@@ -38,6 +38,31 @@ source ./scripts/helper-scripts/misc-utils.sh
 #  FUNCTION DEFINITIONS #
 #########################
 
+
+# Iterates a list of untagged repositories and adds release version tags to the production branches.
+#
+# Arguments
+#  1 - an Atlassian user that can tag all repositories
+#  2 - the password for the Atlassian user
+#  3 - a list of git clone links of which the production branches should be tagged
+#
+AddMissingReleaseTags() {
+  local userName="$1"
+  local password="$2"
+  local unchangedRepositories="$3"
+
+  local missingTagMessage="Nothing was added in release $bamboo_PRODUCTION_VERSION!"
+  local repositoryArguments="'$userName' '$password' '$bamboo_PRODUCTION_VERSION' '$missingTagMessage'"
+  
+  ProcessListOfProjectsAndRepositories \
+    "$userName" \
+    "$password" \
+    "$unchangedRepositories" \
+    "AddTagToRepositoryIfMissing" \
+    "$repositoryArguments"
+}
+
+
 # Adds a specified tag to the production branch of a specified repository, if
 # it is missing.
 #
@@ -67,28 +92,14 @@ AddTagToRepositoryIfMissing() {
 }
 
 
-# Iterates all released repositories and adds release version tags to the production branches if they are missing.
+# Retrieves a list of git clone links of repositories that do not have an open 
+# pull-request with the specified user as a reviewer.
 #
-# Arguments
-#  1 - an Atlassian user that can tag all repositories
+# Arguments:
+#  1 - an Atlassian user that is the reviewer of the pull-requests
 #  2 - the password for the Atlassian user
+#  3 - the title of the pull-requests
 #
-AddMissingReleaseTags() {
-  local userName="$1"
-  local password="$2"
-
-  local missingTagMessage="Nothing was added in release $bamboo_PRODUCTION_VERSION!"
-  local repositoryArguments="'$userName' '$password' '$bamboo_PRODUCTION_VERSION' '$missingTagMessage'"
-  
-  ProcessListOfProjectsAndRepositories \
-    "$userName" \
-    "$password" \
-    "$bamboo_RELEASED_REPOSITORIES" \
-    "AddTagToRepositoryIfMissing" \
-    "$repositoryArguments"
-}
-
-
 GetUnchangedRepositories() {
   local userName="$1"
   local password="$2"
@@ -101,6 +112,7 @@ GetUnchangedRepositories() {
   
   echo "$reposWithPullRequests"
   
+  # create temporary file to store the list of repositories
   rm -f tempFile.txt
   touch tempFile.txt
   ProcessListOfProjectsAndRepositories \
@@ -109,12 +121,17 @@ GetUnchangedRepositories() {
     "$bamboo_RELEASED_REPOSITORIES" \
     "AddToUnchangedRepositories" \
     "'$reposWithPullRequests'"
-  
-  echo "FINAL: " >&2
+    
   cat tempFile.txt
 }
 
 
+# Checks if a git clone link is in a list of repositories that have open pull-requests.
+#
+# Arguments:
+#  1 - the git clone link that is to be checked
+#  2 - a list of space-separated projectId/repositorySlug pairs of repositories that have pull-requests
+#
 AddToUnchangedRepositories() {
   local cloneLink="$1"
   local reposWithPullRequests="$2"
@@ -153,7 +170,7 @@ Main() {
   MergeAllPullRequestsWithTitle "$atlassianUserName" "$atlassianPassword" "$title"
   
   # add missing tags
-  AddMissingReleaseTags "$atlassianUserName" "$atlassianPassword"
+  AddMissingReleaseTags "$atlassianUserName" "$atlassianPassword" "$unchangedRepositories"
 }
 
 
