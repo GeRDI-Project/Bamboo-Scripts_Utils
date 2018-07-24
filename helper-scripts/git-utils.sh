@@ -138,7 +138,7 @@ DeleteGitRepository() {
 }
 
 
-# Retrieves the commitID of a specified branch.
+# Retrieves the commit hash of the latest commit of a specified branch.
 #
 # Arguments:
 #  1 - Bitbucket user name

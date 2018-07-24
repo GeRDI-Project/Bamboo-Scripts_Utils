@@ -135,6 +135,8 @@ SubstitutePlaceholderInFile() {
 #
 # Arguments:
 #  1 - the argument that is to be tested
+#  2 - an Atlassian user name of a user that can access the Bitbucker Rest API
+#  3 - the password of the Atlassian user
 #
 IsCloneLink() {
   local checkedArg="$1"
@@ -156,6 +158,8 @@ IsCloneLink() {
 #
 # Arguments:
 #  1 - the argument that is to be tested
+#  2 - an Atlassian user name of a user that can access the Bitbucker Rest API
+#  3 - the password of the Atlassian user 
 #
 IsProject() {
   local checkedArg="$1"
