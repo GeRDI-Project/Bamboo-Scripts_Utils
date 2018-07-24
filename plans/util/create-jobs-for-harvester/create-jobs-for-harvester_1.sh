@@ -108,27 +108,13 @@ GetProviderClassName() {
   echo "$proviClassName"
 }
 
-
-# The main function of this script.
+# Creates jobs for a specified repository.
 #
-Main() {
-  # check early exit conditions
-  ExitIfNotLoggedIn
-  ExitIfPlanVariableIsMissing "atlassianPassword"
-  ExitIfPlanVariableIsMissing "gitCloneLink"
-
-  local atlassianUserName
-  atlassianUserName=$(GetBambooUserName)
-  
-  local atlassianPassword
-  atlassianPassword=$(GetValueOfPlanVariable "atlassianPassword")
-
-  # test Atlassian credentials
-  ExitIfAtlassianCredentialsWrong "$atlassianUserName" "$atlassianPassword"
-
-  # retrieve plan variables
-  local gitCloneLink
-  gitCloneLink=$(GetValueOfPlanVariable gitCloneLink)
+ProcessRepository() {
+  local gitCloneLink="$1"
+  local atlassianUserName="$2"
+  local atlassianPassword="$3"
+  local overwriteExistingJobs="$4"
   
   local project
   project=$(GetProjectIdFromCloneLink "$gitCloneLink")
@@ -153,7 +139,7 @@ Main() {
   planKey="$(echo "$providerClassName" | sed -e "s~[a-z]~~g")HAR"
   
   # check if plans already exist
-  if $(IsUrlReachable "https://ci.gerdi-project.de/rest/api/latest/plan/CA-$planKey" "$atlassianUserName" "$atlassianPassword"); then
+  if [ "$overwriteExistingJobs" = "false" ] && $(IsUrlReachable "https://ci.gerdi-project.de/rest/api/latest/plan/CA-$planKey" "$atlassianUserName" "$atlassianPassword"); then
     echo "Plans with the key '$planKey' already exist!" >&2
     exit 1
   fi
@@ -163,6 +149,41 @@ Main() {
 
   # run Bamboo Specs
   ./scripts/plans/util/create-jobs-for-harvester/setup-bamboo-jobs.sh "$atlassianUserName" "$atlassianPassword" "$providerClassName" "$project" "$repositorySlug"
+}
+
+
+# The main function of this script.
+#
+Main() {
+  # check early exit conditions
+  ExitIfNotLoggedIn
+  ExitIfPlanVariableIsMissing "atlassianPassword"
+  ExitIfPlanVariableIsMissing "projectsAndCloneLinks"
+  ExitIfPlanVariableIsMissing "overwriteExistingJobs"
+
+  local atlassianUserName
+  atlassianUserName=$(GetBambooUserName)
+  
+  local atlassianPassword
+  atlassianPassword=$(GetValueOfPlanVariable "atlassianPassword")
+
+  # test Atlassian credentials
+  ExitIfAtlassianCredentialsWrong "$atlassianUserName" "$atlassianPassword"
+  
+  # retrieve other plan variables
+  local projectsAndCloneLinks
+  projectsAndCloneLinks=$(GetValueOfPlanVariable projectsAndCloneLinks)
+  
+  local overwriteExistingJobs
+  overwriteExistingJobs=$(GetValueOfPlanVariable overwriteExistingJobs)
+  
+  local repoArguments="'$atlassianUserName' '$atlassianPassword' '$overwriteExistingJobs'"
+  ProcessListOfProjectsAndRepositories \
+    "$atlassianUserName" \
+    "$atlassianPassword" \
+    "$projectsAndCloneLinks" \
+    "ProcessRepository" \
+    "$repoArguments"
 }
 
 Main "$@"
