@@ -57,23 +57,23 @@ source ./scripts/helper-scripts/misc-utils.sh
 
 Main() {
 	#
-	# verify exected plan variables
+	# verify expected plan variables
 	#
 	ExitIfNotLoggedIn
 	ExitIfPlanVariableIsMissing "atlassianPassword"
 	ExitIfPlanVariableIsMissing "RELEASED_REPOSITORIES"
 
 	# get and verify Atlassian credentials
-	local ATLASSIAN_USER_NAME=$(GetBambooUserName)
-	local ATLASSIAN_PASSWORD=$(GetValueOfPlanVariable "atlassianPassword")
-	ExitIfAtlassianCredentialsWrong "$ATLASSIAN_USER_NAME" "$ATLASSIAN_PASSWORD"
+	local atlassianUserName=$(GetBambooUserName)
+	local atlassianPassword=$(GetValueOfPlanVariable "atlassianPassword")
+	ExitIfAtlassianCredentialsWrong "$atlassianUserName" "$atlassianPassword"
 
 
 	#
 	# Increment bugfix version of STAGING_VERSION
 	#
 	local newStagingVersion=$(IncrementVersion bugfix ${bamboo_STAGING_VERSION:-0.0.0})
-	SetGlobalVariable  STAGING_VERSION "$newStagingVersion" "$ATLASSIAN_USER_NAME" "$ATLASSIAN_PASSWORD" >&2
+	SetGlobalVariable  STAGING_VERSION "$newStagingVersion" "$atlassianUserName" "$atlassianPassword" >&2
 }
 
 
