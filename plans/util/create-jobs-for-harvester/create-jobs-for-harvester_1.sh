@@ -124,15 +124,25 @@ ProcessRepository() {
   
   echo "Repository: https://code.gerdi-project.de/projects/$project/repos/$repositorySlug/" >&2
   
+  ProcessHarvesterRepository  "$project" "$repositorySlug" "$atlassianUserName" "$atlassianPassword" "$overwriteExistingJobs"
+}
+
+ProcessHarvesterRepository() {
+  local project="$1"
+  local repositorySlug="$2"
+  local atlassianUserName="$3"
+  local atlassianPassword="$4"
+  local overwriteExistingJobs="$5"
+  
   local providerClassName
   providerClassName=$(GetProviderClassName "$atlassianUserName" "$atlassianPassword" "$project" "$repositorySlug")
   
   if [ -z "$providerClassName" ]; then
-    echo "Could not find ContextListener java class of repository '$project/$repositorySlug'!" >&2
+    echo "Repository'$project/$repositorySlug' is not a harvester!" >&2
 	exit 1
   fi
   
-  echo "Provider Class Name: '$providerClassName'" >&2
+  echo "Harvester Provider Class Name: '$providerClassName'" >&2
   
   # check if a plan with the same ID already exists in CodeAnalysis
   local planKey

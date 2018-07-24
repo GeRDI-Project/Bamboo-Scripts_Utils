@@ -14,8 +14,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
  
-# This script is being called by a Bamboo Job. It increments the minor version of the global Bamboo variable
-# PRODUCTION_VERSION and merges all stage to production branches.
+# This script is being called by a Bamboo Job. It sets the version of the global Bamboo variable
+# PRODUCTION_VERSION to that of the variable STAGING_VERSION and merges all stage to production branches.
 #
 # Bamboo Plan Variables:
 #  ManualBuildTriggerReason_userName - the login name of the current user
@@ -84,9 +84,6 @@ Main() {
   
   local reviewer
   reviewer=$(GetValueOfPlanVariable reviewer)
-  
-  local projectsAndCloneLinks
-  projectsAndCloneLinks=$(GetValueOfPlanVariable "RELEASED_REPOSITORIES")
   
   ./scripts/plans/releaseWorkflow/merge-branches.sh \
    "$atlassianUserName" \
