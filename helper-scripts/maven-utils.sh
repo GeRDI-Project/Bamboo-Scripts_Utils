@@ -116,8 +116,8 @@ GetPomValue() {
   local pomPath="$2"
   
   if [ -z "$pomPath" ]; then
-    echo $(mvn -q -Dexec.executable="echo" -Dexec.args='${'"$valueKey"'}' --non-recursive org.codehaus.mojo:exec-maven-plugin:1.6.0:exec)
+    echo -e $(mvn -q -Dexec.executable="echo" -Dexec.args='${'"$valueKey"'}' --non-recursive org.codehaus.mojo:exec-maven-plugin:1.6.0:exec)
   else
-    echo $(mvn -q -Dexec.executable="echo" -Dexec.args='${'"$valueKey"'}' --non-recursive org.codehaus.mojo:exec-maven-plugin:1.6.0:exec -f"$pomPath")
+    echo -e $(mvn -q -Dexec.executable="echo" -Dexec.args='${'"$valueKey"'}' --non-recursive org.codehaus.mojo:exec-maven-plugin:1.6.0:exec -f"$pomPath")
   fi
 }

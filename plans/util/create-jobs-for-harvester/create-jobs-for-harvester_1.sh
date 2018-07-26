@@ -149,7 +149,7 @@ ProcessHarvesterRepository() {
   planKey="$(echo "$providerClassName" | sed -e "s~[a-z]~~g")HAR"
   
   # check if plans already exist
-  if [ "$overwriteExistingJobs" = "false" ] && $(IsUrlReachable "https://ci.gerdi-project.de/rest/api/latest/plan/CA-$planKey" "$atlassianUserName" "$atlassianPassword"); then
+  if ! $overwriteExistingJobs && $(IsUrlReachable "https://ci.gerdi-project.de/rest/api/latest/plan/CA-$planKey" "$atlassianUserName" "$atlassianPassword"); then
     echo "Plans with the key '$planKey' already exist!" >&2
     exit 1
   fi
@@ -170,6 +170,7 @@ Main() {
   ExitIfPlanVariableIsMissing "atlassianPassword"
   ExitIfPlanVariableIsMissing "projectsAndCloneLinks"
   ExitIfPlanVariableIsMissing "overwriteExistingJobs"
+  ExitIfBambooVariableNotBoolean "overwriteExistingJobs"
 
   local atlassianUserName
   atlassianUserName=$(GetBambooUserName)

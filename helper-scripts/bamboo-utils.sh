@@ -464,7 +464,7 @@ ExitIfNotLoggedIn() {
 }
 
 
-# Fails with exit code 1 if a specified plan variable is missing or empty.
+# Fails with exit code 1 if a specified Bamboo variable is missing or empty.
 #  Arguments:
 #  1 - the name of the plan variable as it appears in the Bamboo front-end
 #
@@ -480,5 +480,25 @@ ExitIfPlanVariableIsMissing() {
   if [ -z "$internalVarValue" ]; then
     echo "You need to run the plan customized and overwrite the '$frontEndVarName' plan variable!" >&2
 	exit 1
+  fi
+}
+
+
+# Fails with exit code 1 if a specified Bamboo variable does not hold a boolean value.
+#  Arguments:
+#  1 - the name of the plan variable as it appears in the Bamboo front-end
+#
+ExitIfBambooVariableNotBoolean() {
+  local frontEndVarName="$1"
+  
+  local internalVarName
+  internalVarName="bamboo_$frontEndVarName"
+  
+  local internalVarValue
+  internalVarValue="${!internalVarName}"
+  
+  if [ "$internalVarValue" != "true" ] && [ "$internalVarValue" != "false" ]; then
+    echo "The variable '$frontEndVarName' must either be 'true' or 'false' (excluding quotes)!" >&2
+    exit 1
   fi
 }
