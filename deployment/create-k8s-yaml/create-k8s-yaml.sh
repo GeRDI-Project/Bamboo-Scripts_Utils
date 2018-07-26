@@ -104,8 +104,11 @@ CreateYamlFile() {
   local authorFullName
   authorFullName=$(curl -nsX GET https://tasks.gerdi-project.de/rest/api/2/user?username="$userName" \
                    | grep -oP "(?<=\"displayName\":\")[^\"]+")
-  
   SubstitutePlaceholderInFile "$kubernetesYaml" "authorFullName"
+  
+  local environment
+  environment=$(GetDeployEnvironmentName)
+  SubstitutePlaceholderInFile "$kubernetesYaml" "environment"
   
   SubmitYamlFile "$kubernetesYaml" "Created '$kubernetesYaml' for Docker image '$dockerImageName:$dockerImageTag'."
 }
