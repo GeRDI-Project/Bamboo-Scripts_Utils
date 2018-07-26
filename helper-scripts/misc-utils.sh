@@ -49,9 +49,9 @@ IsMajorVersionDifferent() {
   local majorVersionB=${2%%.*}
   
   if [ "$majorVersionA" != "$majorVersionB" ]; then
-    echo "true"
+    echo true
   else
-    echo "false"
+    echo false
   fi
 }
 

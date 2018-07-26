@@ -264,7 +264,7 @@ ExecuteUpdate() {
   
     # create pull request if it is not major version update
     isMajorUpdate=$(IsMajorVersionDifferent "$SOURCE_VERSION" "$TARGET_VERSION")
-    if [ "$isMajorUpdate" = "false" ]; then
+    if ! $isMajorUpdate; then
       echo $(CreatePullRequest \
         "$ATLASSIAN_USER_NAME" \
         "$ATLASSIAN_PASSWORD" \
