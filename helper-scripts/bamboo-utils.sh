@@ -406,6 +406,34 @@ SetGlobalVariable() {
 }
 
 
+# Retrieves the name of the current deployment environment, and
+# finds the corresponding branch name according to the branching model.
+#
+# Arguments: -
+#
+GetDeployEnvironmentBranch() {
+ local environment="$bamboo_deploy_environment"
+ 
+ if [ -z "$environment" ]; then
+   echo "The function GetDeployEnvironmentBranch() can only be called from deployment jobs!" >&2
+ fi
+ 
+ if [ "$environment" = "Test" ]; then
+   echo "master"
+   
+ elif [ "$environment" = "Stage" ]; then
+   echo "stage"
+   
+ elif [ "$environment" = "Production" ]; then
+   echo "production"
+   
+ else
+   echo "Cannot convernt deployment environment '$environment' to a branch name!" >&2
+   exit 1
+ fi
+}
+
+
 # Fails with exit code 1 if the Bamboo user is not logged in.
 #
 ExitIfNotLoggedIn() {

@@ -14,16 +14,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# This script is being called by the Bamboo Job https://ci.gerdi-project.de/browse/UTIL-ASTTE which aims
-# to add a new service to the test environment.
+# This script is being called by Bamboo Deployment Jobs.
+# It creates a YAML file for a deployed service and pushes the file to the Kubernetes
+# deployment repository. If a file with the same name already exists, only the Docker
+# image tag inside the YAML file will be updated.
 #
 # Arguments:
-#  1 - the branch of gerdireleases in which the YAML file should be generated
+#  1 - the minimum viable IP address of the deployed service
+#  2 - the maximum viable IP address of the deployed service
 #
 # Bamboo Plan Variables:
 #  ManualBuildTriggerReason_userName - the login name of the current user
-#  atlassianPassword - the Atlassian password of the current user
-#  gitCloneLink - the clone link of a git repository
 #  clusterIpPrefix - the first three segments of the clusterIp of the deployed service (e.g. 192.168.0.)
 #  clusterIpMin - the min value of the fourth IP segment [0...255]
 #  clusterIpMax - the max value of the fourth IP segment [0...255]
@@ -31,6 +32,12 @@
 
 # treat unset variables as an error when substituting
 set -u
+
+# define global variables
+DOCKER_REGISTRY="docker-registry.gerdi.research.lrz.de:5043"
+KUBERNETES_REPOSITORY="https://code.gerdi-project.de/scm/sys/gerdireleases.git"
+KUBERNETES_YAML_DIR="gerdireleases/k8s-deployment"
+TEMPLATE_YAML="scripts/plans/util/deploy-service/k8s_template.yml"
 
 # load helper scripts
 source ./scripts/helper-scripts/atlassian-utils.sh
@@ -45,168 +52,180 @@ source ./scripts/helper-scripts/k8s-utils.sh
 #  FUNCTION DEFINITIONS #
 #########################
 
-# Creates the YAML file for the service by copying a template and substituting
-# placeholders.
+
+# Creates or changes an existing YAML file for deploying the service.
 #
 # Arguments:
 #  1 - the slug of the repository of the deployed service
-#  2 - the type of the service
-#  3 - the Atlassian user that will be associated with the JIRA ticket and 
+#  2 - the type of the deployed service
+#  3 - the Docker image tag which represents the new version of the service
+#  4 - a free IP address of a newly created YAML file
+#  5 - the Atlassian user that will be associated with the JIRA ticket and 
 #      the Bitbucket pull request
-#  4 - the password for the Atlassian user
 #
-CreateYamlFile() {
+CreateOrChangeYamlFile() {
   local repositorySlug="$1"
   local serviceType="$2"
-  local userName="$3"
-  local password="$4"
+  local dockerImageTag="$3"
+  local clusterIp="$4"
+  local userName="$5"
   
   local serviceName
   serviceName=$(GetServiceName "$repositorySlug" "$serviceType")
   
-  # create directory if necessary
-  local kubernetesDir
-  kubernetesDir="gerdireleases/k8s-deployment/$serviceType"
-  
   local kubernetesYaml
-  kubernetesYaml="$kubernetesDir/$serviceName.yml"
+  kubernetesYaml="$KUBERNETES_YAML_DIR/$serviceType/$serviceName.yml"
   
+  local dockerImageName
+  dockerImageName="$DOCKER_REGISTRY/$serviceType/$repositorySlug"
+
+  if [ -e "$kubernetesYaml" ]; then
+    echo "The file $kubernetesYaml already exists, changing docker image version..." >&2
+    UpdateYamlFile "$kubernetesYaml" "$serviceType" "$dockerImageName" "$dockerImageTag" 
+
+  else
+    echo "Creating file $kubernetesYaml..." >&2
+    CreateYamlFile "$kubernetesYaml" "$serviceType" "$serviceName" "$dockerImageName" "$dockerImageTag" "$clusterIp" "$userName"
+  fi
+}
+
+
+# Creates the YAML file for the service by copying a template and substituting
+# placeholders.
+#
+# Arguments:
+#  1 - the path to the file that is to be created
+#  2 - the type of the service
+#  3 - the name of the service
+#  4 - the docker image name without tag
+#  5 - the tag of the docker image
+#  6 - a free IP address of a newly created YAML file
+#  7 - the Atlassian user that will be added to the header of the YAML file
+#
+CreateYamlFile() {
+  local kubernetesYaml="$1"
+  local serviceType="$2"
+  local serviceName="$3"
+  local dockerImageName="$4"
+  local dockerImageTag="$5"
+  local clusterIp="$6"
+  local userName="$7"
+  
+  if [ -z "$clusterIp" ]; then
+    echo "Cannot create $kubernetesYaml: No free ClusterIP could be retrieved!" >&2
+  fi
+  
+  # create directory if necessary
+  local kubernetesDir ="${kubernetesYaml%/*}"
   if [ ! -e "$kubernetesDir" ]; then
-  	mkdir "$kubernetesDir"
-    
-  elif [ -e "$kubernetesYaml" ]; then
-    echo "The file $kubernetesYaml already exists!" >&2
-  	exit 1
+    mkdir "$kubernetesDir"
   fi
     
   # copy template file
-  cp "../scripts/plans/util/deploy-service/k8s_template.yml" "$kubernetesYaml"
+  cp "$TEMPLATE_YAML" "$kubernetesYaml"
   
   if [ ! -f "$kubernetesYaml" ]; then
     echo "The file $kubernetesYaml could not be created!" >&2
-  	exit 1
+    exit 1
   fi  
 
   SubstitutePlaceholderInFile "$kubernetesYaml" "serviceName"
-  
   SubstitutePlaceholderInFile "$kubernetesYaml" "serviceType"
+  SubstitutePlaceholderInFile "$kubernetesYaml" "clusterIp"
   
   local dockerImage
-  dockerImage="docker-registry.gerdi.research.lrz.de:5043/$serviceType/$repositorySlug"
+  dockerImage="$dockerImageName:$dockerImageTag"
   SubstitutePlaceholderInFile "$kubernetesYaml" "dockerImage"
-  
-  local clusterIp
-  clusterIp=$(CreateClusterIp)
-  if [ -z "$clusterIp" ]; then
-    exit 1
-  fi
-  SubstitutePlaceholderInFile "$kubernetesYaml" "clusterIp"
   
   local creationYear
   creationYear=$(date +'%Y')
   SubstitutePlaceholderInFile "$kubernetesYaml" "creationYear"
   
   local authorFullName
-  authorFullName=$(GetAtlassianUserDisplayName "$userName" "$password" "$userName")
+  authorFullName=$(curl -nsX GET https://tasks.gerdi-project.de/rest/api/2/user?username="$userName" \
+                   | grep -oP "(?<=\"displayName\":\")[^\"]+")
+  
   SubstitutePlaceholderInFile "$kubernetesYaml" "authorFullName"
+  
+  SubmitYamlFile "$kubernetesYaml" "Created '$kubernetesYaml' for Docker image '$dockerImageName:$dockerImageTag'."
 }
 
 
-# Creates a JIRA ticket and a gerdireleases branch and pushes
-# the YAML file to the branch. Subsequently, a pull request is sent out
-# to the lead architects.
+# Updates an existing YAML file by changing the tag of the Docker
+# image that is described therein.
+#
+# Arguments
+#  1 - the path to the file that is to be created
+#  2 - the type of the service
+#  3 - the docker image name without tag
+#  4 - the new tag of the docker image
+#
+UpdateYamlFile() {
+  local kubernetesYaml="$1"
+  local serviceType="$2"
+  local dockerImageName="$3"
+  local dockerImageTag="$4"
+  
+  perl -pi -e \
+       "s~(.*?image: $dockerImageName)[^\s]*(.*)~\1:$dockerImageTag\2~" \
+       "$kubernetesYaml"
+  
+  SubmitYamlFile "$kubernetesYaml" "Updated Docker image version of '$kubernetesYaml' to '$dockerImageTag'."
+}
+
+
+# Commits and pushes the updated or newly created YAML file to the Kubernetes repository.
 #
 # Arguments:
-#  1 - the slug of the repository of the deployed service
-#  2 - the type of the service
-#  3 - the branch to which the YAML file is to be merged
-#  4 - the Atlassian user that will be associated with the JIRA ticket and 
-#      the Bitbucket pull request
-#  5 - the password for the Atlassian user
+#  1 - the path to the YAML file that is to be pushed
+#  2 - the commit message
 #
 SubmitYamlFile() {
-  local repositorySlug="$1"
-  local serviceType="$2"
-  local sourceBranch="$3"
-  local userName="$4"
-  local password="$5"
+  local kubernetesYaml="$1"
+  local message="$2"
   
-  cd gerdireleases
-  
-  local serviceName
-  serviceName=$(GetServiceName "$repositorySlug" "$serviceType")
-  
-  local title="Deploy $serviceName"
-  local description="Creates a Kubernetes YAML file for: $serviceName"
-  
-  local jiraKey
-  jiraKey=$(CreateJiraTicket "$title" "$description" "$userName" "$password")
-  
-  if [ "$jiraKey" = "" ]; then
-    echo "Could not Create JIRA Ticket!" >&2
-	cd ..
-    exit 1
-  fi
-  
-  AddJiraTicketToCurrentSprint "$jiraKey" "$userName" "$password"
-  StartJiraTask "$jiraKey" "$userName" "$password"
+  local kubernetesSlug=$(echo "$KUBERNETES_REPOSITORY" | grep -oP '[^/]+(?=\.git)')
 
-  local atlassianUserDisplayName
-  atlassianUserDisplayName=$(GetAtlassianUserDisplayName "$userName" "$password" "$userName")
-  
-  local atlassianUserEmail
-  atlassianUserEmail=$(GetAtlassianUserEmailAddress "$userName" "$password" "$userName")
-
-  local branchName
-  branchName="$jiraKey-deploy-$serviceName"
-  echo $(CreateBranch "$branchName") >&2
-  echo $(PushAllFilesToGitRepository "$atlassianUserDisplayName" "$atlassianUserEmail" "$jiraKey Created YAML file for Kubernetes") >&2
-
-  echo $(CreatePullRequest \
-        "$userName" \
-        "$password" \
-        "SYS" \
-        "gerdireleases" \
-        "$branchName" \
-        "$sourceBranch" \
-        "$jiraKey $title" \
-        "$description" \
-        "ntd@informatik.uni-kiel.de" \
-        "di72jiv") >&2
-  ReviewJiraTask "$jiraKey" "$userName" "$password"
-  
-  cd ..
-  
-  echo "$jiraKey"
+  (cd "$kubernetesSlug" && git add "${kubernetesYaml#*/}")
+  (cd "$kubernetesSlug" && git commit -m "$message\n- This commit was triggered by a Bamboo Job.")
+  (cd "$kubernetesSlug" && git push)
 }
 
 
 # Finds a free cluster IP in a range specified via Plan variables.
 #
 CreateClusterIp() {
+  local minIP="$1"
+  local maxIP="$2"
+  
+  if [ -z "$minIP" ] || [ -z "$maxIP" ]; then
+    echo "You must pass two arguments to the script:\n 1: the minimum viable IP address of the deployed service\n 2: the maximum IP address" >&2
+	exit 1
+  fi
+  
   local clusterIpPrefix
-  clusterIpPrefix=$(GetValueOfPlanVariable "clusterIpPrefix")
+  clusterIpPrefix="${minIP%.*}."
   
   local clusterIpMin
-  clusterIpMin=$(GetValueOfPlanVariable "clusterIpMin")
+  clusterIpMin="${minIP##*.}"
   
   local clusterIpMax
-  clusterIpMax=$(GetValueOfPlanVariable "clusterIpMax")
+  clusterIpMax="${maxIP##*.}"
   
   if [ "$clusterIpMin" -lt 0 ] || [ "$clusterIpMin" -gt "$clusterIpMax" ]; then
-    echo "The plan variable 'clusterIpMin' must be a number in range [0..255] and smaller than 'clusterIpMax'!" >&2
+    echo "$minIP is not a valid cluster IP! The last part must be smaller than the maximum ($clusterIpMax)!" >&2
     exit 1
   fi
 
-  if [ "$clusterIpMax" -lt "$clusterIpMin" ] || [ "$clusterIpMax" -gt 255 ]; then
-    echo "The plan variable 'clusterIpMax' must be a number in range [0..255] and greater than 'clusterIpMin'!" >&2
+  if [ "$clusterIpMax" -gt 255 ]; then
+    echo "$maxIP is not a valid cluster IP!" >&2
     exit 1
   fi
 
-  local clusterIp=$(GetFreeClusterIp "gerdireleases/k8s-deployment" "$clusterIpPrefix" "$clusterIpMin" "$clusterIpMax")
+  local clusterIp=$(GetFreeClusterIp "$KUBERNETES_YAML_DIR" "$clusterIpPrefix" "$clusterIpMin" "$clusterIpMax")
 
   if [ -z "$clusterIp" ]; then
-    echo "Could not get ClusterIp: There must be at least one YAML file in the k8s-deployment directory in gerdireleases!" >&2
+    echo "Could not get ClusterIp: There must be at least one YAML file in $KUBERNETES_YAML_DIR!" >&2
     exit 1
   fi
   
@@ -214,26 +233,28 @@ CreateClusterIp() {
 }
 
 
-# Assembles the name of the service to be deployed.
+# Retrieves the type of the service that is to be deployed.
 #
 # Arguments:
-#  1 - the git clone link of the source repository of the deployed service
-#  2 - the Atlassian user name of a user who has access to the source repository
-#  3 - the password of the Atlassian user
+#  1 - the identifier of the project in which the repository exists
 #
 GetServiceType() {
-  local gitCloneLink="$1"
-  local userName="$2"
-  local password="$3"
-
-  local projectAbbrev
-  projectAbbrev=$(GetProjectIdFromCloneLink "$gitCloneLink")
+  local projectId="$1"
   
   local projectName
-  projectName=$(GetBitBucketProjectName "$atlassianUserName" "$atlassianPassword" "$projectAbbrev")
-  echo "Bitbucket Project: $projectName ($projectAbbrev)" >&2
+  projectName=$(curl -nsX GET https://code.gerdi-project.de/rest/api/latest/projects/$projectId/
+       | grep -oP "(?<=\"name\":\")[^\"]+"
+       | tr '[:upper:]' '[:lower:]')
+     
+  local serviceType
+  if [ "$projectName" = "harvester" ]; then
+    serviceType="harvest"
+  else
+    echo "Cannot create YAML file for repositories of project $projectName ($projectId)! You have to adapt the create-k8s-yaml.sh in order to support these projects!">&2
+    exit 1
+  fi
   
-  echo "$projectName" | tr '[:upper:]' '[:lower:]'
+  echo "$serviceType"
 }
 
 
@@ -251,68 +272,60 @@ GetServiceName() {
 }
 
 
+# Checks out the Kubernetes deployment repository on a branch
+# that fits the current deployment environment.
+#
+CheckoutKubernetesRepo() {
+  local branchName
+  branchName=$(GetDeployEnvironmentBranch)
+  
+  local kubernetesSlug=$(echo "$KUBERNETES_REPOSITORY" | grep -oP '[^/]+(?=\.git)')
+
+  # clone k8s deployments anew
+  rm -rf "$kubernetesSlug"
+  git clone -q "$KUBERNETES_REPOSITORY"
+  
+  # switch branch
+  (cd "$kubernetesSlug" && git checkout "$branchName")
+}
+
+
 # The main function to be executed in this script
 #
 Main() {
-  # check early exit conditions
-  ExitIfNotLoggedIn
-  ExitIfPlanVariableIsMissing "atlassianPassword"
-  ExitIfPlanVariableIsMissing "gitCloneLink"
+  # exit if we could not inject the docker image tag
+  ExitIfPlanVariableIsMissing "inject_tag_version"
+  local imageTag
+  imageTag=$(GetValueOfPlanVariable "inject_tag_version")
 
-  local tempFolder="addServiceToTestTemp"
-  local environment="$1"
-
+  # get name of the user that ultimately triggered the deployment
   local atlassianUserName
   atlassianUserName=$(GetBambooUserName)
-
-  local atlassianPassword
-  atlassianPassword=$(GetValueOfPlanVariable "atlassianPassword")
-
-  # test Atlassian credentials
-  ExitIfAtlassianCredentialsWrong "$atlassianUserName" "$atlassianPassword"
-
-  # retrieve plan variables
-  local gitCloneLink
-  gitCloneLink=$(GetValueOfPlanVariable "gitCloneLink")
-
+  
+  # get the slug of the repository of the deployed service
   local repositorySlug
-  repositorySlug=$(GetRepositorySlugFromCloneLink "$gitCloneLink")
+  repositorySlug=${bamboo_planRepository_1_repositoryUrl%.git}
+  repositorySlug=${repositorySlug##*/}
   echo "Slug: '$repositorySlug'" >&2
 
+  # get the project key of the repository of the deployed service
+  local projectId
+  projectId=${bamboo_planRepository_1_repositoryUrl%/*}
+  projectId=${projectId##*/}
+
+  # create a name for the deployed service
   local serviceType
-  serviceType=$(GetServiceType "$gitCloneLink" "$atlassianUserName" "$atlassianPassword")
+  serviceType=$(GetServiceType "$projectId")
   echo "ServiceType: '$serviceType'" >&2
 
-  # clear, create and navigate to a temporary folder
-  echo "Setting up a temporary folder" >&2
-  rm -fr "$tempFolder"
-  mkdir "$tempFolder"
-  cd "$tempFolder"
+  # check out the Kubernetes deployment repository
+  CheckoutKubernetesRepo
+  
+  local clusterIp
+  clusterIp=$(CreateClusterIp "$1" "$2")
 
-  # check out gerdireleases repository
-  mkdir gerdireleases
-  cd gerdireleases
-  $(CloneGitRepository "$atlassianUserName" "$atlassianPassword" "SYS" "gerdireleases") >&2
-  git checkout "$environment"
-  cd ..
-
-  # create file
-  CreateYamlFile "$repositorySlug" "$serviceType" "$atlassianUserName" "$atlassianPassword"
-
-  # commit file
-  local jiraKey
-  jiraKey=$(SubmitYamlFile "$repositorySlug" "$serviceType" "$environment" "$atlassianUserName" "$atlassianPassword")
-
-  echo "Removing the temporary directory" >&2
-  cd ..
-  rm -fr "$tempFolder"
-
-  if [ -n "$jiraKey" ]; then
-    echo "-------------------------------------------------" >&2
-    echo "   FINISHED! PLEASE, CHECK THE JIRA TICKET:" >&2
-    echo "https://tasks.gerdi-project.de/browse/$jiraKey" >&2
-    echo "-------------------------------------------------" >&2
-  fi
+  # Set and submit YAML file
+  CreateOrChangeYamlFile "$repositorySlug" "$serviceType" "$imageTag" "$clusterIp" "$atlassianUserName"
 }
 
 
