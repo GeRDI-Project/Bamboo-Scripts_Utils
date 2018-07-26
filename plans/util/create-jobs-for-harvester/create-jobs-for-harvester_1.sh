@@ -170,7 +170,7 @@ Main() {
   ExitIfPlanVariableIsMissing "atlassianPassword"
   ExitIfPlanVariableIsMissing "projectsAndCloneLinks"
   ExitIfPlanVariableIsMissing "overwriteExistingJobs"
-  ExitIfPlanVariableNotBoolean "overwriteExistingJobs"
+  ExitIfBambooVariableNotBoolean "overwriteExistingJobs"
 
   local atlassianUserName
   atlassianUserName=$(GetBambooUserName)

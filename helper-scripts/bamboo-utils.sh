@@ -416,7 +416,7 @@ ExitIfNotLoggedIn() {
 }
 
 
-# Fails with exit code 1 if a specified (plan) variable is missing or empty.
+# Fails with exit code 1 if a specified Bamboo variable is missing or empty.
 #  Arguments:
 #  1 - the name of the plan variable as it appears in the Bamboo front-end
 #
@@ -436,11 +436,11 @@ ExitIfPlanVariableIsMissing() {
 }
 
 
-# Fails with exit code 1 if a specified (plan) variable does not hold a boolean value.
+# Fails with exit code 1 if a specified Bamboo variable does not hold a boolean value.
 #  Arguments:
 #  1 - the name of the plan variable as it appears in the Bamboo front-end
 #
-ExitIfPlanVariableNotBoolean() {
+ExitIfBambooVariableNotBoolean() {
   local frontEndVarName="$1"
   
   local internalVarName
