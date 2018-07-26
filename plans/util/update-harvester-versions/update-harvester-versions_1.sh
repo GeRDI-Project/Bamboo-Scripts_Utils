@@ -253,14 +253,14 @@ ExecuteUpdate() {
 	CreateBranch "$BRANCH_NAME"
     
     # execute update queue
-    echo $($UPDATE_QUEUE_FILE) >&2
+    echo -e $($UPDATE_QUEUE_FILE) >&2
    
     # set version
-    echo $(mvn versions:set "-DnewVersion=$TARGET_VERSION" -DallowSnapshots=true -DgenerateBackupPoms=false -f"$POM_FOLDER/pom.xml") >&2
+    echo -e $(mvn versions:set "-DnewVersion=$TARGET_VERSION" -DallowSnapshots=true -DgenerateBackupPoms=false -f"$POM_FOLDER/pom.xml") >&2
     
 	# commit and push updates
     commitMessage="$JIRA_KEY $subTaskKey Updated pom.xml version to $TARGET_VERSION. $(cat $COMMIT_DESCRIPTION_FILE)"
-	echo $(PushAllFilesToGitRepository "$atlassianUserDisplayName" "$atlassianUserEmail" "$commitMessage") >&2
+	echo -e $(PushAllFilesToGitRepository "$atlassianUserDisplayName" "$atlassianUserEmail" "$commitMessage") >&2
   
     # create pull request if it is not major version update
     isMajorUpdate=$(IsMajorVersionDifferent "$SOURCE_VERSION" "$TARGET_VERSION")

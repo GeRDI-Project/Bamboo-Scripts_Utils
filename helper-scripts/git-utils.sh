@@ -566,8 +566,7 @@ MergeAllPullRequestsOfJiraTicket() {
 	
 	  if [ -n "$branchName" ]; then
         $(MergeAndCleanPullRequest "$userName" "$password" "$project" "$repositorySlug" "$branchName")
-	    isMerged=$?
-	    failedMerges=$(expr $failedMerges + $isMerged)
+		[ $? -ne 0 ] && ((failedMerges++))
 	  fi
   done
   echo $failedMerges )
@@ -580,7 +579,7 @@ MergeAllPullRequestsOfJiraTicket() {
 # Arguments:
 #  1 - The Bitbucket user that reviews the pull-requests 
 #  2 - The Bitbucket user password
-#  3 - A sub-string of the pull-request titles that are to be merged
+#  3 - A substring of the pull-request titles that are to be merged
 #
 MergeAllPullRequestsWithTitle() {
   local userName="$1"
@@ -653,7 +652,7 @@ ApprovePullRequest() {
 # Arguments:
 #  1 - The Bitbucket user that reviews the pull-requests 
 #  2 - The Bitbucket user password
-#  3 - A sub-string of the pull-request titles that are to be approved
+#  3 - A substring of the pull-request titles that are to be approved
 #
 ApproveAllPullRequestsWithTitle() {
   local userName="$1"
