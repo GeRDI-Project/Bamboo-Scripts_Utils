@@ -138,6 +138,112 @@ DeleteGitRepository() {
 }
 
 
+# Retrieves the commit hash of the latest commit of a specified branch.
+#
+# Arguments:
+#  1 - Bitbucket user name
+#  2 - Bitbucket user password
+#  3 - Bitbucket Project ID
+#  4 - Repository slug
+#  5 - The name of the branch of which the last commit is retrieved
+GetLatestCommit() {
+  local userName="$1"
+  local password="$2"
+  local projectId="$3"
+  local repositorySlug="$4"
+  local branch="$5"
+  
+  curl -sX GET -u "$userName:$password" "https://code.gerdi-project.de/rest/api/1.0/projects/$projectId/repos/$repositorySlug/branches/" \
+     | grep -oP '(?<="displayId":"'"$branch"'","type":"BRANCH","latestCommit":")[^"]+'
+}
+
+
+# Retrieves a JSON object representing a tag in a Bitbucket repository.
+#
+# Arguments:
+#  1 - Bitbucket user name
+#  2 - Bitbucket user password
+#  3 - Bitbucket Project ID
+#  4 - Repository slug
+#  5 - The name of the tag to be retrieved
+#
+GetBitbucketTag() {
+  local userName="$1"
+  local password="$2"
+  local projectId="$3"
+  local repositorySlug="$4"
+  local tagName="$5"
+  curl -sX GET -u "$userName:$password" "https://code.gerdi-project.de/rest/api/1.0/projects/$projectId/repos/$repositorySlug/tags/$tagName"
+}
+
+
+# Checks if a tag in a Bitbucket repository exists and exits with 1 if it does not.
+#
+# Arguments:
+#  1 - Bitbucket user name
+#  2 - Bitbucket user password
+#  3 - Bitbucket Project ID
+#  4 - Repository slug
+#  5 - The name of the tag to be retrieved
+#
+HasBitbucketTag() {
+  local userName="$1"
+  local password="$2"
+  local projectId="$3"
+  local repositorySlug="$4"
+  local tagName="$5"
+  local response
+  httpCode=$(curl -sIX HEAD -u "$userName:$password" "https://code.gerdi-project.de/rest/api/1.0/projects/$projectId/repos/$repositorySlug/tags/$tagName" \
+  | grep -oP '(?<=HTTP/\d\.\d )\d+')
+  
+  if [ "$httpCode" != "200" ]; then
+    exit 1
+  fi
+}
+
+
+# Tags a Bitbucket repository on a specified branch.
+#
+# Arguments:
+#  1 - Bitbucket user name
+#  2 - Bitbucket user password
+#  3 - Bitbucket Project ID
+#  4 - Repository slug
+#  5 - The name of the branch that is to be tagged
+#  6 - The name of the tag to be added
+#  7 - The message that is added to the tag
+#
+AddBitbucketTag() {
+  local userName="$1"
+  local password="$2"
+  local projectId="$3"
+  local repositorySlug="$4"
+  local branch="$5"
+  local tagName="$6"
+  local tagMessage="$7"
+  
+  local revision=$(GetLatestCommit "$userName" "$password" "$projectId" "$repositorySlug" "$branch")
+  
+  if [ -z "$revision" ]; then
+    echo "Could not add tag '$tagName' to repository '$projectId/$repositorySlug'! Branch '$branch' does not exist." >&2
+    exit 1
+  fi
+  
+  local response=$(curl -sfX POST -u "$userName:$password" -H "Content-Type: application/json" -d '{
+    "name": "'"$tagName"'",
+    "startPoint": "'"$revision"'",
+    "message": "'"$tagMessage"'"
+  }' "https://code.gerdi-project.de/rest/api/1.0/projects/$projectId/repos/$repositorySlug/tags")
+  
+  if [ $? -eq 0 ]; then
+    echo "Added tag '$tagName' to repository '$projectId/$repositorySlug' on branch '$branch'." >&2
+  else
+    echo "Could not add tag '$tagName' to repository '$projectId/$repositorySlug' on branch '$branch'!" >&2
+    exit 1
+  fi
+}
+
+
 # Checks if a branch exists in a Bitbucket, without having to checkout the repository.
 #
 # Arguments:
@@ -460,11 +566,112 @@ MergeAllPullRequestsOfJiraTicket() {
 	
 	  if [ -n "$branchName" ]; then
         $(MergeAndCleanPullRequest "$userName" "$password" "$project" "$repositorySlug" "$branchName")
-	    isMerged=$?
-	    failedMerges=$(expr $failedMerges + $isMerged)
+		[ $? -ne 0 ] && ((failedMerges++))
 	  fi
   done
   echo $failedMerges )
+}
+
+
+# Merges all approved pull-requests of which the titles contain a specified string.
+# Only pull-requests of a specified user are treated.
+#
+# Arguments:
+#  1 - The Bitbucket user that reviews the pull-requests 
+#  2 - The Bitbucket user password
+#  3 - A substring of the pull-request titles that are to be merged
+#
+MergeAllPullRequestsWithTitle() {
+  local userName="$1"
+  local password="$2"
+  local title="$3"
+
+  local myApprovedPullRequests
+  myApprovedPullRequests=$(curl -sX GET -u "$userName:$password" "https://code.gerdi-project.de/rest/api/1.0/dashboard/pull-requests?state=open&role=REVIEWER&participantStatus=APPROVED")
+
+  local argumentsList  
+  argumentsList=$(echo "$myApprovedPullRequests" \
+  | perl -pe 's~.*?{"id":(\d+),"version":(\d+)?,"title":"[^"]*?'"$title"'[^"]*?",.*?"toRef":.*?"slug":"(.+?)",.*?"project":\{"key":"(\w+?)"~'"'\4' '\3' '\1' '\2'\n"'~gi' \
+  | head -n -1)
+  
+  # merge all matching pull-requests
+  while read arguments
+  do    
+    $(eval MergePullRequest "'$userName' '$password' $arguments")
+  done <<< "$(echo -e "$argumentsList")"
+}
+
+
+# Approves a Bitbucket pull request.
+#
+# Arguments:
+#  1 - The Bitbucket user that approves
+#  2 - The Bitbucket user password
+#  3 - Bitbucket Project ID
+#  4 - Repository slug
+#  5 - The ID of the pull request
+#
+ApprovePullRequest() {
+  local userName="$1"
+  local password="$2"
+  local projectId="$3"
+  local repositorySlug="$4"
+  local pullRequestId="$5"
+  
+  if !(curl -sfX HEAD -u "$userName:$password" "https://code.gerdi-project.de/rest/api/1.0/projects/$projectId/repos/$repositorySlug/pull-requests/$pullRequestId"); then
+    echo "Could not approve pull-request '$projectId/$repositorySlug/$pullRequestId': The pull-request does not exist!" >&2
+    exit 1
+  fi
+  
+  local userSlug
+  userSlug=$(curl -sX GET -u "$userName:$password" "https://code.gerdi-project.de/rest/api/1.0/projects/$projectId/repos/$repositorySlug/pull-requests/$pullRequestId/participants/" \
+            | grep -oP '"name":"'"$userName"'",.*?"slug":"[^"]+"' \
+            | grep -oP '(?<="slug":")[^"]+')
+  if [ -z "$userSlug" ]; then
+    echo "Could not approve pull-request '$projectId/$repositorySlug/$pullRequestId': $userName is not a reviewer!" >&2
+    exit 1
+  fi
+  
+  local response
+  response=$(curl -sfX PUT -u "$userName:$password" -H "Content-Type: application/json" -d '{
+	  "status": "APPROVED"
+  }' "https://code.gerdi-project.de/rest/api/1.0/projects/$projectId/repos/$repositorySlug/pull-requests/$pullRequestId/participants/$userSlug")
+  
+  if [ $? -eq 0 ]; then
+    echo "User $userName approved pull-request $projectId/$repositorySlug/$pullRequestId!" >&2
+  else
+    echo "Could not approve pull-request '$projectId/$repositorySlug/$pullRequestId': Reason unknown!" >&2
+    exit 1
+  fi
+}
+
+
+# Approves all pull-requests of which the titles contain a specified string.
+# Only pull-requests of a specified user are treated.
+#
+# Arguments:
+#  1 - The Bitbucket user that reviews the pull-requests 
+#  2 - The Bitbucket user password
+#  3 - A substring of the pull-request titles that are to be approved
+#
+ApproveAllPullRequestsWithTitle() {
+  local userName="$1"
+  local password="$2"
+  local title="$3"
+
+  local myOpenPullRequests
+  myOpenPullRequests=$(curl -sX GET -u "$userName:$password" "https://code.gerdi-project.de/rest/api/1.0/dashboard/pull-requests?state=open&role=REVIEWER&participantStatus=UNAPPROVED")
+
+  local argumentsList  
+  argumentsList=$(echo "$myOpenPullRequests" \
+  | perl -pe 's~.*?{"id":(\d+),"version":\d+?,"title":"[^"]*?'"$title"'[^"]*?",.*?"toRef":.*?"slug":"(.+?)",.*?"project":\{"key":"(\w+?)"~'"'\3' '\2' '\1'\n"'~gi' \
+  | head -n -1)
+  
+  # approve all matching pull-requests
+  while read arguments
+  do
+    $(eval ApprovePullRequest "'$userName' '$password' $arguments")
+  done <<< "$(echo -e "$argumentsList")"
 }
 
 
