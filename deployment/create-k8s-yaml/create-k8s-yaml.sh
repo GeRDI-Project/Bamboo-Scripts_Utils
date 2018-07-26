@@ -20,14 +20,12 @@
 # image tag inside the YAML file will be updated.
 #
 # Arguments:
-#  1 - the minimum viable IP address of the deployed service
-#  2 - the maximum viable IP address of the deployed service
+#  1 - the new version (Docker tag) of the deployed service
+#  2 - the minimum viable IP address of the deployed service
+#  3 - the maximum viable IP address of the deployed service
 #
 # Bamboo Plan Variables:
 #  ManualBuildTriggerReason_userName - the login name of the current user
-#  clusterIpPrefix - the first three segments of the clusterIp of the deployed service (e.g. 192.168.0.)
-#  clusterIpMin - the min value of the fourth IP segment [0...255]
-#  clusterIpMax - the max value of the fourth IP segment [0...255]
 
 
 # treat unset variables as an error when substituting
@@ -36,8 +34,8 @@ set -u
 # define global variables
 DOCKER_REGISTRY="docker-registry.gerdi.research.lrz.de:5043"
 KUBERNETES_REPOSITORY="https://code.gerdi-project.de/scm/sys/gerdireleases.git"
-KUBERNETES_YAML_DIR="gerdireleases/k8s-deployment"
-TEMPLATE_YAML="scripts/plans/util/deploy-service/k8s_template.yml"
+KUBERNETES_YAML_DIR="gerdireleases"
+TEMPLATE_YAML="scripts/deployment/create-k8s-yaml/k8s_template.yml"
 
 # load helper scripts
 source ./scripts/helper-scripts/atlassian-utils.sh
@@ -51,44 +49,6 @@ source ./scripts/helper-scripts/k8s-utils.sh
 #########################
 #  FUNCTION DEFINITIONS #
 #########################
-
-
-# Creates or changes an existing YAML file for deploying the service.
-#
-# Arguments:
-#  1 - the slug of the repository of the deployed service
-#  2 - the type of the deployed service
-#  3 - the Docker image tag which represents the new version of the service
-#  4 - a free IP address of a newly created YAML file
-#  5 - the Atlassian user that will be associated with the JIRA ticket and 
-#      the Bitbucket pull request
-#
-CreateOrChangeYamlFile() {
-  local repositorySlug="$1"
-  local serviceType="$2"
-  local dockerImageTag="$3"
-  local clusterIp="$4"
-  local userName="$5"
-  
-  local serviceName
-  serviceName=$(GetServiceName "$repositorySlug" "$serviceType")
-  
-  local kubernetesYaml
-  kubernetesYaml="$KUBERNETES_YAML_DIR/$serviceType/$serviceName.yml"
-  
-  local dockerImageName
-  dockerImageName="$DOCKER_REGISTRY/$serviceType/$repositorySlug"
-
-  if [ -e "$kubernetesYaml" ]; then
-    echo "The file $kubernetesYaml already exists, changing docker image version..." >&2
-    UpdateYamlFile "$kubernetesYaml" "$serviceType" "$dockerImageName" "$dockerImageTag" 
-
-  else
-    echo "Creating file $kubernetesYaml..." >&2
-    CreateYamlFile "$kubernetesYaml" "$serviceType" "$serviceName" "$dockerImageName" "$dockerImageTag" "$clusterIp" "$userName"
-  fi
-}
-
 
 # Creates the YAML file for the service by copying a template and substituting
 # placeholders.
@@ -116,7 +76,7 @@ CreateYamlFile() {
   fi
   
   # create directory if necessary
-  local kubernetesDir ="${kubernetesYaml%/*}"
+  local kubernetesDir="${kubernetesYaml%/*}"
   if [ ! -e "$kubernetesDir" ]; then
     mkdir "$kubernetesDir"
   fi
@@ -199,7 +159,7 @@ CreateClusterIp() {
   local maxIP="$2"
   
   if [ -z "$minIP" ] || [ -z "$maxIP" ]; then
-    echo "You must pass two arguments to the script:\n 1: the minimum viable IP address of the deployed service\n 2: the maximum IP address" >&2
+    echo "You must pass three arguments to the script:\n 2: the minimum viable IP address of the deployed service\n 3: the maximum IP address" >&2
 	exit 1
   fi
   
@@ -242,8 +202,8 @@ GetServiceType() {
   local projectId="$1"
   
   local projectName
-  projectName=$(curl -nsX GET https://code.gerdi-project.de/rest/api/latest/projects/$projectId/
-       | grep -oP "(?<=\"name\":\")[^\"]+"
+  projectName=$(curl -nsX GET https://code.gerdi-project.de/rest/api/latest/projects/$projectId/ \
+       | grep -oP "(?<=\"name\":\")[^\"]+" \
        | tr '[:upper:]' '[:lower:]')
      
   local serviceType
@@ -262,13 +222,18 @@ GetServiceType() {
 #
 # Arguments:
 #  1 - the slug of the repository of the deployed service
-#  2 - the type of the service
+#  2 - the identifier of the project in which the repository exists
 #
 GetServiceName() {
   local repositorySlug="$1"
-  local serviceType="$2"
+  local projectId="$2"
   
-  echo "$repositorySlug-$serviceType"
+  local projectName
+  projectName=$(curl -nsX GET https://code.gerdi-project.de/rest/api/latest/projects/$projectId/ \
+       | grep -oP "(?<=\"name\":\")[^\"]+" \
+       | tr '[:upper:]' '[:lower:]')
+	   
+  echo "$repositorySlug-$projectName"
 }
 
 
@@ -276,6 +241,8 @@ GetServiceName() {
 # that fits the current deployment environment.
 #
 CheckoutKubernetesRepo() {
+  local userName="$1"
+  
   local branchName
   branchName=$(GetDeployEnvironmentBranch)
   
@@ -287,16 +254,31 @@ CheckoutKubernetesRepo() {
   
   # switch branch
   (cd "$kubernetesSlug" && git checkout "$branchName")
+  
+  # get user details
+  local userProfile
+  userProfile=$(curl -nsX GET https://tasks.gerdi-project.de/rest/api/2/user?username="$userName")
+  
+  local userFullName=$(echo "$userProfile" | grep -oP "(?<=\"displayName\":\")[^\"]+")
+  local userEmail=$(echo "$userProfile" | grep -oP "(?<=\"emailAddress\":\")[^\"]+")
+  
+  # set user
+  (cd "$kubernetesSlug" && git config user.name "$userFullName")
+  (cd "$kubernetesSlug" && git config user.email "$userEmail")
 }
 
 
 # The main function to be executed in this script
 #
 Main() {
-  # exit if we could not inject the docker image tag
-  ExitIfPlanVariableIsMissing "inject_tag_version"
-  local imageTag
-  imageTag=$(GetValueOfPlanVariable "inject_tag_version")
+  local dockerImageTag="$1"
+  if [ -z "$dockerImageTag" ]; then
+    echo "You musst pass the Docker image tag as first argument to the script!" >&2
+	exit 1
+  fi
+  
+  local minimumClusterIP="$2"
+  local maximumClusterIP="$3"
 
   # get name of the user that ultimately triggered the deployment
   local atlassianUserName
@@ -319,13 +301,28 @@ Main() {
   echo "ServiceType: '$serviceType'" >&2
 
   # check out the Kubernetes deployment repository
-  CheckoutKubernetesRepo
+  CheckoutKubernetesRepo "$atlassianUserName"
   
-  local clusterIp
-  clusterIp=$(CreateClusterIp "$1" "$2")
+  local serviceName
+  serviceName=$(GetServiceName "$repositorySlug" "$projectId")
+  
+  local kubernetesYaml
+  kubernetesYaml="$KUBERNETES_YAML_DIR/$serviceType/$repositorySlug.yml"
+  
+  local dockerImageName
+  dockerImageName="$DOCKER_REGISTRY/$serviceType/$repositorySlug"
 
-  # Set and submit YAML file
-  CreateOrChangeYamlFile "$repositorySlug" "$serviceType" "$imageTag" "$clusterIp" "$atlassianUserName"
+  if [ -e "$kubernetesYaml" ]; then
+    echo "The file $kubernetesYaml already exists, changing docker image version..." >&2
+    UpdateYamlFile "$kubernetesYaml" "$serviceType" "$dockerImageName" "$dockerImageTag" 
+
+  else
+    local clusterIp
+    clusterIp=$(CreateClusterIp "$minimumClusterIP" "$maximumClusterIP")
+  
+    echo "Creating file $kubernetesYaml..." >&2
+    CreateYamlFile "$kubernetesYaml" "$serviceType" "$serviceName" "$dockerImageName" "$dockerImageTag" "$clusterIp" "$atlassianUserName"
+  fi
 }
 
 
