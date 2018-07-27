@@ -21,7 +21,7 @@
 # and returns a path that will definitely point to a pom.xml.
 #
 # Arguments:
-#  1 - a file path to a pom.xml or a Maven project folder
+#  1 - a file path to a pom.xml or a Maven project folder (optional)
 #
 CompletePomPath() {
   local pomXmlPath="$1"
@@ -43,7 +43,7 @@ CompletePomPath() {
 # Exits with 1 if no -SNAPSHOT versions could be found.
 #
 # Arguments:
-#  1 - a file path to a pom.xml or a Maven project folder
+#  1 - a file path to a pom.xml or a Maven project folder (optional)
 #
 HasSnapshotVersions() {
   local pomXmlPath=$(CompletePomPath "$1")
@@ -154,13 +154,53 @@ IsMavenVersionHigher() {
 GetPomValue() {
   local valueKey="$1"
   local pomPath=$(CompletePomPath "$2")
+  
+  # try to retrieve the value
   local retrievedValue
   retrievedValue=$(mvn -q -Dexec.executable="echo" -Dexec.args='${'"$valueKey"'}' --non-recursive \
                    org.codehaus.mojo:exec-maven-plugin:1.6.0:exec -f"$pomPath")
+                   
+  # do not return the error message if the value was not retrieved
   if [ $? -eq 0 ]; then
     echo "$retrievedValue"
   else
     echo -e "Could not retrieve $valueKey from $pomPath:\n$retrievedValue" >&2
+    exit 1
+  fi
+}
+
+
+# Replaces all -SNAPSHOT versions in a pom.xml with the corresponding release versions
+# If the pom.xml does not exist or does not compile with the new versions, this function fails.
+#
+# Arguments:
+#  1 - a file path to a pom.xml or a Maven project folder (optional)
+#
+UpdateMavenSnapshotToRelease() {
+  local pomXmlPath=$(CompletePomPath "$1")
+  
+  if [ ! -f "$pomXmlPath" ]; then
+    echo "Cannot update '$pomXmlPath' because the path does not exist!" >&2
+    exit 1
+  fi
+  
+  # create a backup of the pom.xml
+  cp -f "$pomXmlPath" "$pomXmlPath.backup"
+  
+  # remove all SNAPSHOT suffixes
+  perl -pi -e \
+       "s~<([a-z.]*)>([0-9.]+)-SNAPSHOT</\1>~<\1>\2</\1>~gi" \
+       "$pomXmlPath"
+  
+  # check if maven still compiles
+  local mvnResult
+  mvnResult=$(mvn compile -f"$pomXmlPath")
+  
+  if [ $? -ne 0 ]; then
+    # restore pom.xml from backup file
+    mv -f "$pomXmlPath.backup" "$pomXmlPath"
+    
+    echo -e "Could not replace all SNAPSHOT versions:\n$mvnResult" >&2
     exit 1
   fi
 }
