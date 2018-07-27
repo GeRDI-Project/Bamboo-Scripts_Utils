@@ -493,3 +493,21 @@ ExitIfBambooVariableNotBoolean() {
     exit 1
   fi
 }
+
+
+# Fails with exit code 1 the plan repository does not match the one expected in the deployment job.
+#
+#  Arguments: -
+#
+ExitIfDeployEnvironmentDoesNotMatchBranch() {
+  local expectedBranch
+  expectedBranch=$(GetDeployEnvironmentBranch)
+  
+  local currentBranch
+  currentBranch="$bamboo_planRepository_1_branchName"
+  
+  if [ "$expectedBranch" != "master" ] && [ "$expectedBranch" != "$currentBranch" ]; then
+    echo "The repository branch '$currentBranch' does not fit the deployment environment '$(GetDeployEnvironmentName)'!" >&2
+    exit 1
+  fi
+}
