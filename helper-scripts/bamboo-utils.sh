@@ -415,7 +415,8 @@ GetDeployEnvironmentBranch() {
  local environment="$bamboo_deploy_environment"
  
  if [ -z "$environment" ]; then
-   echo "The function GetDeployEnvironmentBranch() can only be called from Bamboo deployment jobs!" >&2
+   echo "This function can only be called from Bamboo deployment jobs!" >&2
+   exit 1
  fi
  
  if $(echo "$bamboo_deploy_environment" | grep -qi "staging\|stage\|pre-client" ); then
@@ -436,21 +437,11 @@ GetDeployEnvironmentBranch() {
 # Arguments: -
 #
 GetDeployEnvironmentName() {
- local environment="$bamboo_deploy_environment"
- 
- if [ -z "$environment" ]; then
-   echo "The function GetDeployEnvironmentName() can only be called from Bamboo deployment jobs!" >&2
- fi
- 
- if $(echo "$bamboo_deploy_environment" | grep -qi "staging\|stage\|pre-client" ); then
-   echo "staging"
-	
- elif $(echo "$bamboo_deploy_environment" | grep -qi "production\|live\|release" ); then
-   echo "production"
-	
- else
-   echo "test"
- fi
+  case $(GetDeployEnvironmentBranch) in
+    stage)      echo "staging";;
+    production) echo "production";;
+    master)     echo "test";;
+  esac
 }
 
 

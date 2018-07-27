@@ -77,9 +77,7 @@ CreateYamlFile() {
   
   # create directory if necessary
   local kubernetesDir="${kubernetesYaml%/*}"
-  if [ ! -e "$kubernetesDir" ]; then
-    mkdir "$kubernetesDir"
-  fi
+  mkdir -p "$kubernetesDir"
     
   # copy template file
   cp "$TEMPLATE_YAML" "$kubernetesYaml"
@@ -276,7 +274,7 @@ CheckoutKubernetesRepo() {
 Main() {
   local dockerImageTag="$1"
   if [ -z "$dockerImageTag" ]; then
-    echo "You musst pass the Docker image tag as first argument to the script!" >&2
+    echo "You must pass the Docker image tag as first argument to the script!" >&2
 	exit 1
   fi
   
