@@ -26,7 +26,7 @@
 CompletePomPath() {
   local pomXmlPath="$1"
   
-  if [ -z "$pomXmlPath" ]; then
+  if [ -z "$pomXmlPath" ] || [ "$pomXmlPath" = "." ]; then
     pomXmlPath="pom.xml"
   elif ! $(echo "$pomXmlPath" | grep -q "pom.xml\$"); then
     if ! $(echo "$pomXmlPath" | grep -q "/\$\|\\\\\$"); then
