@@ -31,35 +31,35 @@ spec:
         app: ${serviceName}
     spec:
       initContainers:
-      - name: correct-permissions
-        image: busybox
-        securityContext:
-          privileged: true
-        command: ['sh', '-c', 'chown 100 /var/lib/jetty/cache']
-        volumeMounts:
-        - mountPath: /var/lib/jetty/cache/
-          name: ${serviceName}-cache
+        - name: correct-permissions
+          image: busybox
+          securityContext:
+            privileged: true
+          command: ['sh', '-c', 'chown 100 /var/lib/jetty/cache']
+          volumeMounts:
+            - mountPath: /var/lib/jetty/cache/
+              name: ${serviceName}-cache
       containers:
-      - name: ${serviceName}
-        image: ${dockerImage}
-        ports:
-          - containerPort: 8080
-        volumeMounts:
-        - mountPath: /var/lib/jetty/cache/
-          name: ${serviceName}-cache
-        resources:
+        - name: ${serviceName}
+          image: ${dockerImage}
+          ports:
+            - containerPort: 8080
+          volumeMounts:
+            - mountPath: /var/lib/jetty/cache/
+              name: ${serviceName}-cache
+          resources:
             requests:
-                memory: "256Mi"
-                cpu:    "250m"
+              cpu:    "0"
+              memory: "0"
             limits:
-                memory: "512Mi"
-                cpu:    "500m"
+              cpu:    "1"
+              memory: "1Gi"
       imagePullSecrets:
-      - name: lrz-docker-registry-secret
+        - name: lrz-docker-registry-secret
       volumes:
-      - name: ${serviceName}-cache
-        hostPath:
-            path: /mnt/nfs/test/${serviceType}/${serviceName}
+        - name: ${serviceName}-cache
+          hostPath:
+            path: /mnt/nfs/${environment}/${serviceType}/${serviceName}
             type: DirectoryOrCreate
 ---
 apiVersion: v1

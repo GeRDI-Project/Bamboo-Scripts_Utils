@@ -406,6 +406,45 @@ SetGlobalVariable() {
 }
 
 
+# Retrieves the name of the current deployment environment, and
+# finds the corresponding branch name according to the branching model.
+#
+# Arguments: -
+#
+GetDeployEnvironmentBranch() {
+ local environment="$bamboo_deploy_environment"
+ 
+ if [ -z "$environment" ]; then
+   echo "This function can only be called from Bamboo deployment jobs!" >&2
+   exit 1
+ fi
+ 
+ if $(echo "$bamboo_deploy_environment" | grep -qi "staging\|stage\|pre-client" ); then
+   echo "stage"
+	
+ elif $(echo "$bamboo_deploy_environment" | grep -qi "production\|live\|release" ); then
+   echo "production"
+	
+ else
+   echo "master"
+ fi
+}
+
+
+# Retrieves the name of the current deployment environment, and
+# finds the corresponding environment of the deployed services.
+#
+# Arguments: -
+#
+GetDeployEnvironmentName() {
+  case $(GetDeployEnvironmentBranch) in
+    stage)      echo "staging";;
+    production) echo "production";;
+    master)     echo "test";;
+  esac
+}
+
+
 # Fails with exit code 1 if the Bamboo user is not logged in.
 #
 ExitIfNotLoggedIn() {
