@@ -40,12 +40,6 @@ source ./scripts/helper-scripts/bamboo-utils.sh
 #
 DeployMavenSnapshot() {
   local pomXmlPath=$(CompletePomPath "$1")
-  
-  if [ ! -f "$pomXmlPath" ]; then
-    echo "Cannot deploy '$pomXmlPath' because the path does not exist!" >&2
-    exit 1
-  fi
-
   mvn clean deploy -Ddeploy -f"$pomXmlPath"
 }
 
@@ -55,23 +49,25 @@ DeployMavenSnapshot() {
 #
 # Arguments:
 #  1 - a file path to a pom.xml or a Maven project folder
+#  2 - the project version that is to be deployed
 #
 DeployMavenRelease() {
   local pomXmlPath=$(CompletePomPath "$1")
-  
-  if [ ! -f "$pomXmlPath" ]; then
-    echo "Cannot deploy '$pomXmlPath' because the path does not exist!" >&2
-    exit 1
-  fi
+  local version="$2"
 
   if $(HasSnapshotVersions "$pomXmlPath"); then
-    echo "Cannot release $artifactId $releasedVersion, because it contains SNAPSHOT dependencies!" >&2
+    echo "Cannot deploy'$pomXmlPath', because it contains SNAPSHOT dependencies!" >&2
     exit 1
   fi
   
-  local isDeployed=$(IsMavenVersionDeployed "$artifactId" "$releasedVersion")
+  local artifactId
+  artifactId=$(GetPomValue "project.artifactId" "$pomXmlPath")
+  
+  local isDeployed
+  isDeployed=$(IsMavenVersionDeployed "$artifactId" "$version")
+  
   if $isDeployed; then
-    echo "Cannot release $artifactId $releasedVersion, because it was already released!" >&2
+    echo "Cannot deploy $artifactId $version, because it was already released!" >&2
     exit 1
   fi
   
@@ -86,18 +82,22 @@ Main() {
   
   local pomXmlPath="$1"
   
+  if [ ! -f "$pomXmlPath" ]; then
+    echo "Cannot deploy Maven project at '$pomXmlPath' because the path does not exist!" >&2
+    exit 1
+  fi
+  
   local environment
   environment=$(GetDeployEnvironmentName)
   
   local projectVersion
   projectVersion=$(GetPomValue "project.version" "$pomXmlPath")
   
-  
   if [ "$environment" = "test" ]; then
     if $(echo "$projectVersion" | grep -q "\-SNAPSHOT\$"); then
-      DeployMavenSnapshot $pomXmlPath
+      DeployMavenSnapshot "$pomXmlPath"
     else
-      DeployMavenRelease $pomXmlPath
+      DeployMavenRelease "$pomXmlPath" "$projectVersion"
     fi
     
   elif [ -n "$environment" ]; then
@@ -105,7 +105,7 @@ Main() {
       echo "Maven Projects must not have SNAPSHOT versions in staging or production!" >&2
       exit 1
     else
-      DeployMavenRelease $pomXmlPath
+      DeployMavenRelease "$pomXmlPath" "$projectVersion"
     fi
   fi
 }
