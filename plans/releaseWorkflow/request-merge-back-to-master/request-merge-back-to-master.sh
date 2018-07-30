@@ -14,7 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
  
-# This script is being called by a Bamboo Job. It creates pull-requests for
+# This script is called by a Bamboo Job. It creates pull-requests for
 # merging back all production to master branches.
 #
 # Bamboo Plan Variables:

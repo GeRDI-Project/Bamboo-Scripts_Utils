@@ -14,7 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
  
-# This script is being called by the Bamboo Job https://ci.gerdi-project.de/browse/UTIL-MHVU
+# This script is called by the Bamboo Job https://ci.gerdi-project.de/browse/UTIL-MHVU
 # It attempts to find the last successful build of the plan https://ci.gerdi-project.de/browse/UTIL-UHV that creates a JIRA ticket
 # with associated branches and pull requests for updating Maven Parent versions of Harvester projects.
 # This script attempts to merge all approved pull requests of said JIRA ticket and removes the feature branches afterwards.

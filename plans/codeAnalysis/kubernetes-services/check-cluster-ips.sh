@@ -14,7 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# This script is being called by the Bamboo Job TODO which checks if there
+# This script is called by the Bamboo Job TODO which checks if there
 # are duplicate clusterIPs defined in the gerdireleases repository.
 #
 # Bamboo Plan Variables:

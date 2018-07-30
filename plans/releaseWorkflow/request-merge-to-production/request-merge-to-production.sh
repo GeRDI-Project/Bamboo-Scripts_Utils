@@ -14,7 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
  
-# This script is being called by a Bamboo Job. It sets the version of the global Bamboo variable
+# This script is called by a Bamboo Job. It sets the version of the global Bamboo variable
 # PRODUCTION_VERSION to that of the variable STAGING_VERSION and merges all stage to production branches.
 #
 # Bamboo Plan Variables:

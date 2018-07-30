@@ -14,7 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# This script is caleld by Bamboo deployment jobs in order to deploy Maven
+# This script is called by Bamboo deployment jobs in order to deploy Maven
 # projects to Sonatype or Maven Central.
 #
 # Arguments:
