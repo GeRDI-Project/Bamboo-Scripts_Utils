@@ -39,7 +39,7 @@ source ./scripts/helper-scripts/bamboo-utils.sh
 #  1 - a file path to a pom.xml or a Maven project folder
 #
 DeployMavenSnapshot() {
-  local pomXmlPath="$2"
+  local pomXmlPath="$1"
   mvn clean deploy -Ddeploy -f"$pomXmlPath"
 }
 
@@ -81,7 +81,7 @@ Main() {
   ExitIfDeployEnvironmentDoesNotMatchBranch
  
   # exit if not a maven project
-  local pomXmlPath=$(CompletePomPath "$1")
+  local pomXmlPath=$(GetPomXmlPath "$1")
   if [ ! -f "$pomXmlPath" ]; then
     echo "Cannot deploy Maven project at '$pomXmlPath' because the path does not exist!" >&2
     exit 1

@@ -18,12 +18,12 @@
 
 
 # Takes a path that may lead to either a directory or a pom.xml
-# and returns a path that will definitely point to a pom.xml.
+# and returns a relative path that will definitely point to a pom.xml.
 #
 # Arguments:
 #  1 - a file path to a pom.xml or a Maven project folder (optional)
 #
-CompletePomPath() {
+GetPomXmlPath() {
   local pomXmlPath="$1"
   
   if [ -z "$pomXmlPath" ] || [ "$pomXmlPath" = "." ]; then
@@ -46,7 +46,7 @@ CompletePomPath() {
 #  1 - a file path to a pom.xml or a Maven project folder (optional)
 #
 HasSnapshotVersions() {
-  local pomXmlPath=$(CompletePomPath "$1")
+  local pomXmlPath=$(GetPomXmlPath "$1")
   
   if [ ! -f "$pomXmlPath" ]; then
     echo "Cannot check SNAPSHOT versions of '$pomXmlPath' because the path does not exist!" >&2
@@ -153,7 +153,7 @@ IsMavenVersionHigher() {
 #
 GetPomValue() {
   local valueKey="$1"
-  local pomPath=$(CompletePomPath "$2")
+  local pomPath=$(GetPomXmlPath "$2")
   
   # try to retrieve the value
   local retrievedValue
@@ -177,7 +177,7 @@ GetPomValue() {
 #  1 - a file path to a pom.xml or a Maven project folder (optional)
 #
 UpdateMavenSnapshotToRelease() {
-  local pomXmlPath=$(CompletePomPath "$1")
+  local pomXmlPath=$(GetPomXmlPath "$1")
   
   if [ ! -f "$pomXmlPath" ]; then
     echo "Cannot update '$pomXmlPath' because the path does not exist!" >&2

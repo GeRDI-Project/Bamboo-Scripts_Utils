@@ -495,7 +495,7 @@ ExitIfBambooVariableNotBoolean() {
 }
 
 
-# Fails with exit code 1 the plan repository does not match the one expected in the deployment job.
+# Fails with exit code 1 if the plan repository does not match the one expected in the deployment job.
 #
 #  Arguments: -
 #
