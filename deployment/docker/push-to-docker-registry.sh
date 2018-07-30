@@ -22,11 +22,15 @@
 # 1 - The URL of the Docker registry to which the image is pushed.
 # 2 - The name of the Docker image that is to be created.
 # 3 - The tag of the built Docker image.
-#
 
 
 # treat unset variables as an error when substituting, because the argument is optional
 set -u
+
+# load helper scripts
+source ./scripts/helper-scripts/git-utils.sh
+source ./scripts/helper-scripts/misc-utils.sh
+source ./scripts/helper-scripts/k8s-utils.sh
 
 
 #########################
@@ -105,17 +109,35 @@ AllowWarFileAccess() {
 }
 
 
+# Retrieves the Docker image name without the preceding registry URL and
+# without the image tag-
+#
+GetDockerImageName() {
+  local gitCloneLink="$bamboo_planRepository_1_repositoryUrl"
+  
+  local serviceName
+  serviceName=$(GetServiceType "$gitCloneLink")
+  
+  local repositorySlug
+  repositorySlug=$(GetRepositorySlugFromCloneLink "$gitCloneLink")
+  
+  echo "$serviceName/$repositorySlug"
+}
+
+
 # The main function that is called on script execution.
 #
 Main() {
-  if [ -z "$1" ] || [ -z "$2" ] || [ -z "$3" ]; then
-    echo "You need to specify three arguments: dockerRegistryURL, dockerImageName, dockerImageTag " >&2
-    exit 1
+  ExitIfPlanVariableIsMissing "DOCKER_REGISTRY"
+  
+  local dockerImageTag="$1"
+  if [ -z "$dockerImageTag" ]; then
+    echo "You must pass the Docker image tag as first argument to the script!" >&2
+	exit 1
   fi
   
-  local dockerRegistryUrl="$1"
-  local dockerImageName="$2"
-  local dockerImageTag="$3"
+  local dockerRegistryUrl=$(GetValueOfPlanVariable "DOCKER_REGISTRY")
+  local dockerImageName=$(GetDockerImageName)
   
   AllowWarFileAccess
   DockerBuild "$dockerRegistryUrl" "$dockerImageName" "$dockerImageTag"
