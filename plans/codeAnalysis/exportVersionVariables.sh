@@ -16,7 +16,7 @@
 
 # This script extracts the Maven version, and it assembles the version tag which is derived from global
 # Bamboo variables. Both versions are stored in a file which can then be exported to a Deployment job
-# via the "Inject Bamboo variables" task
+# via the "Inject Bamboo variables" task.
 #
 # Bamboo Plan Variables:
 #  ManualBuildTriggerReason_userName - the login name of the current user

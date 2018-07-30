@@ -14,7 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
  
-# This script is being called by a Bamboo Job. It iterates a list of projects and/or git clone links and creates
+# This script is called by a Bamboo Job. It iterates a list of projects and/or git clone links and creates
 # a branch of a specified name from a specified source branch.
 #
 # Bamboo Plan Variables:

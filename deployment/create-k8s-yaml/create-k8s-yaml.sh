@@ -14,7 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# This script is being called by Bamboo Deployment Jobs.
+# This script is called by Bamboo Deployment Jobs.
 # It creates a YAML file for a deployed service and pushes the file to the Kubernetes
 # deployment repository. If a file with the same name already exists, only the Docker
 # image tag inside the YAML file will be updated.

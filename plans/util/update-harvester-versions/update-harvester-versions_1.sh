@@ -14,7 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
  
-# This script is being called by the Bamboo Job https://ci.gerdi-project.de/browse/UTIL-UHV and does the following things:
+# This script is called by the Bamboo Job https://ci.gerdi-project.de/browse/UTIL-UHV and does the following things:
 #  1. Retrieve the current version of the GeRDI Parent Pom (https://oss.sonatype.org/content/repositories/snapshots/de/gerdi-project/GeRDI-parent/)
 #  2. Update the Harvester Setup Archive, if needed (https://oss.sonatype.org/content/repositories/snapshots/de/gerdi-project/GeRDI-harvester-setup-archive/)
 #  3. Update the Harvester Setup, if needed (https://oss.sonatype.org/content/repositories/snapshots/de/gerdi-project/GeRDI-harvester-setup/)

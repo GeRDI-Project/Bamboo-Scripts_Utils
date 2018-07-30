@@ -14,7 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
  
-# This script is being called by the Bamboo Job https://ci.gerdi-project.de/browse/UTIL-ULH.
+# This script is called by the Bamboo Job https://ci.gerdi-project.de/browse/UTIL-ULH.
 # It iterates through all Harvester Projects and updates their license headers using the 'addLicenses' helper script
 #
 # Bamboo Plan Variables:

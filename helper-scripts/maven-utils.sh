@@ -16,7 +16,47 @@
 
 # This script offers helper functions that concern GeRDI Maven projects.
 
+
+# Takes a path that may lead to either a directory or a pom.xml
+# and returns a relative path that will definitely point to a pom.xml.
+#
+# Arguments:
+#  1 - a file path to a pom.xml or a Maven project folder (optional)
+#
+GetPomXmlPath() {
+  local pomXmlPath="$1"
   
+  if [ -z "$pomXmlPath" ] || [ "$pomXmlPath" = "." ]; then
+    pomXmlPath="pom.xml"
+  elif ! $(echo "$pomXmlPath" | grep -q "pom.xml\$"); then
+    if ! $(echo "$pomXmlPath" | grep -q "/\$\|\\\\\$"); then
+      pomXmlPath="$pomXmlPath/"
+    fi
+    pomXmlPath="$pomXmlPath""pom.xml"
+  fi
+  
+  echo "$pomXmlPath"
+}
+
+
+# Checks if a pom.xml contains any -SNAPSHOT versions.
+# Exits with 1 if no -SNAPSHOT versions could be found.
+#
+# Arguments:
+#  1 - a file path to a pom.xml or a Maven project folder (optional)
+#
+HasSnapshotVersions() {
+  local pomXmlPath=$(GetPomXmlPath "$1")
+  
+  if [ ! -f "$pomXmlPath" ]; then
+    echo "Cannot check SNAPSHOT versions of '$pomXmlPath' because the path does not exist!" >&2
+    exit 1
+  fi
+  
+  grep -qi "<\([a-z.]*\)>[0-9.]\+\-SNAPSHOT</\1>" "$pomXmlPath"
+}
+
+
 # Returns true if a specified version and artifact of a specified GeRDI Maven project exist in Sonatype or in Maven Central.
 #  Arguments:
 #  1 - the artifact identifier of the GeRDI Maven project
@@ -66,10 +106,10 @@ GetLatestMavenVersion() {
   if [ "$includeSnapshots" = true ]; then
     metaData=$(curl -fsX GET https://oss.sonatype.org/content/repositories/snapshots/de/gerdi-project/$artifactId/maven-metadata.xml)
     if [ $? -eq 0 ]; then
-	  snapshotVersion=${metaData%</versions>*}
+	    snapshotVersion=${metaData%</versions>*}
       snapshotVersion=${snapshotVersion##*<version>}
       snapshotVersion=${snapshotVersion%</version>*}
-	fi
+	  fi
   fi
   
   if [ -z "$snapshotVersion" ] || [ "$releaseVersion" \> "$snapshotVersion" ]; then
@@ -113,11 +153,54 @@ IsMavenVersionHigher() {
 #
 GetPomValue() {
   local valueKey="$1"
-  local pomPath="$2"
+  local pomPath=$(GetPomXmlPath "$2")
   
-  if [ -z "$pomPath" ]; then
-    echo -e $(mvn -q -Dexec.executable="echo" -Dexec.args='${'"$valueKey"'}' --non-recursive org.codehaus.mojo:exec-maven-plugin:1.6.0:exec)
+  # try to retrieve the value
+  local retrievedValue
+  retrievedValue=$(mvn -q -Dexec.executable="echo" -Dexec.args='${'"$valueKey"'}' --non-recursive \
+                   org.codehaus.mojo:exec-maven-plugin:1.6.0:exec -f"$pomPath")
+                   
+  # do not return the error message if the value was not retrieved
+  if [ $? -eq 0 ]; then
+    echo "$retrievedValue"
   else
-    echo -e $(mvn -q -Dexec.executable="echo" -Dexec.args='${'"$valueKey"'}' --non-recursive org.codehaus.mojo:exec-maven-plugin:1.6.0:exec -f"$pomPath")
+    echo -e "Could not retrieve $valueKey from $pomPath:\n$retrievedValue" >&2
+    exit 1
+  fi
+}
+
+
+# Replaces all -SNAPSHOT versions in a pom.xml with the corresponding release versions
+# If the pom.xml does not exist or does not compile with the new versions, this function fails.
+#
+# Arguments:
+#  1 - a file path to a pom.xml or a Maven project folder (optional)
+#
+UpdateMavenSnapshotToRelease() {
+  local pomXmlPath=$(GetPomXmlPath "$1")
+  
+  if [ ! -f "$pomXmlPath" ]; then
+    echo "Cannot update '$pomXmlPath' because the path does not exist!" >&2
+    exit 1
+  fi
+  
+  # create a backup of the pom.xml
+  cp -f "$pomXmlPath" "$pomXmlPath.backup"
+  
+  # remove all SNAPSHOT suffixes
+  perl -pi -e \
+       "s~<([a-z.]*)>([0-9.]+)-SNAPSHOT</\1>~<\1>\2</\1>~gi" \
+       "$pomXmlPath"
+  
+  # check if maven still compiles
+  local mvnResult
+  mvnResult=$(mvn compile -f"$pomXmlPath")
+  
+  if [ $? -ne 0 ]; then
+    # restore pom.xml from backup file
+    mv -f "$pomXmlPath.backup" "$pomXmlPath"
+    
+    echo -e "Could not replace all SNAPSHOT versions:\n$mvnResult" >&2
+    exit 1
   fi
 }
