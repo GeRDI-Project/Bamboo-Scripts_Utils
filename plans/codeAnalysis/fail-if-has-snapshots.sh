@@ -35,7 +35,7 @@ source ./scripts/helper-scripts/maven-utils.sh
 # The main function that is called by this script.
 #
 Main() {
-  local pomXmlPath=$(CompletePomPath "$1")
+  local pomXmlPath=$(GetPomXmlPath "$1")
   
   local currentBranch
   currentBranch="$bamboo_planRepository_1_branchName"
