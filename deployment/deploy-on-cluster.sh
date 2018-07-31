@@ -14,9 +14,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# This script can be called by Bamboo (Deployment) Jobs in order to tag the git commit
-# that triggered the job with the tag version that is injected as a variable.
-# The repository that is to be tagged must be a BitBucket repository.
+# This script can be called by Bamboo (Deployment) Jobs in order to apply the
+# committed k8s-manifest files.
 
 # treat unset variables as an error when substituting
 set -u
