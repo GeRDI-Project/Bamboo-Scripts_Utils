@@ -39,13 +39,13 @@ waitForIt() {
 
 # The main method of this script.
 #
-Main() {
+main() {
   for update in `git log -1 --name-status | egrep '^M' | awk '{ print $2 }'`
   do
       log "Deleting old deployment for $update"
       kubectl delete -f $update 
       log "Waiting for old deployment $update to terminate"
-      waitForIt $update
+      waitForIt
       log "Creating new deployment for $update"
       kubectl apply -f $update
   done
@@ -66,4 +66,4 @@ Main() {
 #  BEGINNING OF EXECUTION #
 ###########################
 
-Main "$@"
+main "$@"
