@@ -30,6 +30,7 @@ set -u
 # load helper scripts
 source ./scripts/helper-scripts/git-utils.sh
 source ./scripts/helper-scripts/misc-utils.sh
+source ./scripts/helper-scripts/bamboo-utils.sh
 source ./scripts/helper-scripts/k8s-utils.sh
 
 
