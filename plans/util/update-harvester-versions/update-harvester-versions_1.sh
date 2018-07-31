@@ -210,6 +210,9 @@ PrepareUpdate() {
   # clone JsonLibraries
   CloneGitRepository "$ATLASSIAN_USER_NAME" "$ATLASSIAN_PASSWORD" "$PROJECT" "$SLUG"
   
+  # checkout branch
+  git checkout "$SOURCE_BRANCH"
+  
   # get version from pom
   if [ -f "$POM_FOLDER/pom.xml" ]; then
     ARTIFACT_ID=$(GetPomValue "project.artifactId" "$POM_FOLDER/pom.xml") 
@@ -271,7 +274,7 @@ ExecuteUpdate() {
         "$PROJECT" \
         "$SLUG" \
 	    "$BRANCH_NAME" \
-        "master" \
+        "$SOURCE_BRANCH" \
         "Update $ARTIFACT_ID" \
         "Maven version update." \
         "$reviewer" \
@@ -391,6 +394,7 @@ Main() {
   ExitIfNotLoggedIn
   ExitIfPlanVariableIsMissing "atlassianPassword"
   ExitIfPlanVariableIsMissing "reviewer"
+  ExitIfPlanVariableIsMissing "branch"
 
   ATLASSIAN_USER_NAME=$(GetBambooUserName)
   ATLASSIAN_PASSWORD=$(GetValueOfPlanVariable "atlassianPassword")
@@ -415,6 +419,7 @@ Main() {
   fi
   
   # init global variables
+  SOURCE_BRANCH=$(GetValueOfPlanVariable branch)
   TOP_FOLDER=$(pwd)
   SOURCE_VERSION=""
   TARGET_VERSION=""
