@@ -50,7 +50,7 @@ main() {
       kubectl apply -f $update
   done
   
-  for new in `git log -1 --name-status | egrep '^C' | awk '{ print $2 }'`
+  for new in `git log -1 --name-status | egrep '^A' | awk '{ print $2 }'`
   do
       kubectl apply -f $new
   done
