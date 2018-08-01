@@ -66,7 +66,7 @@ Main() {
     echo "No JIRA issue key was specified. Trying to retrieve it from the last build of https://ci.gerdi-project.de/browse/UTIL-UHV master." >&2
 	
 	local latestPlanId
-    latestPlanId=$(GetLatestBambooPlanResultKey "UTIL-UHV" "" "$atlassianUserName" "$atlassianPassword")
+    latestPlanId=$(GetLatestBambooPlanResultKey "UH-UHV" "" "$atlassianUserName" "$atlassianPassword")
 	
 	local latestPlanLog
     latestPlanLog=$(curl -sX GET -u "$atlassianCredentials" https://ci.gerdi-project.de/download/UTIL-UHV-JOB1/build_logs/UTIL-UHV-JOB1-$latestPlanId.log)

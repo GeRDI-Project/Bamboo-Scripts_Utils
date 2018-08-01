@@ -17,6 +17,60 @@
 # This script offers helper functions that concern Kubernetes.
 
 
+
+# Retrieves the type of the SCS.
+#
+# Arguments:
+#  1 - a git clone link of the repository of which the service type is retrieved
+#
+GetServiceType() {
+  local gitCloneLink="$1"
+  
+  local projectId
+  projectId=${gitCloneLink%/*}
+  projectId=${projectId##*/}
+  
+  local projectName
+  projectName=$(curl -nsX GET https://code.gerdi-project.de/rest/api/latest/projects/$projectId/ \
+       | grep -oP "(?<=\"name\":\")[^\"]+" \
+       | tr '[:upper:]' '[:lower:]')
+     
+  local serviceType
+  if [ "$projectName" = "harvester" ]; then
+    serviceType="harvest"
+  else
+    echo "Cannot create YAML file for repositories of project $projectName ($projectId)! You have to adapt the create-k8s-yaml.sh in order to support these projects!">&2
+    exit 1
+  fi
+  
+  echo "$serviceType"
+}
+
+
+# Assembles the name of the service to be deployed.
+#
+# Arguments:
+#  1 - a git clone link of the repository of which the service name is retrieved
+#
+GetServiceName() {
+  local gitCloneLink="$1"
+  
+  local projectId
+  projectId=${gitCloneLink%/*}
+  projectId=${projectId##*/}
+  
+  local repositorySlug
+  repositorySlug=${gitCloneLink%.git}
+  repositorySlug=${repositorySlug##*/}
+  
+  local projectName
+  projectName=$(curl -nsX GET https://code.gerdi-project.de/rest/api/latest/projects/$projectId/ \
+       | grep -oP "(?<=\"name\":\")[^\"]+" \
+       | tr '[:upper:]' '[:lower:]')
+	   
+  echo "$repositorySlug-$projectName"
+}
+
 # Generates a report of occurences of each clusterIP that is found
 # in YAML files of a specified folder and sub-folders.
 #
