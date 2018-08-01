@@ -51,25 +51,23 @@ DockerPush() {
   local imageName="$2"
   local imageTag="$3"
   
-  local image
-  image="$registryUrl/$imageName:$imageTag"
-  
-  echo "Pushing docker image: $image" >&2
-  docker push "$image"
-  
-  # push 'latest' tag
-  
-  if [ "$imageTag" != "latest" ]; then
-    local latestImage
-	latestImage="$registryUrl/$imageName:latest"
-	
-    docker tag  "$image" "$latestImage"
-    docker push "$latestImage"
-  fi
+  # push latest
+  local latestImage
+  latestImage="$registryUrl/$imageName:latest"
+  docker push "$latestImage"
 
-  # remove image from local image list
-  echo "Removing docker image from local docker image list." >&2
-  docker rmi "$image"
+  # push custom tag if specified
+  if [ -n "$imageTag" ] && [ "$imageTag" != "latest" ]; then
+    local taggedImage
+    taggedImage="$registryUrl/$imageName:$imageTag"
+	
+    docker tag  "$latestImage" "$taggedImage"
+    docker push "$taggedImage"
+	
+	# remove image from local image list
+    echo "Removing docker image from local docker image list." >&2
+    docker rmi "$taggedImage"
+  fi
 }
 
 
