@@ -261,7 +261,7 @@ Main() {
   serviceName=$(GetServiceName "$gitCloneLink")
   
   local kubernetesYaml
-  kubernetesYaml="$KUBERNETES_YAML_DIR/$serviceType/$repositorySlug.yml"
+  kubernetesYaml="$KUBERNETES_YAML_DIR/$(GetManifestPath "$gitCloneLink")"
   
   local dockerRegistryUrl=$(GetValueOfPlanVariable "DOCKER_REGISTRY")
   

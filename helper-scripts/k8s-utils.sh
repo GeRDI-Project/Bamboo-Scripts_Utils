@@ -71,6 +71,26 @@ GetServiceName() {
   echo "$repositorySlug-$projectName"
 }
 
+
+# Get the path to the manifest file for a specified git repository.
+#
+# Arguments:
+#  1 - a git clone link of the repository of which the service name is retrieved
+#
+GetManifestPath() {
+  local gitCloneLink="$1"
+  
+  local repositorySlug
+  repositorySlug=${gitCloneLink%.git}
+  repositorySlug=${repositorySlug##*/}
+
+  local serviceType
+  serviceType=$(GetServiceType "$gitCloneLink")
+  
+  echo "$serviceType/$repositorySlug.yml"
+}
+
+
 # Generates a report of occurences of each clusterIP that is found
 # in YAML files of a specified folder and sub-folders.
 #
