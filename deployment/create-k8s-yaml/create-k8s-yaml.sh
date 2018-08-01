@@ -32,7 +32,6 @@
 set -u
 
 # define global variables
-DOCKER_REGISTRY="docker-registry.gerdi.research.lrz.de:5043"
 KUBERNETES_REPOSITORY="https://code.gerdi-project.de/scm/sys/gerdireleases.git"
 KUBERNETES_YAML_DIR="gerdireleases"
 TEMPLATE_YAML="scripts/deployment/create-k8s-yaml/k8s_template.yml"
@@ -41,7 +40,6 @@ TEMPLATE_YAML="scripts/deployment/create-k8s-yaml/k8s_template.yml"
 source ./scripts/helper-scripts/atlassian-utils.sh
 source ./scripts/helper-scripts/bamboo-utils.sh
 source ./scripts/helper-scripts/git-utils.sh
-source ./scripts/helper-scripts/jira-utils.sh
 source ./scripts/helper-scripts/misc-utils.sh
 source ./scripts/helper-scripts/k8s-utils.sh
 
@@ -194,50 +192,6 @@ CreateClusterIp() {
 }
 
 
-# Retrieves the type of the service that is to be deployed.
-#
-# Arguments:
-#  1 - the identifier of the project in which the repository exists
-#
-GetServiceType() {
-  local projectId="$1"
-  
-  local projectName
-  projectName=$(curl -nsX GET https://code.gerdi-project.de/rest/api/latest/projects/$projectId/ \
-       | grep -oP "(?<=\"name\":\")[^\"]+" \
-       | tr '[:upper:]' '[:lower:]')
-     
-  local serviceType
-  if [ "$projectName" = "harvester" ]; then
-    serviceType="harvest"
-  else
-    echo "Cannot create YAML file for repositories of project $projectName ($projectId)! You have to adapt the create-k8s-yaml.sh in order to support these projects!">&2
-    exit 1
-  fi
-  
-  echo "$serviceType"
-}
-
-
-# Assembles the name of the service to be deployed.
-#
-# Arguments:
-#  1 - the slug of the repository of the deployed service
-#  2 - the identifier of the project in which the repository exists
-#
-GetServiceName() {
-  local repositorySlug="$1"
-  local projectId="$2"
-  
-  local projectName
-  projectName=$(curl -nsX GET https://code.gerdi-project.de/rest/api/latest/projects/$projectId/ \
-       | grep -oP "(?<=\"name\":\")[^\"]+" \
-       | tr '[:upper:]' '[:lower:]')
-	   
-  echo "$repositorySlug-$projectName"
-}
-
-
 # Checks out the Kubernetes deployment repository on a branch
 # that fits the current deployment environment.
 #
@@ -272,6 +226,8 @@ CheckoutKubernetesRepo() {
 # The main function to be executed in this script
 #
 Main() {
+  ExitIfPlanVariableIsMissing "DOCKER_REGISTRY"
+  
   local dockerImageTag="$1"
   if [ -z "$dockerImageTag" ]; then
     echo "You must pass the Docker image tag as first argument to the script!" >&2
@@ -285,33 +241,32 @@ Main() {
   local atlassianUserName
   atlassianUserName=$(GetBambooUserName)
   
+  local gitCloneLink="$bamboo_planRepository_1_repositoryUrl"
+  
   # get the slug of the repository of the deployed service
   local repositorySlug
-  repositorySlug=${bamboo_planRepository_1_repositoryUrl%.git}
+  repositorySlug=${gitCloneLink%.git}
   repositorySlug=${repositorySlug##*/}
   echo "Slug: '$repositorySlug'" >&2
 
-  # get the project key of the repository of the deployed service
-  local projectId
-  projectId=${bamboo_planRepository_1_repositoryUrl%/*}
-  projectId=${projectId##*/}
-
   # create a name for the deployed service
   local serviceType
-  serviceType=$(GetServiceType "$projectId")
+  serviceType=$(GetServiceType "$gitCloneLink")
   echo "ServiceType: '$serviceType'" >&2
 
   # check out the Kubernetes deployment repository
   CheckoutKubernetesRepo "$atlassianUserName"
   
   local serviceName
-  serviceName=$(GetServiceName "$repositorySlug" "$projectId")
+  serviceName=$(GetServiceName "$gitCloneLink")
   
   local kubernetesYaml
   kubernetesYaml="$KUBERNETES_YAML_DIR/$serviceType/$repositorySlug.yml"
   
+  local dockerRegistryUrl=$(GetValueOfPlanVariable "DOCKER_REGISTRY")
+  
   local dockerImageName
-  dockerImageName="$DOCKER_REGISTRY/$serviceType/$repositorySlug"
+  dockerImageName="$dockerRegistryUrl/$serviceType/$repositorySlug"
 
   if [ -e "$kubernetesYaml" ]; then
     echo "The file $kubernetesYaml already exists, changing docker image version..." >&2

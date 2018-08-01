@@ -754,6 +754,60 @@ GetBitBucketProjectName() {
 }
 
 
+# Retrieves a list of all relative file paths of files that have been added in a specified commit.
+# Renamed files are NOT listed.
+#
+# Arguments:
+#  1 - the path to the targeted local git directory 
+#  2 - the commit hash of the commit that possibly added new files
+#
+GetNewFilesOfCommit() {
+  local gitDir="$1"
+  local commitId="${2:0:7}"
+  
+  local diff
+  diff=$((cd "$gitDir" && git diff $commitId~ $commitId) \
+      || (cd "$gitDir" && git show $commitId))
+  echo "$diff" | tr '\n' '\t' | grep -oP '(?<=diff --git a/)([^\t]+)(?= b/\1\tnew file mode)'
+}
+
+
+# Retrieves a list of all relative file paths of files that have been changed in a specified commit.
+# Renamed files are listed with their new name.
+#
+# Arguments:
+#  1 - the path to the targeted local git directory 
+#  2 - the commit hash of the commit that possibly changed files
+#
+GetChangedFilesOfCommit() {
+  local gitDir="$1"
+  local commitId="${2:0:7}"
+  
+  local diff
+  diff=$((cd "$gitDir" && git diff $commitId~ $commitId) \
+      || (cd "$gitDir" && git show $commitId))
+  echo "$diff" | tr '\n' '\t' | grep -oP '(?<= b/)[^\t]+(?=\tindex )'
+}
+
+
+# Retrieves a list of all relative file paths of files that have been deleted in a specified commit.
+# Renamed files are NOT listed.
+#
+# Arguments:
+#  1 - the path to the targeted local git directory 
+#  2 - the commit hash of the commit that possibly deleted files
+#
+GetDeletedFilesOfCommit() {
+  local gitDir="$1"
+  local commitId="${2:0:7}"
+  
+  local diff
+  diff=$((cd "$gitDir" && git diff $commitId~ $commitId) \
+      || (cd "$gitDir" && git show $commitId))
+  echo "$diff" | tr '\n' '\t' | grep -oP '(?<=diff --git a/)([^\t]+)(?= b/\1\tdeleted file mode)'
+}
+
+
 # Adds read permission of a BitBucket repository to a specified user.
 #  Arguments:
 #  1 - a Bitbucket user name
