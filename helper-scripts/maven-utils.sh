@@ -21,10 +21,10 @@
 # and returns a relative path that will definitely point to a pom.xml.
 #
 # Arguments:
-#  1 - a file path to a pom.xml or a Maven project folder (optional)
+#  1 - a file path to a pom.xml or a Maven project folder (default: current folder)
 #
 GetPomXmlPath() {
-  local pomXmlPath="$1"
+  local pomXmlPath="${1-}"
   
   if [ -z "$pomXmlPath" ] || [ "$pomXmlPath" = "." ]; then
     pomXmlPath="pom.xml"
@@ -43,10 +43,10 @@ GetPomXmlPath() {
 # Exits with 1 if no -SNAPSHOT versions could be found.
 #
 # Arguments:
-#  1 - a file path to a pom.xml or a Maven project folder (optional)
+#  1 - a file path to a pom.xml or a Maven project folder (default: current folder)
 #
 HasSnapshotVersions() {
-  local pomXmlPath=$(GetPomXmlPath "$1")
+  local pomXmlPath=$(GetPomXmlPath "${1-}")
   
   if [ ! -f "$pomXmlPath" ]; then
     echo "Cannot check SNAPSHOT versions of '$pomXmlPath' because the path does not exist!" >&2
@@ -149,11 +149,11 @@ IsMavenVersionHigher() {
 # Returns a specified value of a pom.xml.
 #  Arguments:
 #  1 - the path to the tag of which the value is retrieved (e.g. project.version)
-#  2 - the path to the pom.xml (optional)
+#  2 - the path to the pom.xml (default: current folder)
 #
 GetPomValue() {
   local valueKey="$1"
-  local pomPath=$(GetPomXmlPath "$2")
+  local pomPath=$(GetPomXmlPath "${2-.}")
   
   # try to retrieve the value
   local retrievedValue
@@ -174,10 +174,10 @@ GetPomValue() {
 # If the pom.xml does not exist or does not compile with the new versions, this function fails.
 #
 # Arguments:
-#  1 - a file path to a pom.xml or a Maven project folder (optional)
+#  1 - a file path to a pom.xml or a Maven project folder (default: current folder)
 #
 UpdateMavenSnapshotToRelease() {
-  local pomXmlPath=$(GetPomXmlPath "$1")
+  local pomXmlPath=$(GetPomXmlPath "${1-.}")
   
   if [ ! -f "$pomXmlPath" ]; then
     echo "Cannot update '$pomXmlPath' because the path does not exist!" >&2

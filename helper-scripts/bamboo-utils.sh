@@ -458,7 +458,7 @@ GetDeployEnvironmentName() {
 # Fails with exit code 1 if the Bamboo user is not logged in.
 #
 ExitIfNotLoggedIn() {
-  if [ -z "$bamboo_ManualBuildTriggerReason_userName" ]; then
+  if [ -z "${bamboo_ManualBuildTriggerReason_userName-}" ]; then
     echo "You need to be logged in to run this job!" >&2
 	exit 1
   fi

@@ -21,7 +21,9 @@
 #
 # Arguments: -
 #
-# Bamboo Plan Variables: -
+# Bamboo Plan Variables:
+#  bamboo_planRepository_1_repositoryUrl 
+#    The ssh clone link to the first repository of the plan.
 
 
 # treat unset variables as an error when substituting

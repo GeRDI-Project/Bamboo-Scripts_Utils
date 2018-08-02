@@ -22,7 +22,10 @@
 # 1 - The URL of the Docker registry to which the image is pushed.
 # 2 - The name of the Docker image that is to be created.
 # 3 - The tag of the built Docker image.
-
+#
+# Bamboo Plan Variables:
+#  bamboo_planRepository_1_repositoryUrl 
+#    The ssh clone link to the first repository of the plan.
 
 # treat unset variables as an error when substituting, because the argument is optional
 set -u

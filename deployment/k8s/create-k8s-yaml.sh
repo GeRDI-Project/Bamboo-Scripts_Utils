@@ -21,11 +21,12 @@
 #
 # Arguments:
 #  1 - the new version (Docker tag) of the deployed service
-#  2 - the minimum viable IP address of the deployed service
-#  3 - the maximum viable IP address of the deployed service
+#  2 - the minimum viable IP address of the deployed service (default: 10)
+#  3 - the maximum viable IP address of the deployed service (default: 255)
 #
 # Bamboo Plan Variables:
-#  ManualBuildTriggerReason_userName - the login name of the current user
+#  bamboo_planRepository_1_repositoryUrl
+#    The ssh clone link to the first repository of the plan.
 
 
 # treat unset variables as an error when substituting
@@ -234,8 +235,8 @@ Main() {
 	exit 1
   fi
   
-  local minimumClusterIP="$2"
-  local maximumClusterIP="$3"
+  local minimumClusterIP="${2-10}"
+  local maximumClusterIP="${3-255}"
 
   # get name of the user that ultimately triggered the deployment
   local atlassianUserName

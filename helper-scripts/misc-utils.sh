@@ -26,8 +26,8 @@
 #
 IsUrlReachable() {
   local url="$1"
-  local userName="$2"
-  local password="$3"
+  local userName="${2-}"
+  local password="${3-}"
 
   local httpCode
   httpCode=$(GetHeadHttpCode "$url" "$userName" "$password")
@@ -64,8 +64,7 @@ IsMajorVersionDifferent() {
 # 2 - a version of the schema 'major.minor.bugfix'
 #
 IncrementVersion() {
-
-  local versionType=$1
+  local versionType="$1"
 
   local majorVersion=${2%%.*}
   local minorVersion=${2%.*}
@@ -102,8 +101,8 @@ IncrementVersion() {
 #
 GetHeadHttpCode() {
   local url="$1"
-  local userName="$2"
-  local password="$3"
+  local userName="${2-}"
+  local password="${3-}"
   
   local response
   if [ -n "$userName" ]; then
@@ -245,11 +244,11 @@ ProcessListOfProjectsAndRepositories() {
 
 # This function fails with exit code 1, if the preceding operation did not exit with exit code 0.
 #  Arguments:
-#  1 - An optional error message that is printed only when the preceding operation failed
+#  1 - An error message that is printed only when the preceding operation failed (optional)
 #
 ExitIfLastOperationFailed() {
   local lastOpReturnCode=$?
-  local errorMessage="$1"
+  local errorMessage="${1-}"
   
   if [ $lastOpReturnCode -ne 0 ]; then
     if [ -n "$errorMessage" ]; then

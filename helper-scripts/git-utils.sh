@@ -20,10 +20,10 @@
 # Returns the repository slug of a Git repository.
 # The slug is a HTTP encoded identifier of a repository.
 #  Arguments:
-#  1 - a link to the repository
+#  1 - a link to the repository (default: the first repository of the bamboo plan)
 #
 GetRepositorySlugFromCloneLink() {
-  local cloneLink="$1"
+  local cloneLink="${1-$bamboo_planRepository_1_repositoryUrl}"
   
   local repositorySlug
   repositorySlug=${cloneLink##*/}
@@ -35,10 +35,10 @@ GetRepositorySlugFromCloneLink() {
 
 # Returns the project identifier of a Git repository.
 #  Arguments:
-#  1 - a link to the repository
+#  1 - a link to the repository (default: the first repository of the bamboo plan)
 #
 GetProjectIdFromCloneLink() {
-  local cloneLink="$1"
+  local cloneLink="${1-$bamboo_planRepository_1_repositoryUrl}"
   
   local projectId
   projectId=${cloneLink%/*}
@@ -758,12 +758,12 @@ GetBitBucketProjectName() {
 # Renamed files are NOT listed.
 #
 # Arguments:
-#  1 - the path to the targeted local git directory 
-#  2 - the commit hash of the commit that possibly added new files
+#  1 - the commit hash of the commit that possibly added new files
+#  2 - the path to the targeted local git directory (default: current directory)
 #
 GetNewFilesOfCommit() {
-  local gitDir="$1"
-  local commitId="${2:0:7}"
+  local commitId="${1:0:7}"
+  local gitDir="${2-.}"
   
   local diff
   diff=$((cd "$gitDir" && git diff $commitId~ $commitId) \
@@ -776,12 +776,12 @@ GetNewFilesOfCommit() {
 # Renamed files are listed with their new name.
 #
 # Arguments:
-#  1 - the path to the targeted local git directory 
-#  2 - the commit hash of the commit that possibly changed files
+#  1 - the commit hash of the commit that possibly changed files
+#  2 - the path to the targeted local git directory (default: current directory)
 #
 GetChangedFilesOfCommit() {
-  local gitDir="$1"
-  local commitId="${2:0:7}"
+  local commitId="${1:0:7}"
+  local gitDir="${2-.}"
   
   local diff
   diff=$((cd "$gitDir" && git diff $commitId~ $commitId) \
@@ -794,12 +794,12 @@ GetChangedFilesOfCommit() {
 # Renamed files are NOT listed.
 #
 # Arguments:
-#  1 - the path to the targeted local git directory 
-#  2 - the commit hash of the commit that possibly deleted files
+#  1 - the commit hash of the commit that possibly deleted files
+#  2 - the path to the targeted local git directory (default: current directory)
 #
 GetDeletedFilesOfCommit() {
-  local gitDir="$1"
-  local commitId="${2:0:7}"
+  local commitId="${1:0:7}"
+  local gitDir="${2-.}"
   
   local diff
   diff=$((cd "$gitDir" && git diff $commitId~ $commitId) \
