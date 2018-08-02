@@ -34,7 +34,7 @@ set -u
 # define global variables
 KUBERNETES_REPOSITORY="https://code.gerdi-project.de/scm/sys/gerdireleases.git"
 KUBERNETES_YAML_DIR="gerdireleases"
-TEMPLATE_YAML="scripts/deployment/create-k8s-yaml/k8s_template.yml"
+TEMPLATE_YAML="scripts/deployment/k8s/k8s_template.yml"
 
 # load helper scripts
 source ./scripts/helper-scripts/atlassian-utils.sh
@@ -240,6 +240,7 @@ Main() {
   # get name of the user that ultimately triggered the deployment
   local atlassianUserName
   atlassianUserName=$(GetBambooUserName)
+  echo "User: '$atlassianUserName'" >&2
   
   local gitCloneLink="$bamboo_planRepository_1_repositoryUrl"
   

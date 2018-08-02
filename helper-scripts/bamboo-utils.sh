@@ -30,7 +30,17 @@ GetValueOfPlanVariable() {
 # Returns the user name of the one who has triggered this Bamboo job.
 #
 GetBambooUserName() {
-  echo "$bamboo_ManualBuildTriggerReason_userName"
+  local userName=${bamboo_ManualBuildTriggerReason_userName-}
+  
+  if [ -z "$userName" ]; then
+    userName=${bamboo_inject_trigger_user-}
+  fi
+  
+  if [ -z "$userName" ]; then
+    echo "Could not retrieve the Bamboo user name!" >&2
+    exit 1
+  fi
+  echo "$userName"
 }
 
 
