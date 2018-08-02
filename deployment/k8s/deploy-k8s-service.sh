@@ -51,7 +51,7 @@ DeployK8sService()
   echo "Deleting old deployment for $kubernetesYaml" >&2
   kubectl delete --ignore-not-found -f "$kubernetesYaml"
   
-  echo "Waiting for old deployment $update to terminate" >&2
+  echo "Waiting for old deployment $kubernetesYaml to terminate" >&2
   WaitForDeletion "$kubernetesYaml"
   
   echo "Creating new deployment for $kubernetesYaml" >&2
