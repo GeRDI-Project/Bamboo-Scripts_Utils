@@ -18,7 +18,7 @@
 # projects to Sonatype or Maven Central.
 #
 # Arguments:
-#  1 - the path to the pom.xml that is to be deployed
+#  1 - the path to the pom.xml that is to be deployed (default: current directory)
 
 
 # treat unset variables as an error when substituting
@@ -81,7 +81,7 @@ Main() {
   ExitIfDeployEnvironmentDoesNotMatchBranch
  
   # exit if not a maven project
-  local pomXmlPath=$(GetPomXmlPath "$1")
+  local pomXmlPath=$(GetPomXmlPath "${1-.}")
   if [ ! -f "$pomXmlPath" ]; then
     echo "Cannot deploy Maven project at '$pomXmlPath' because the path does not exist!" >&2
     exit 1

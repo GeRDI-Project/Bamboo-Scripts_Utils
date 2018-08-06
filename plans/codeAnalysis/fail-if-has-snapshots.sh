@@ -19,10 +19,14 @@
 #
 # Arguments:
 #  1 - the path to the pom.xml that is to be deployed (optional)
+#
+# Bamboo Plan Variables:
+#  bamboo_planRepository_1_branchName 
+#    The name of the repository branch of the plan
 
 
-# do not treat unset variables as an error when substituting, because the argument is optional
-# set -u
+# treat unset variables as an error when substituting
+set -u
 
 # load helper scripts
 source ./scripts/helper-scripts/maven-utils.sh
@@ -35,7 +39,7 @@ source ./scripts/helper-scripts/maven-utils.sh
 # The main function that is called by this script.
 #
 Main() {
-  local pomXmlPath=$(GetPomXmlPath "$1")
+  local pomXmlPath=$(GetPomXmlPath "${1-.}")
   
   local currentBranch
   currentBranch="$bamboo_planRepository_1_branchName"

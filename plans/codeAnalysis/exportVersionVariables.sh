@@ -136,6 +136,9 @@ It must match the "Inject Bamboo variables" task which is to be executed after t
 
   rm -f "$exportFilePath"
   
+  # export the trigger user name, because it is not carried over to auto-triggered deployment jobs
+  echo -e "trigger.user=${bamboo_ManualBuildTriggerReason_userName-bamboo-agent}"  >> "$exportFilePath"
+  
   local mavenVersion
   mavenVersion="$(GetMavenVersion "$pomFilePath")"
   if [ -n "$mavenVersion" ]; then

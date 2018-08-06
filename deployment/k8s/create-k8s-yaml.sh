@@ -21,11 +21,12 @@
 #
 # Arguments:
 #  1 - the new version (Docker tag) of the deployed service
-#  2 - the minimum viable IP address of the deployed service
-#  3 - the maximum viable IP address of the deployed service
+#  2 - the minimum viable IP address of the deployed service (default: 10)
+#  3 - the maximum viable IP address of the deployed service (default: 255)
 #
 # Bamboo Plan Variables:
-#  ManualBuildTriggerReason_userName - the login name of the current user
+#  bamboo_planRepository_1_repositoryUrl
+#    The ssh clone link to the first repository of the plan.
 
 
 # treat unset variables as an error when substituting
@@ -34,7 +35,7 @@ set -u
 # define global variables
 KUBERNETES_REPOSITORY="https://code.gerdi-project.de/scm/sys/gerdireleases.git"
 KUBERNETES_YAML_DIR="gerdireleases"
-TEMPLATE_YAML="scripts/deployment/create-k8s-yaml/k8s_template.yml"
+TEMPLATE_YAML="scripts/deployment/k8s/k8s_template.yml"
 
 # load helper scripts
 source ./scripts/helper-scripts/atlassian-utils.sh
@@ -234,12 +235,13 @@ Main() {
 	exit 1
   fi
   
-  local minimumClusterIP="$2"
-  local maximumClusterIP="$3"
+  local minimumClusterIP="${2-10}"
+  local maximumClusterIP="${3-255}"
 
   # get name of the user that ultimately triggered the deployment
   local atlassianUserName
   atlassianUserName=$(GetBambooUserName)
+  echo "User: '$atlassianUserName'" >&2
   
   local gitCloneLink="$bamboo_planRepository_1_repositoryUrl"
   
@@ -261,7 +263,7 @@ Main() {
   serviceName=$(GetServiceName "$gitCloneLink")
   
   local kubernetesYaml
-  kubernetesYaml="$KUBERNETES_YAML_DIR/$serviceType/$repositorySlug.yml"
+  kubernetesYaml="$KUBERNETES_YAML_DIR/$(GetManifestPath "$gitCloneLink")"
   
   local dockerRegistryUrl=$(GetValueOfPlanVariable "DOCKER_REGISTRY")
   

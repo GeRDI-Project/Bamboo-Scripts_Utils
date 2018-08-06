@@ -22,9 +22,10 @@
 #
 # Arguments:
 #  1 - a git clone link of the repository of which the service type is retrieved
+#      (default: the first repository of the bamboo plan)
 #
 GetServiceType() {
-  local gitCloneLink="$1"
+  local gitCloneLink="${1-$bamboo_planRepository_1_repositoryUrl}"
   
   local projectId
   projectId=${gitCloneLink%/*}
@@ -51,9 +52,10 @@ GetServiceType() {
 #
 # Arguments:
 #  1 - a git clone link of the repository of which the service name is retrieved
+#      (default: the first repository of the bamboo plan)
 #
 GetServiceName() {
-  local gitCloneLink="$1"
+  local gitCloneLink="${1-$bamboo_planRepository_1_repositoryUrl}"
   
   local projectId
   projectId=${gitCloneLink%/*}
@@ -71,16 +73,37 @@ GetServiceName() {
   echo "$repositorySlug-$projectName"
 }
 
+
+# Get the path to the manifest file for a specified git repository.
+#
+# Arguments:
+#  1 - a git clone link of the repository of which the service name is retrieved
+#      (default: the first repository of the bamboo plan)
+#
+GetManifestPath() {
+  local gitCloneLink="${1-$bamboo_planRepository_1_repositoryUrl}"
+  
+  local repositorySlug
+  repositorySlug=${gitCloneLink%.git}
+  repositorySlug=${repositorySlug##*/}
+
+  local serviceType
+  serviceType=$(GetServiceType "$gitCloneLink")
+  
+  echo "$serviceType/$repositorySlug.yml"
+}
+
+
 # Generates a report of occurences of each clusterIP that is found
 # in YAML files of a specified folder and sub-folders.
 #
 # Arguments:
-#  1 - the root directory in which YAML files are being searched
+#  1 - the root directory in which YAML files are being searched (default: current directory)
 #
 # Exit: 0, if there are duplicate clusterIDs
 #
 CheckDuplicateClusterIps() {
-  local serviceFolder="$1"
+  local serviceFolder="${1-.}"
   
   local ipList
   ipList=$(GetClusterIpList "$serviceFolder")
@@ -111,8 +134,8 @@ CheckDuplicateClusterIps() {
 # Arguments:
 #  1 - the root directory in which YAML files are being searched
 #  2 - the first three IP segments (e.g. "192.168.0.")
-#  3 - the lowest viable fourth IP segment
-#  4 - the highest viable fourth IP segment
+#  3 - the lowest viable fourth IP segment (default: 0)
+#  4 - the highest viable fourth IP segment (default: 255)
 #
 # Return:
 #  a free clusterIP within the specified range
@@ -120,8 +143,8 @@ CheckDuplicateClusterIps() {
 GetFreeClusterIp() {
   local serviceFolder="$1"
   local ipPrefix="$2"
-  local rangeFrom="$3"
-  local rangeTo="$4"
+  local rangeFrom="${3-0}"
+  local rangeTo="${4-255}"
   
   local ipList
   ipList=$(GetClusterIpList "$serviceFolder")
@@ -146,12 +169,29 @@ GetFreeClusterIp() {
 # specified folder.
 #
 # Arguments:
-#  1 - the root directory in which YAML files are being searched
+#  1 - the root directory in which YAML files are being searched (default: current directory)
 #
 # Return:
 #  a space-separated list of clusterIPs
 #
 GetClusterIpList() {
-  local serviceFolder="$1"
+  local serviceFolder="${1-.}"
   grep -rhoP "(?<=clusterIP:\s)[0-9.]+" "$serviceFolder"
+}
+
+
+# Undeploys a service using a specified YAML and waits for until the service is no longer running.
+#
+# Arguments:
+#  1 - the path to the service manifest file
+#
+UndeployServiceByManifest() {
+  local kubernetesYaml="$1"
+  
+  echo "Deleting old deployment for $kubernetesYaml" >&2
+  kubectl delete --ignore-not-found -f "$kubernetesYaml"
+  
+  until $(! kubectl get -f "$kubernetesYaml"); do
+    sleep 3
+  done
 }
