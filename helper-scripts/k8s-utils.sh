@@ -178,3 +178,20 @@ GetClusterIpList() {
   local serviceFolder="${1-.}"
   grep -rhoP "(?<=clusterIP:\s)[0-9.]+" "$serviceFolder"
 }
+
+
+# Undeploys a service using a specified YAML and waits for until the service is no longer running.
+#
+# Arguments:
+#  1 - the path to the service manifest file
+#
+UndeployServiceByManifest() {
+  local kubernetesYaml="$1"
+  
+  echo "Deleting old deployment for $kubernetesYaml" >&2
+  kubectl delete --ignore-not-found -f "$kubernetesYaml"
+  
+  until $(! kubectl get -f "$kubernetesYaml"); do
+    sleep 3
+  done
+}

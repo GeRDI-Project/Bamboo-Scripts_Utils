@@ -40,41 +40,6 @@ source ./scripts/helper-scripts/k8s-utils.sh
 #  FUNCTION DEFINITIONS #
 #########################
 
-# Deploys the service to the Kubernetes cluster.
-# If the service was running before, it is shut down.
-#
-# Arguments:
-#  1 - the path to the service manifest file
-#
-DeployK8sService()
-{
-  local kubernetesYaml="$1"
-  
-  echo "Deleting old deployment for $kubernetesYaml" >&2
-  kubectl delete --ignore-not-found -f "$kubernetesYaml"
-  
-  echo "Waiting for old deployment $kubernetesYaml to terminate" >&2
-  WaitForDeletion "$kubernetesYaml"
-  
-  echo "Creating new deployment for $kubernetesYaml" >&2
-  kubectl apply -f "$kubernetesYaml"
-}
-
-
-# Waits for until a service is no longer running.
-#
-# Arguments:
-#  1 - the path to the service manifest file
-#
-WaitForDeletion() {
-  local kubernetesYaml="$1"
-  
-  until $(! kubectl get -f "$kubernetesYaml"); do
-    sleep 3
-  done
-}
-
-
 # The main function to be executed in this script.
 #
 Main() {  
@@ -83,7 +48,8 @@ Main() {
   local kubernetesYaml
   kubernetesYaml="$KUBERNETES_YAML_DIR/$(GetManifestPath "$gitCloneLink")"
   
-  DeployK8sService "$kubernetesYaml"
+  echo "Creating new deployment for $kubernetesYaml" >&2
+  kubectl apply -f "$kubernetesYaml"
 }
 
 
