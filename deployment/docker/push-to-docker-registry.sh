@@ -75,21 +75,23 @@ DockerPush() {
 # Builds a Docker image.
 #
 # Arguments:
-#  1 - the Docker Registry URL
-#  2 - the name of the Docker image to be built, excluding any tags
-#  3 - the tag of the Docker image to be built
+#  1 - the folder where the docker file is stored
+#  2 - the Docker Registry URL
+#  3 - the name of the Docker image to be built, excluding any tags
+#  4 - the tag of the Docker image to be built
 #
 DockerBuild() {
-  local registryUrl="$1"
-  local imageName="$2"
-  local imageTag="$3"
+  local dockerFileFolder="$1"
+  local registryUrl="$2"
+  local imageName="$3"
+  local imageTag="$4"
   
   local image
   image="$registryUrl/$imageName:$imageTag"
 
   # build image
   echo "Building docker image $image." >&2
-  docker build -t "$image" .
+  docker build -t "$image" "$dockerFileFolder"
 }
 
 
@@ -136,11 +138,12 @@ Main() {
 	exit 1
   fi
   
+  local dockerFileFolder="${2-.}"
   local dockerRegistryUrl=$(GetValueOfPlanVariable "DOCKER_REGISTRY")
   local dockerImageName=$(GetDockerImageName)
   
   AllowWarFileAccess
-  DockerBuild "$dockerRegistryUrl" "$dockerImageName" "$dockerImageTag"
+  DockerBuild "$dockerFileFolder" "$dockerRegistryUrl" "$dockerImageName" "$dockerImageTag"
   DockerPush "$dockerRegistryUrl" "$dockerImageName" "$dockerImageTag"
 }
 
