@@ -595,7 +595,7 @@ MergeAllPullRequestsWithTitle() {
   | head -n -1)
   
   if [ -z "$argumentsList" ]; then
-    echo "No pull-requests with title '$title' to approve!" >&2
+    echo "No pull-requests with title '$title' to merge!" >&2
   else
     # merge all matching pull-requests
     echo "Merging all Pull-requests with title: $title" >&2

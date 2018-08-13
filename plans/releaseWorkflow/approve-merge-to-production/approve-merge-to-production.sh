@@ -55,6 +55,8 @@ AddMissingReleaseTags() {
   local missingTagMessage="Nothing was added in release $bamboo_PRODUCTION_VERSION!"
   local repositoryArguments="'$userName' '$password' '$bamboo_PRODUCTION_VERSION' '$missingTagMessage'"
   
+  echo "Adding missing release tags..." >&2
+  
   if [ -n "$unchangedRepositories" ]; then
     ProcessListOfProjectsAndRepositories \
       "$userName" \
@@ -62,6 +64,8 @@ AddMissingReleaseTags() {
       "$unchangedRepositories" \
       "AddTagToRepositoryIfMissing" \
       "$repositoryArguments"
+  else
+    echo "Nothing to tag!" >&2
   fi
 }
 
@@ -124,6 +128,8 @@ GetUnchangedRepositories() {
       "AddToUnchangedRepositories" \
       "'$reposWithPullRequests'"   
     cat tempFile.txt
+  else
+    echo "$bamboo_RELEASED_REPOSITORIES"
   fi
 }
 
@@ -172,7 +178,6 @@ Main() {
   echo $(MergeAllPullRequestsWithTitle "$atlassianUserName" "$atlassianPassword" "$title") >&2
   
   # add missing tags
-  echo "Adding missing release tags..." >&2
   echo $(AddMissingReleaseTags "$atlassianUserName" "$atlassianPassword" "$unchangedRepositories") >&2
 }
 
