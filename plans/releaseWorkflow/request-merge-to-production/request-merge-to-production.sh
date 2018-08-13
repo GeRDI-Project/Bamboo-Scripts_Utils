@@ -52,7 +52,8 @@ ChangeGlobalReleaseVariable() {
     stagingVersion="0.0.0"
   fi
 
-  if $(SetGlobalVariable "PRODUCTION_VERSION" "$stagingVersion" "$userName" "$password"); then
+  SetGlobalVariable "PRODUCTION_VERSION" "$stagingVersion" "$userName" "$password" >&2
+  if [ $? -eq 0 ]; then
     echo "Set PRODUCTION_VERSION to $stagingVersion!" >&2
   fi
   
@@ -74,6 +75,7 @@ Main() {
   # test Atlassian credentials
   ExitIfAtlassianCredentialsWrong "$atlassianUserName" "$atlassianPassword"
   
+  local nextReleaseVersion
   nextReleaseVersion=$(ChangeGlobalReleaseVariable "$atlassianUserName" "$atlassianPassword")
   
   local title
