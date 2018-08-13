@@ -55,12 +55,14 @@ AddMissingReleaseTags() {
   local missingTagMessage="Nothing was added in release $bamboo_PRODUCTION_VERSION!"
   local repositoryArguments="'$userName' '$password' '$bamboo_PRODUCTION_VERSION' '$missingTagMessage'"
   
-  ProcessListOfProjectsAndRepositories \
-    "$userName" \
-    "$password" \
-    "$unchangedRepositories" \
-    "AddTagToRepositoryIfMissing" \
-    "$repositoryArguments"
+  if [ -n "$unchangedRepositories" ]; then
+    ProcessListOfProjectsAndRepositories \
+      "$userName" \
+      "$password" \
+      "$unchangedRepositories" \
+      "AddTagToRepositoryIfMissing" \
+      "$repositoryArguments"
+  fi
 }
 
 
@@ -88,7 +90,7 @@ AddTagToRepositoryIfMissing() {
   slug=$(GetRepositorySlugFromCloneLink "$cloneLink")
   
   if ! $(HasBitbucketTag "$userName" "$password" "$projectId" "$slug" "$tagName"); then
-    AddBitbucketTag "$userName" "$password" "$projectId" "$slug" "production" "$tagName" "$tagMessage"
+    echo $(AddBitbucketTag "$userName" "$password" "$projectId" "$slug" "production" "$tagName" "$tagMessage") >&2
   fi
 }
 
@@ -111,19 +113,18 @@ GetUnchangedRepositories() {
     | perl -pe 's~.*?{"id":\d+,"version":\d+?,"title":"[^"]*?'"$title"'[^"]*?",.*?"toRef":.*?"href":"ssh:[^"]+?/([^/]+?)/([^/]+?)\.git"~'"\1 \2\n"'~gi' \
     | head -n -1)
   
-  echo "$reposWithPullRequests"
-  
-  # create temporary file to store the list of repositories
-  rm -f tempFile.txt
-  touch tempFile.txt
-  ProcessListOfProjectsAndRepositories \
-    "$userName" \
-    "$password" \
-    "$bamboo_RELEASED_REPOSITORIES" \
-    "AddToUnchangedRepositories" \
-    "'$reposWithPullRequests'"
-    
-  cat tempFile.txt
+  if [ -n "$reposWithPullRequests" ]; then
+    # create temporary file to store the list of repositories
+    rm -f tempFile.txt
+    touch tempFile.txt
+    ProcessListOfProjectsAndRepositories \
+      "$userName" \
+      "$password" \
+      "$bamboo_RELEASED_REPOSITORIES" \
+      "AddToUnchangedRepositories" \
+      "'$reposWithPullRequests'"   
+    cat tempFile.txt
+  fi
 }
 
 
