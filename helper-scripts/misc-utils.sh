@@ -200,7 +200,7 @@ ProcessRepositoriesOfProject() {
   # execute update of all repositories
   while read cloneLink
   do 
-    $(eval "$repoFunctionName" "'$cloneLink' $repoFunctionArguments")
+    eval "$repoFunctionName" "'$cloneLink' $repoFunctionArguments" >&2
   done <<< "$(echo -e "$repoUrls")"
 }
 
@@ -229,10 +229,10 @@ ProcessListOfProjectsAndRepositories() {
   while read projectOrCloneLink
   do 
     if $(IsProject "$projectOrCloneLink" "$userName" "$password"); then
-      $(ProcessRepositoriesOfProject "$userName" "$password" "$projectOrCloneLink" "$repoFunctionName" "$repoFunctionArguments")
+      ProcessRepositoriesOfProject "$userName" "$password" "$projectOrCloneLink" "$repoFunctionName" "$repoFunctionArguments" >&2
 	
     elif $(IsCloneLink "$projectOrCloneLink" "$userName" "$password"); then
-      $(eval "$repoFunctionName" "'$projectOrCloneLink' $repoFunctionArguments")
+      eval "$repoFunctionName" "'$projectOrCloneLink' $repoFunctionArguments" >&2
 
     else
       echo "Argument '$projectOrCloneLink' is neither a valid git clone link, nor a BitBucket project!" >&2

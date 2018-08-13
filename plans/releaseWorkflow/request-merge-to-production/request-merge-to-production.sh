@@ -54,7 +54,7 @@ ChangeGlobalReleaseVariable() {
 
   SetGlobalVariable "PRODUCTION_VERSION" "$stagingVersion" "$userName" "$password" >&2
   if [ $? -eq 0 ]; then
-    echo "Set PRODUCTION_VERSION to $stagingVersion!" >&2
+    echo -e "\nSet PRODUCTION_VERSION to $stagingVersion!" >&2
   fi
   
   echo "$stagingVersion"  
