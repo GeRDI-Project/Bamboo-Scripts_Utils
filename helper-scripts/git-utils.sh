@@ -414,7 +414,7 @@ CreatePullRequest() {
             null
         ]
     }
-  }' https://code.gerdi-project.de/rest/api/latest/projects/$project/repos/$repositorySlug/pull-requests
+  }' "https://code.gerdi-project.de/rest/api/latest/projects/$project/repos/$repositorySlug/pull-requests"
 }
 
 
@@ -594,11 +594,16 @@ MergeAllPullRequestsWithTitle() {
   | perl -pe 's~.*?{"id":(\d+),"version":(\d+)?,"title":"[^"]*?'"$title"'[^"]*?",.*?"toRef":.*?"slug":"(.+?)",.*?"project":\{"key":"(\w+?)"~'"'\4' '\3' '\1' '\2'\n"'~gi' \
   | head -n -1)
   
-  # merge all matching pull-requests
-  while read arguments
-  do    
-    $(eval MergePullRequest "'$userName' '$password' $arguments")
-  done <<< "$(echo -e "$argumentsList")"
+  if [ -z "$argumentsList" ]; then
+    echo "No pull-requests with title '$title' to merge!" >&2
+  else
+    # merge all matching pull-requests
+    echo "Merging all Pull-requests with title: $title" >&2
+    while read arguments
+    do    
+      echo $(eval MergePullRequest "'$userName' '$password' $arguments") >&2
+    done <<< "$(echo -e "$argumentsList")"
+  fi
 }
 
 
@@ -661,17 +666,23 @@ ApproveAllPullRequestsWithTitle() {
 
   local myOpenPullRequests
   myOpenPullRequests=$(curl -sX GET -u "$userName:$password" "https://code.gerdi-project.de/rest/api/1.0/dashboard/pull-requests?state=open&role=REVIEWER&participantStatus=UNAPPROVED")
-
+  
   local argumentsList  
   argumentsList=$(echo "$myOpenPullRequests" \
-  | perl -pe 's~.*?{"id":(\d+),"version":\d+?,"title":"[^"]*?'"$title"'[^"]*?",.*?"toRef":.*?"slug":"(.+?)",.*?"project":\{"key":"(\w+?)"~'"'\3' '\2' '\1'\n"'~gi' \
-  | head -n -1)
+    | perl -pe 's~.*?{"id":(\d+),"version":\d+?,"title":"[^"]*?'"$title"'[^"]*?",.*?"toRef":.*?"slug":"(.+?)",.*?"project":\{"key":"(\w+?)"~'"'\3' '\2' '\1'\n"'~gi' \
+    | head -n -1)
   
-  # approve all matching pull-requests
-  while read arguments
-  do
-    $(eval ApprovePullRequest "'$userName' '$password' $arguments")
-  done <<< "$(echo -e "$argumentsList")"
+  if [ -z "$argumentsList" ]; then
+    echo "No pull-requests with title '$title' to approve!" >&2
+	exit 0
+  else
+    # approve all matching pull-requests
+    echo "Approving all Pull-requests with title: $title" >&2
+    while read arguments
+    do
+      echo $(eval ApprovePullRequest "'$userName' '$password' $arguments") >&2
+    done <<< "$(echo -e "$argumentsList")"
+  fi
 }
 
 

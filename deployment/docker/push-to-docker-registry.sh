@@ -56,18 +56,20 @@ DockerPush() {
   local latestImage
   latestImage="$registryUrl/$imageName:latest"
   docker push "$latestImage"
+  
+  # remove image from local image list
+  echo "Removing docker image from local docker image list." >&2
+  echo $(docker rmi "$latestImage") >&2
 
   # push custom tag if specified
   if [ -n "$imageTag" ] && [ "$imageTag" != "latest" ]; then
     local taggedImage
     taggedImage="$registryUrl/$imageName:$imageTag"
-	
-    docker tag  "$latestImage" "$taggedImage"
     docker push "$taggedImage"
 	
 	# remove image from local image list
     echo "Removing docker image from local docker image list." >&2
-    docker rmi "$taggedImage"
+    echo $(docker rmi "$taggedImage") >&2
   fi
 }
 
@@ -90,8 +92,16 @@ DockerBuild() {
   image="$registryUrl/$imageName:$imageTag"
 
   # build image
-  echo "Building docker image $image." >&2
-  docker build -t "$image" "$dockerFileFolder"
+  echo "Building docker image: $image" >&2
+  
+  if [ -z "$imageTag" ] || [ "$imageTag" = "latest" ]; then
+    docker build -t "$registryUrl/$imageName:latest" \
+	             "$dockerFileFolder"
+  else
+    docker build -t "$registryUrl/$imageName:latest" \
+	             -t "$image" \
+				 "$dockerFileFolder"
+  fi
 }
 
 
@@ -101,12 +111,14 @@ DockerBuild() {
 # Arguments: -
 #
 AllowWarFileAccess() {
-  local warFile
-  warFile=$(ls -cB "target/"*.war | head -1)
+  if [ -d target ]; then
+    local warFile
+    warFile=$(ls -cB "target/"*.war | head -1)
   
-  if [ -n "$warFile" ]; then
-    stat -c "%a" $warFile
-    chmod o+rw $warFile
+    if [ -n "$warFile" ]; then
+      stat -c "%a" $warFile
+      chmod o+rw $warFile
+    fi
   fi
 }
 

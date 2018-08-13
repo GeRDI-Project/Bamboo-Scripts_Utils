@@ -33,6 +33,7 @@ set -u
 source ./scripts/helper-scripts/atlassian-utils.sh
 source ./scripts/helper-scripts/bamboo-utils.sh
 source ./scripts/helper-scripts/misc-utils.sh
+source ./scripts/helper-scripts/git-utils.sh
 
 #########################
 #  FUNCTION DEFINITIONS #
@@ -54,12 +55,18 @@ AddMissingReleaseTags() {
   local missingTagMessage="Nothing was added in release $bamboo_PRODUCTION_VERSION!"
   local repositoryArguments="'$userName' '$password' '$bamboo_PRODUCTION_VERSION' '$missingTagMessage'"
   
-  ProcessListOfProjectsAndRepositories \
-    "$userName" \
-    "$password" \
-    "$unchangedRepositories" \
-    "AddTagToRepositoryIfMissing" \
-    "$repositoryArguments"
+  echo "Adding missing release tags..." >&2
+  
+  if [ -n "$unchangedRepositories" ]; then
+    ProcessListOfProjectsAndRepositories \
+      "$userName" \
+      "$password" \
+      "$unchangedRepositories" \
+      "AddTagToRepositoryIfMissing" \
+      "$repositoryArguments"
+  else
+    echo "Nothing to tag!" >&2
+  fi
 }
 
 
@@ -87,7 +94,7 @@ AddTagToRepositoryIfMissing() {
   slug=$(GetRepositorySlugFromCloneLink "$cloneLink")
   
   if ! $(HasBitbucketTag "$userName" "$password" "$projectId" "$slug" "$tagName"); then
-    AddBitbucketTag "$userName" "$password" "$projectId" "$slug" "production" "$tagName" "$tagMessage"
+    echo $(AddBitbucketTag "$userName" "$password" "$projectId" "$slug" "production" "$tagName" "$tagMessage") >&2
   fi
 }
 
@@ -110,19 +117,20 @@ GetUnchangedRepositories() {
     | perl -pe 's~.*?{"id":\d+,"version":\d+?,"title":"[^"]*?'"$title"'[^"]*?",.*?"toRef":.*?"href":"ssh:[^"]+?/([^/]+?)/([^/]+?)\.git"~'"\1 \2\n"'~gi' \
     | head -n -1)
   
-  echo "$reposWithPullRequests"
-  
-  # create temporary file to store the list of repositories
-  rm -f tempFile.txt
-  touch tempFile.txt
-  ProcessListOfProjectsAndRepositories \
-    "$userName" \
-    "$password" \
-    "$bamboo_RELEASED_REPOSITORIES" \
-    "AddToUnchangedRepositories" \
-    "'$reposWithPullRequests'"
-    
-  cat tempFile.txt
+  if [ -n "$reposWithPullRequests" ]; then
+    # create temporary file to store the list of repositories
+    rm -f tempFile.txt
+    touch tempFile.txt
+    ProcessListOfProjectsAndRepositories \
+      "$userName" \
+      "$password" \
+      "$bamboo_RELEASED_REPOSITORIES" \
+      "AddToUnchangedRepositories" \
+      "'$reposWithPullRequests'"   
+    cat tempFile.txt
+  else
+    echo "$bamboo_RELEASED_REPOSITORIES"
+  fi
 }
 
 
@@ -160,17 +168,17 @@ Main() {
   local atlassianUserName=$(GetBambooUserName)
   local atlassianPassword=$(GetValueOfPlanVariable "atlassianPassword")
   
-  local title = "Merge to Production $bamboo_PRODUCTION_VERSION"
+  local title="Merge to Production $bamboo_PRODUCTION_VERSION"
   local unchangedRepositories=$(GetUnchangedRepositories "$atlassianUserName" "$atlassianPassword" "$title")
 
   # approve all pull-requests
-  ApproveAllPullRequestsWithTitle "$atlassianUserName" "$atlassianPassword" "$title"
+  echo $(ApproveAllPullRequestsWithTitle "$atlassianUserName" "$atlassianPassword" "$title") >&2
   
   # merge all pull-requests
-  MergeAllPullRequestsWithTitle "$atlassianUserName" "$atlassianPassword" "$title"
+  echo $(MergeAllPullRequestsWithTitle "$atlassianUserName" "$atlassianPassword" "$title") >&2
   
   # add missing tags
-  AddMissingReleaseTags "$atlassianUserName" "$atlassianPassword" "$unchangedRepositories"
+  echo $(AddMissingReleaseTags "$atlassianUserName" "$atlassianPassword" "$unchangedRepositories") >&2
 }
 
 
