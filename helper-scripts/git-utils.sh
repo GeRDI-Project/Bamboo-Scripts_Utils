@@ -414,7 +414,7 @@ CreatePullRequest() {
             null
         ]
     }
-  }' https://code.gerdi-project.de/rest/api/latest/projects/$project/repos/$repositorySlug/pull-requests
+  }' "https://code.gerdi-project.de/rest/api/latest/projects/$project/repos/$repositorySlug/pull-requests"
 }
 
 

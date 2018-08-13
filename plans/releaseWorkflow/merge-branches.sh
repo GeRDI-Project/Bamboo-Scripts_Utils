@@ -72,31 +72,25 @@ MergeBranchesOfRepository() {
   # abort if source branch does not exist
   if ! $(HasBitbucketBranch "$userName" "$password" "$projectId" "$slug" "$sourceBranch"); then
     echo "Cannot merge '$sourceBranch' to '$targetBranch' in '$projectId/$slug', because '$sourceBranch' does not exist." >&2
-	
-	# do not exit with error, because we want to continue processing the repositories
-    exit 0
-  fi
   
   # abort if target branch does not exist
-  if ! $(HasBitbucketBranch "$userName" "$password" "$projectId" "$slug" "$targetBranch"); then
+  elif ! $(HasBitbucketBranch "$userName" "$password" "$projectId" "$slug" "$targetBranch"); then
     echo "Cannot merge '$sourceBranch' to '$targetBranch' in '$projectId/$slug', because '$targetBranch' does not exist." >&2
 	
-	# do not exit with error, because we want to continue processing the repositories
-    exit 0
+  else  
+    # create pull request
+    CreatePullRequest \
+      "$userName" \
+	  "$password" \
+	  "$projectId" \
+	  "$slug" \
+	  "$sourceBranch" \
+	  "$targetBranch" \
+	  "$title" \
+	  "$description" \
+	  "$reviewer" \
+	  ""
   fi
-  
-  # create pull request
-  CreatePullRequest \
-    "$userName" \
-	"$password" \
-	"$projectId" \
-	"$slug" \
-	"$sourceBranch" \
-	"$targetBranch" \
-	"$title" \
-	"$description" \
-	"$reviewer" \
-	""
 }
 
    
