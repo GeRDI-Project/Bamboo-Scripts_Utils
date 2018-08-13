@@ -160,7 +160,7 @@ Main() {
   local atlassianUserName=$(GetBambooUserName)
   local atlassianPassword=$(GetValueOfPlanVariable "atlassianPassword")
   
-  local title = "Merge to Production $bamboo_PRODUCTION_VERSION"
+  local title="Merge to Production $bamboo_PRODUCTION_VERSION"
   local unchangedRepositories=$(GetUnchangedRepositories "$atlassianUserName" "$atlassianPassword" "$title")
 
   # approve all pull-requests

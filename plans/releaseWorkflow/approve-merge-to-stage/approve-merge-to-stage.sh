@@ -46,7 +46,7 @@ Main() {
   local atlassianUserName=$(GetBambooUserName)
   local atlassianPassword=$(GetValueOfPlanVariable "atlassianPassword")
   
-  local title = "Merge to Staging $bamboo_STAGING_VERSION"
+  local title="Merge to Staging $bamboo_STAGING_VERSION"
 
   # approve all pull-requests
   ApproveAllPullRequestsWithTitle "$atlassianUserName" "$atlassianPassword" "$title"
