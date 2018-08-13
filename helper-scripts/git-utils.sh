@@ -595,6 +595,7 @@ MergeAllPullRequestsWithTitle() {
   | head -n -1)
   
   # merge all matching pull-requests
+  echo "Merging all Pull-requests with title: $title" >&2
   while read arguments
   do    
     $(eval MergePullRequest "'$userName' '$password' $arguments")
@@ -668,6 +669,7 @@ ApproveAllPullRequestsWithTitle() {
   | head -n -1)
   
   # approve all matching pull-requests
+  echo "Approving all Pull-requests with title: $title" >&2
   while read arguments
   do
     $(eval ApprovePullRequest "'$userName' '$password' $arguments")

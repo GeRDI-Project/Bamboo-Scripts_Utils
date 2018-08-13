@@ -33,6 +33,7 @@ set -u
 source ./scripts/helper-scripts/atlassian-utils.sh
 source ./scripts/helper-scripts/bamboo-utils.sh
 source ./scripts/helper-scripts/misc-utils.sh
+source ./scripts/helper-scripts/git-utils.sh
 
 #########################
 #  FUNCTION DEFINITIONS #
@@ -170,6 +171,7 @@ Main() {
   MergeAllPullRequestsWithTitle "$atlassianUserName" "$atlassianPassword" "$title"
   
   # add missing tags
+  echo "Adding missing release tags..." >&2
   AddMissingReleaseTags "$atlassianUserName" "$atlassianPassword" "$unchangedRepositories"
 }
 
