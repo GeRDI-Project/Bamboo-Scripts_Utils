@@ -50,10 +50,10 @@ Main() {
   local title="Merge to Staging $bamboo_STAGING_VERSION"
 
   # approve all pull-requests
-  ApproveAllPullRequestsWithTitle "$atlassianUserName" "$atlassianPassword" "$title"
+  echo $(ApproveAllPullRequestsWithTitle "$atlassianUserName" "$atlassianPassword" "$title") >&2
   
   # merge all pull-requests
-  MergeAllPullRequestsWithTitle "$atlassianUserName" "$atlassianPassword" "$title"
+  echo $(MergeAllPullRequestsWithTitle "$atlassianUserName" "$atlassianPassword" "$title") >&2
 }
 
 

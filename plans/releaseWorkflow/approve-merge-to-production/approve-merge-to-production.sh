@@ -166,14 +166,14 @@ Main() {
   local unchangedRepositories=$(GetUnchangedRepositories "$atlassianUserName" "$atlassianPassword" "$title")
 
   # approve all pull-requests
-  ApproveAllPullRequestsWithTitle "$atlassianUserName" "$atlassianPassword" "$title"
+  echo $(ApproveAllPullRequestsWithTitle "$atlassianUserName" "$atlassianPassword" "$title") >&2
   
   # merge all pull-requests
-  MergeAllPullRequestsWithTitle "$atlassianUserName" "$atlassianPassword" "$title"
+  echo $(MergeAllPullRequestsWithTitle "$atlassianUserName" "$atlassianPassword" "$title") >&2
   
   # add missing tags
   echo "Adding missing release tags..." >&2
-  AddMissingReleaseTags "$atlassianUserName" "$atlassianPassword" "$unchangedRepositories"
+  echo $(AddMissingReleaseTags "$atlassianUserName" "$atlassianPassword" "$unchangedRepositories") >&2
 }
 
 
