@@ -12,6 +12,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-echo "check for unvalid yml"
+echo "check for invalid yml"
 find . -type f -name "*.yml" -exec yamllint --config-file tests/yamllint.conf {} \;
 #yamllint --config-file tests/yamllint.conf */*.yml
