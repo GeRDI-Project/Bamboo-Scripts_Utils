@@ -58,15 +58,44 @@ GetPlanBranchId() {
   local password="$4"
   
   local planBranchId
-  planBranchId=$(curl -sX GET -u "$userName:$password" https://ci.gerdi-project.de/rest/api/latest/plan/$planLabel/branch/$branch \
-                 | grep -oP "(?<=key=\"$planLabel)[^\"]+" \
-                 | head -1)
-				 
-  if [ -z "$planBranchId" ]; then
-    echo "The plan branch $planLabel/$branch does not exist!" >&2
-	exit 1
+  if [ "$branch" = "master" ]; then
+    planBranchId=""
+  else
+    planBranchId=$(curl -sX GET -u "$userName:$password" https://ci.gerdi-project.de/rest/api/latest/plan/$planLabel/branch/$branch \
+                   | grep -oP "(?<=key=\"$planLabel)[^\"]+" \
+                   | head -1)
+				   
+    if [ -z "$planBranchId" ]; then
+      echo "The plan branch $planLabel/$branch does not exist!" >&2
+	  exit 1
+    fi
   fi
+  echo "$planBranchId"
+}
+
+
+# Returns a numerical identifier of a plan branch.
+#  Arguments:
+#  1 - the identifier of the plan
+#  2 - the string identifier of the git branch
+#
+GetPlanBranchIdWithoutCredentials() {
+  local planLabel="$1"
+  local branch="$2"
   
+  local planBranchId
+  if [ "$branch" = "master" ]; then
+    planBranchId=""
+  else
+    planBranchId=$(curl -nsX GET https://ci.gerdi-project.de/rest/api/latest/plan/$planLabel/branch/$branch \
+                   | grep -oP "(?<=key=\"$planLabel)[^\"]+" \
+                   | head -1)
+				   
+    if [ -z "$planBranchId" ]; then
+      echo "The plan branch $planLabel/$branch does not exist!" >&2
+	  exit 1
+    fi
+  fi
   echo "$planBranchId"
 }
 
@@ -199,6 +228,32 @@ StartBambooPlan() {
   
   local response
   response=$(curl -sX POST -u "$userName:$password" -H "Content-Type: application/json" -d '{}' https://ci.gerdi-project.de/rest/api/latest/queue/$planLabel?stage\&executeAllStages)
+  
+  local buildNumber
+  buildNumber=$(echo "$response" | grep -oP '(?<=buildNumber=")\d+(?=")')
+  
+  # return plan result key
+  if [ -z "$buildNumber" ]; then
+    echo "Could not start Bamboo Plan $planLabel: $response" >&2
+  else
+    echo "$planLabel-$buildNumber"
+  fi
+}
+
+
+# Runs a specified Bamboo plan branch and returns the plan result key which serves as an identifier
+# of the plan execution.
+#  Arguments:
+#  1 - the identifier of the plan
+#  2 - the string identifier of the git branch
+#
+StartBambooPlanBranchWithoutCredentials() {
+  local planLabel="$1"
+  local branch="$2"
+  local branchId=$(GetPlanBranchId "$planLabel" "$branch")
+  
+  local response
+  response=$(curl -nsX POST -H "Content-Type: application/json" -d '{}' https://ci.gerdi-project.de/rest/api/latest/queue/$planLabel$branchId?stage\&executeAllStages)
   
   local buildNumber
   buildNumber=$(echo "$response" | grep -oP '(?<=buildNumber=")\d+(?=")')
