@@ -39,15 +39,18 @@ StartListOfPlans() {
   # iterate through all clone links and/or projects
   while read planLabel
   do
-	echo StartBambooPlanBranchWithoutCredentials "$planLabel" "$branch"
+	StartBambooPlanBranchWithoutCredentials "$planLabel" "$branch"
   done <<< "$(echo -e "$planList")"
 }
 
 
 # The main function that is called by this script.
 Main() {
+bamboo_deploy_environment="stage"
   local planList="$1"
   local branch=$(GetDeployEnvironmentBranch)
+  
+  echo "Starting plans '$planList' on branch '$branch'..."
   
   StartListOfPlans "$planList" "$branch"
 }
