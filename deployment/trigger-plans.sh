@@ -46,7 +46,6 @@ StartListOfPlans() {
 
 # The main function that is called by this script.
 Main() {
-bamboo_deploy_environment="stage"
   local planList="$1"
   local branch=$(GetDeployEnvironmentBranch)
   
