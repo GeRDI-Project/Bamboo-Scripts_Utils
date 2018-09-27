@@ -73,17 +73,17 @@ GetTagVersion() {
   
   # define the tagging prefix, based on the current branch
   # define build number, based on tags
-  if [ "$currentBranch" = "master" ]; then
-    tagPrefix="$bamboo_TEST_VERSION-test"
-    buildNumber=$(GetBuildNumber "$tagPrefix")
-  
-  elif [ "$currentBranch" = "stage" ]; then
+  if [ "$currentBranch" = "stage" ]; then
     tagPrefix="$bamboo_STAGING_VERSION-rc"
     buildNumber=$(GetBuildNumber "$tagPrefix")
   
   elif [ "$currentBranch" = "production" ]; then
     tagPrefix="$bamboo_PRODUCTION_VERSION"
     buildNumber=""
+
+  else
+    tagPrefix="$bamboo_TEST_VERSION-test"
+    buildNumber=$(GetBuildNumber "$tagPrefix")
   fi
 
   if [ -n "$tagPrefix" ]; then
