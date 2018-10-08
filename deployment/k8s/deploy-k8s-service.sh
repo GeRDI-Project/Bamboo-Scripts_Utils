@@ -33,6 +33,7 @@ set -u
 KUBERNETES_YAML_DIR="gerdireleases"
 
 # load helper scripts
+source ./scripts/helper-scripts/bamboo-utils.sh
 source ./scripts/helper-scripts/k8s-utils.sh
 
 
@@ -48,8 +49,23 @@ Main() {
   local kubernetesYaml
   kubernetesYaml="$KUBERNETES_YAML_DIR/$(GetManifestPath "$gitCloneLink")"
   
-  echo "Creating new deployment for $kubernetesYaml" >&2
-  kubectl apply -f "$kubernetesYaml"
+  local environment
+  environment=$(GetDeployEnvironmentName)
+  
+  if [ "$environment" = "" ]; then
+    echo "Could not deploy $kubernetesYaml: No environment defined for deploy environment $bamboo_deploy_environment!" >&2
+	exit 1
+  fi
+	
+  echo "Creating new deployment for $kubernetesYaml on the $environment environment." >&2
+  
+  if [ "$environment" = "test" ]; then
+    kubectl apply -f "$kubernetesYaml"
+  
+  else
+    kubectl apply -f "$kubernetesYaml" --context=$environment
+  fi
+  
 }
 
 
