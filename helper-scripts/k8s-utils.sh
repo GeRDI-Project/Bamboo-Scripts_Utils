@@ -39,13 +39,8 @@ GetServiceType() {
   local serviceType
   if [ "$projectName" = "harvester" ]; then
     serviceType="harvest"
-	
-  elif [ "$projectName" = "frontend" ]; then
-	serviceType="frontend"
-	
   else
-    echo "Cannot create YAML file for repositories of project $projectName ($projectId)! You have to adapt the create-k8s-yaml.sh in order to support these projects!">&2
-    exit 1
+	serviceType="$projectName"
   fi
   
   echo "$serviceType"
