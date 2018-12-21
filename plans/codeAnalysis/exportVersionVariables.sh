@@ -29,6 +29,8 @@
 # treat unset variables as an error when substituting
 set -u
 
+source ./scripts/helper-scripts/git-utils.sh
+
 #########################
 #  FUNCTION DEFINITIONS #
 #########################
@@ -39,12 +41,17 @@ set -u
 #
 GetBuildNumber() {
   local tagPrefix="$1"
+  local projectId=$(GetProjectIdFromCloneLink)
+  local slug=$(GetRepositorySlugFromCloneLink)
   
-  local previousTag
-  previousTag=$(git tag --sort="taggerdate" -l "$tagPrefix*" | tail -n1)
-  
-  if [ -n "$previousTag" ]; then
-    echo $(expr 1 + ${previousTag#$tagPrefix})
+  # use BitBucket API, because git tag is buggy in Bamboo
+  local previousBuildNumber=$(curl -nsX GET "https://code.gerdi-project.de/rest/api/1.0/projects/$projectId/repos/$slug/tags/?filterText=$tagPrefix" \
+    | grep -oP '(?<="displayId":"'"$tagPrefix"')[^"]+'\
+    | sort -g\
+    | tail -n1)
+
+  if [ -n "$previousBuildNumber" ]; then
+    echo $(expr 1 + $previousBuildNumber)
   else
     echo 1
   fi
