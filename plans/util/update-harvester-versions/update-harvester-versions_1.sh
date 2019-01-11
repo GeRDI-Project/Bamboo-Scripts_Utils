@@ -434,7 +434,7 @@ Main() {
 
   # get parent pom version  
   local parentPomVersion
-  parentPomVersion=$(GetPomValue "project.version" "parentPoms/pom.xml")
+  parentPomVersion=$(GetPomValue "project.version" "parentPom/pom.xml")
   echo "ParentPom Version: $parentPomVersion" >&2
 
   # update harvester utils
@@ -473,7 +473,7 @@ Main() {
   fi
 
   # update harvester parent pom
-  PrepareUpdate "HL" "parentpoms" "harvester"
+  PrepareUpdate "HL" "harvesterparentpom" "."
   if [ -n "$SOURCE_VERSION" ]; then
     QueueParentPomUpdate "$parentPomVersion"
     QueuePropertyUpdate "restfulharvester.dependency.version" "$harvesterLibVersion"
