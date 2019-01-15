@@ -519,6 +519,7 @@ Main() {
   echo " " >&2
   
   # update OAI-PMH harvesters
+  cd "$TOP_FOLDER"
   ./scripts/plans/util/update-harvester-versions/update-oaipmh-harvester-versions_2.sh "$OAIPMH_VERSION" "$JIRA_KEY"
 }
 
