@@ -30,6 +30,7 @@
 #  ManualBuildTriggerReason_userName - the login name of the current user
 #  atlassianPassword - the Atlassian password of the current user
 #  reviewer - the user name of the person that has to review the pull requests
+#  branch - the branch of the harvester repositories that is to be updated
 
 # treat unset variables as an error when substituting
 set -u
