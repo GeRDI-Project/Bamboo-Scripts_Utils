@@ -53,14 +53,16 @@ source ./scripts/helper-scripts/misc-utils.sh
 # Arguments
 #  1 - the new Docker base image version
 #  2 - the branch on which the update is to be deployed
-#  3 - the Atlassian user name of the one performing the updates
-#  4 - the Atlassian user password for the Atlassian user
+#  3 - the reviewer of the pull-requests
+#  4 - the Atlassian user name of the one performing the updates
+#  5 - the Atlassian user password for the Atlassian user
 #
 UpdateAllOaiPmhHarvesters() {
   local newVersion="$1"
   local branch="$2"
-  local userName="$3"
-  local password="$4"
+  local reviewer="$3"
+  local userName="$4"
+  local password="$5"
   
   echo "Trying to update all OAI-PMH Harvesters to parent version $newVersion!" >&2
   
@@ -68,7 +70,7 @@ UpdateAllOaiPmhHarvesters() {
   updateArguments=$(curl -sX GET -u "$userName:$password" https://code.gerdi-project.de/rest/api/latest/projects/HAR/repos \
   | python -m json.tool \
   | grep -oE '"http.*?git"' \
-  | sed -e "s~\"http.*@code.gerdi-project.de/scm/\(.*\)/\(.*\)\.git\"~'$newVersion' '\\1' '\\2' '$branch' '$userName' '$password'~")
+  | sed -e "s~\"http.*@code.gerdi-project.de/scm/\(.*\)/\(.*\)\.git\"~'$newVersion' '\\1' '\\2' '$branch' '$reviewer' '$userName' '$password'~")
 
   # execute update of all harvesters
   while read arguments
@@ -87,16 +89,18 @@ UpdateAllOaiPmhHarvesters() {
 #  2 - the project ID of the updated Bitbucket repository
 #  3 - the slug of the updated Bitbucket repository
 #  4 - the branch on which the update is to be deployed
-#  5 - the Atlassian user name of the one performing the updates
-#  6 - the Atlassian user password for the Atlassian user
+#  5 - the reviewer of the pull-request
+#  6 - the Atlassian user name of the one performing the updates
+#  7 - the Atlassian user password for the Atlassian user
 #
 TryOaiPmhRepositoryUpdate() {
   local newVersion="$1"
   local projectId="$2"
   local slug="$3"
   local branch="$4"
-  local userName="$5"
-  local password="$6"
+  local reviewer="$5"
+  local userName="$6"
+  local password="$7"
   
   if ! $(IsOaiPmhHarvesterRepository "$projectId" "$slug" "$userName" "$password") ; then
     echo "Skipping $projectId/$slug, because it is not an OAI-PMH harvester." >&2
@@ -105,7 +109,7 @@ TryOaiPmhRepositoryUpdate() {
   
   local currentVersion=$(GetDockerBaseImageVersion "$projectId" "$slug" "$branch" "$userName" "$password")
   if $(IsDockerImageTagLower "$currentVersion" "$newVersion"); then
-    UpdateOaiPmhRepository "$newVersion" "$projectId" "$slug" "$branch" "$userName" "$password"
+    UpdateOaiPmhRepository "$newVersion" "$projectId" "$slug" "$branch" "$reviewer" "$userName" "$password"
   else  
     echo "Skipping $projectId/$slug, because its current version, $currentVersion, is higher or equal to $newVersion!" >&2
   fi
@@ -121,16 +125,18 @@ TryOaiPmhRepositoryUpdate() {
 #  2 - the project ID of the updated Bitbucket repository
 #  3 - the slug of the updated Bitbucket repository
 #  4 - the branch on which the update is to be deployed
-#  5 - the Atlassian user name of the one performing the updates
-#  6 - the Atlassian user password for the Atlassian user
+#  5 - the reviewer of the pull-request
+#  6 - the Atlassian user name of the one performing the updates
+#  7 - the Atlassian user password for the Atlassian user
 #
 UpdateOaiPmhRepository() {
   local newVersion="$1"
   local projectId="$2"
   local slug="$3"
   local branch="$4"
-  local userName="$5"
-  local password="$6"
+  local reviewer="$5"
+  local userName="$6"
+  local password="$7"
   
   # create jira ticket
   if [ -z "$JIRA_KEY" ]; then
@@ -164,6 +170,11 @@ UpdateOaiPmhRepository() {
     (cd "$tempDir" && git checkout "$branchName")
   fi
   
+  # create update branch
+  local updateBranch
+  updateBranch="versionUpdate/$JIRA_KEY-$subTaskKey-VersionUpdate"
+  (cd "$tempDir" && CreateBranch "$updateBranch")
+  
   # change version in Dockerfile
   perl -pi -e \
        "s~(.*?FROM docker-registry\.gerdi\.research\.lrz\.de:5043/harvest/oai-pmh:)[^\s]*(.*)~\1$newVersion\2~" \
@@ -178,6 +189,19 @@ UpdateOaiPmhRepository() {
   # clean up temp files
   rm -rf "$tempDir"
   
+  # create pull-request
+  (cd "$tempDir" && CreatePullRequest \
+      "$userName" \
+      "$password" \
+      "$projectId" \
+      "$slug" \
+	  "$updateBranch" \
+      "$branch" \
+      "Update OAI-PMH Harvester $projectId/$slug" \
+      "Docker base image version update." \
+      "$reviewer" \
+      "") >&2
+	  
   # finish sub-task
   ReviewJiraTask "$subTaskKey" "$userName" "$password"
   FinishJiraTask "$subTaskKey" "$userName" "$password"
@@ -263,7 +287,7 @@ Main() {
   JIRA_KEY="${2-}"
   
   # update all OAI-PMH harvesters
-  UpdateAllOaiPmhHarvesters "$newVersion" "$branch" "$userName" "$password"
+  UpdateAllOaiPmhHarvesters "$newVersion" "$branch" "$reviewer" "$userName" "$password"
 
   echo " " >&2
 
