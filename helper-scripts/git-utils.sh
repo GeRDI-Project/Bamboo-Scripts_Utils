@@ -819,6 +819,36 @@ GetDeletedFilesOfCommit() {
 }
 
 
+# Checks if a specified repository contains a Dockerfile that is derived from the OAI-PMH
+# harvester image. Exits with 1 if the repository cannot be reached, or the Dockerfile of
+# the project is not derived from the OAI-PMH image.
+#  Arguments:
+#  1 - the project id of the checked repository
+#  2 - the repository slug of the checked repository
+#  3 - a username for Basic Authentication (optional)
+#  4 - a password for Basic Authentication (optional)
+#
+IsOaiPmhHarvesterRepository() {
+  local projectId="$1"
+  local slug="$2"
+  local userName="${3-}"
+  local password="${4-}"
+    
+  local auth=""
+  if [ "$userName" != "" ]; then
+    auth="-u $userName:$password"
+  fi
+  
+  # read DockerFile of repository
+  local countOaiPmhParents=$(curl -sfX GET $auth "https://code.gerdi-project.de/rest/api/1.0/projects/$projectId/repos/$slug/browse/Dockerfile?raw&at=refs%2Fheads%2Fmaster" \
+        | grep -c "FROM docker-registry\.gerdi\.research\.lrz\.de:5043/harvest/oai-pmh:")
+
+  if [ "$countOaiPmhParents" -eq "0" ]; then
+    exit 1
+  fi  
+}
+
+
 # Adds read permission of a BitBucket repository to a specified user.
 #  Arguments:
 #  1 - a Bitbucket user name

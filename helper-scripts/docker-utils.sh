@@ -101,7 +101,7 @@ GetDockerBaseImageVersion() {
   local password="${5-}"
   
   local auth=""
-  if [ "$userName" != "" ]; then
+  if [ -n "$userName" ]; then
     auth="-u $userName:$password"
   fi
   
@@ -173,7 +173,7 @@ IsDockerImageTagLower() {
       # compare build environments
       if [ "$checkedEnv" = "test" ]; then
         exit 0
-      elif [ "$checkedEnv" = "rc" ] && [ "$otherEnv" = "" ]; then
+      elif [ "$checkedEnv" = "rc" ] && [ -z "$otherEnv" ]; then
         exit 0
       fi
     fi
