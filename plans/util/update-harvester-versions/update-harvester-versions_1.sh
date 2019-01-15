@@ -212,7 +212,9 @@ PrepareUpdate() {
   CloneGitRepository "$ATLASSIAN_USER_NAME" "$ATLASSIAN_PASSWORD" "$PROJECT" "$SLUG"
   
   # checkout branch
-  git checkout "$SOURCE_BRANCH"
+  if [ "$SOURCE_BRANCH" != "master" ]; then
+    git checkout "$SOURCE_BRANCH"
+  fi
   
   # get version from pom
   if [ -f "$POM_FOLDER/pom.xml" ]; then
@@ -365,9 +367,12 @@ BuildAndDeployLibrary() {
   if [ -z "$deploymentId" ]; then exit 1; fi
   echo "deploymentId: $deploymentId" >&2
   
-  # get ID of 'Maven Deploy' environment
+  # get name of deployment environment
+  local environmentName=$(GetDeployEnvironmentName "$SOURCE_BRANCH")
+  
+  # get ID of deployment environment
   local environmentId
-  environmentId=$(GetDeployEnvironmentId "$deploymentId" "Maven Snapshot" "$ATLASSIAN_USER_NAME" "$ATLASSIAN_PASSWORD")
+  environmentId=$(GetDeployEnvironmentId "$deploymentId" "$environmentName" "$ATLASSIAN_USER_NAME" "$ATLASSIAN_PASSWORD")
   if [ -z "$environmentId" ]; then exit 1; fi
   echo "environmentId: $environmentId" >&2
        
