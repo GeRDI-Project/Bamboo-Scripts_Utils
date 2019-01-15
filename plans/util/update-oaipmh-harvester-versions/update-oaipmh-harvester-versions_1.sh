@@ -17,6 +17,9 @@
 # This script attempts to upate all OAI-PMH harvesters on a specified branch to a specified version.
 # If the specified version is lower than that of an OAI-PMH harvester, it is not updated.
 #
+# Arguments:
+# 1 - (optional) the key of the JIRA update ticket
+#
 # Bamboo Plan Variables:
 #  ManualBuildTriggerReason_userName - the login name of the current user
 #  atlassianPassword - the Atlassian password of the current user
@@ -139,7 +142,7 @@ UpdateOaiPmhRepository() {
   local subTaskKey
   subTaskKey=$(CreateJiraSubTask \
 	  "$JIRA_KEY" \
-	  "Update $projectId/$slug to Version $newVersion" \
+	  "Update OAI-PMH Harvester $projectId/$slug to Version $newVersion" \
       "The Docker base image version is updated to: $newVersion" \
 	  "$userName" \
 	  "$password")
@@ -209,6 +212,9 @@ Main() {
   
   local newVersion
   newVersion=$(GetValueOfPlanVariable "version")
+  
+  # define global variables
+  JIRA_KEY="${1-}"
   
   # update all OAI-PMH harvesters
   UpdateAllOaiPmhHarvesters "$newVersion" "$branch" "$userName" "$password"
