@@ -253,7 +253,7 @@ ExecuteUpdate() {
     StartJiraTask "$subTaskKey" "$ATLASSIAN_USER_NAME" "$ATLASSIAN_PASSWORD"
   
     # create git branch
-    BRANCH_NAME="$JIRA_KEY-$subTaskKey-VersionUpdate"
+    BRANCH_NAME="versionUpdate/$JIRA_KEY-$subTaskKey-VersionUpdate"
 	CreateBranch "$BRANCH_NAME"
     
     # execute update queue
@@ -326,6 +326,10 @@ UpdateHarvester() {
   if [ -n "$SOURCE_VERSION" ]; then
     QueueParentPomUpdate "$newParentVersion"
     ExecuteUpdate "$atlassianUserEmail" "$atlassianUserDisplayName" "$reviewer"
+	
+	if [ "$SLUG" = "oai-pmh" ]; then
+	  OAIPMH_VERSION="$TARGET_VERSION"
+	fi
   fi
 }
 
@@ -432,6 +436,7 @@ Main() {
   UPDATE_QUEUE_FILE=""
   BRANCH_NAME=""
   PROJECT=""
+  OAIPMH_VERSION=""
 
   # get parent pom version  
   local parentPomVersion
@@ -504,6 +509,9 @@ Main() {
   fi
 
   echo " " >&2
+  
+  # update OAI-PMH harvesters
+  ./scripts/plans/util/update-harvester-versions/update-oaipmh-harvester-versions_2.sh "$OAIPMH_VERSION" "$JIRA_KEY"
 }
 
 

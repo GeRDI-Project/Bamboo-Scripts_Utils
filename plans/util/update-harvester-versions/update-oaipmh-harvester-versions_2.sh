@@ -64,7 +64,7 @@ UpdateAllOaiPmhHarvesters() {
   local userName="$4"
   local password="$5"
   
-  echo "Trying to update all OAI-PMH Harvesters to parent version $newVersion!" >&2
+  echo "Trying to update all OAI-PMH Harvesters to version $newVersion!" >&2
   
   local updateArguments
   updateArguments=$(curl -sX GET -u "$userName:$password" https://code.gerdi-project.de/rest/api/latest/projects/HAR/repos \
