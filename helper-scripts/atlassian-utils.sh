@@ -21,12 +21,12 @@
 #  Arguments:
 #  1 - an Atlassian user name of a user that is allowed to view user profiles
 #  2 - the login password that belongs to argument 1
-#  3 - the Atlassian user name of the user of which the email address is to be retrieved
+#  3 - the Atlassian user name of the user of which the email address is to be retrieved (optional)
 #
 GetAtlassianUserEmailAddress() {
   local userName="$1"
   local password="$2"
-  local checkedUserName="$3"
+  local checkedUserName="${3-$1}"
   
   local userProfile
   userProfile=$(curl -sX GET -u "$userName:$password" https://tasks.gerdi-project.de/rest/api/2/user?username="$checkedUserName")
@@ -38,12 +38,12 @@ GetAtlassianUserEmailAddress() {
 #  Arguments:
 #  1 - an Atlassian user name of a user that is allowed to view user profiles
 #  2 - the login password that belongs to argument 1
-#  3 - the Atlassian user name of the user of which the display name is to be retrieved
+#  3 - the Atlassian user name of the user of which the display name is to be retrieved (optional)
 #
 GetAtlassianUserDisplayName() {
   local userName="$1"
   local password="$2"
-  local checkedUserName="$3"
+  local checkedUserName="${3-$1}"
   
   local userProfile
   userProfile=$(curl -sX GET -u "$userName:$password" https://tasks.gerdi-project.de/rest/api/2/user?username="$checkedUserName")
