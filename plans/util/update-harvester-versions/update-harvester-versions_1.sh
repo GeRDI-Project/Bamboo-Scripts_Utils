@@ -322,14 +322,22 @@ UpdateHarvester() {
   local atlassianUserDisplayName="$4"
   local reviewer="$5"
   
-  PrepareUpdate "HAR" "$(GetRepositorySlugFromCloneLink "$cloneLink")" "."
-  if [ -n "$SOURCE_VERSION" ]; then
-    QueueParentPomUpdate "$newParentVersion"
-    ExecuteUpdate "$atlassianUserEmail" "$atlassianUserDisplayName" "$reviewer"
+  local projectId="HAR"
+  local slug=$(GetRepositorySlugFromCloneLink "$cloneLink")
+  
+  if $(IsOaiPmhHarvesterRepository "$projectId" "$slug" "$ATLASSIAN_USER_NAME" "$ATLASSIAN_PASSWORD") ; then
+    echo "Postponing update of $projectId/$slug, because it is not an OAI-PMH harvester." >&2
 	
-	if [ "$SLUG" = "oai-pmh" ]; then
-	  OAIPMH_VERSION="$TARGET_VERSION"
-	fi
+  else
+    PrepareUpdate "$projectId" "$slug" "."
+    if [ -n "$SOURCE_VERSION" ]; then
+      QueueParentPomUpdate "$newParentVersion"
+      ExecuteUpdate "$atlassianUserEmail" "$atlassianUserDisplayName" "$reviewer"
+	
+	  if [ "$SLUG" = "oai-pmh" ]; then
+	    OAIPMH_VERSION="$TARGET_VERSION"
+	  fi
+    fi
   fi
 }
 

@@ -76,7 +76,7 @@ IsMavenVersionDeployed() {
   
   local httpCode
   httpCode=$(echo "$response" | grep -oP '(?<=HTTP/\d\.\d )\d+')
-  if [ $httpCode -eq 200 ]; then
+  if [ "$httpCode" = "200" ]; then
     echo true
   else
     echo false
