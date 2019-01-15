@@ -18,7 +18,8 @@
 # If the specified version is lower than that of an OAI-PMH harvester, it is not updated.
 #
 # Arguments:
-# 1 - (optional) the key of the JIRA update ticket
+# 1 - (optional) the new version. If left empty, the last successful tag on the branch will be used
+# 2 - (optional) the key of the JIRA update ticket. If left empty, a new ticket is to be created
 #
 # Bamboo Plan Variables:
 #  ManualBuildTriggerReason_userName - the login name of the current user
@@ -26,6 +27,10 @@
 #  version - the new Dockerfile base image version 
 #  branch - the branch on which the versions are updated
 #  reviewer - the user name of the person that has to review the pull requests
+#
+#  TEST_VERSION - the current version of the test environment
+#  STAGING_VERSION - the current version of the staging environment
+#  PRODUCTION_VERSION - the current version of the production environment
 
 # treat unset variables as an error when substituting
 set -u
@@ -179,6 +184,39 @@ UpdateOaiPmhRepository() {
 }
 
 
+# This function attempts to retrieve the latest tagged version 
+# of a specified Bitbucket repository.
+#
+# Arguments:
+#  1 - the project ID of the Bitbucket repository
+#  2 - the slug of the Bitbucket repository
+#  3 - the branch that is checked
+#
+GetLatestTag() {
+  local projectId="$1"
+  local slug="$2"
+  local branch="$3"
+  
+  # there is only one production version, so we can return it
+  if [ "$branch" = "production" ]; then
+    echo "$bamboo_PRODUCTION_VERSION"
+	
+  else
+    # get the version from the latest Bitbucket tag
+    local tagPrefix=""
+    if [ "$branch" = "stage" ]; then
+      tagPrefix="$bamboo_STAGING_VERSION-rc"
+    else
+      tagPrefix="$bamboo_TEST_VERSION-test"
+    fi  
+
+    curl -nsX GET "https://code.gerdi-project.de/rest/api/1.0/projects/$projectId/repos/$slug/tags/?filterText=$tagPrefix\&orderBy=modification" \
+      | grep -oP '(?<="displayId":")'"$tagPrefix"'[^"]+'\
+      | head -1
+  fi
+}
+
+
 # The main function that is executed in this script
 #
 Main() {
@@ -187,7 +225,6 @@ Main() {
   ExitIfPlanVariableIsMissing "atlassianPassword"
   ExitIfPlanVariableIsMissing "reviewer"
   ExitIfPlanVariableIsMissing "branch"
-  ExitIfPlanVariableIsMissing "version"
 
   local username
   username=$(GetBambooUserName)
@@ -211,10 +248,19 @@ Main() {
   branch=$(GetValueOfPlanVariable "branch")
   
   local newVersion
-  newVersion=$(GetValueOfPlanVariable "version")
+  newVersion="${1-}"
+  
+  if [ -z "$newVersion" ]; then
+    newVersion=$(GetLatestTag "har" "oai-pmh" "$branch")
+	
+	if [ -z "$newVersion" ]; then
+	  echo "Could not automatically retrieve a version to which the OAI-PMH harvesters are to be updated to!" >&2
+	  exit 1
+	fi
+  fi
   
   # define global variables
-  JIRA_KEY="${1-}"
+  JIRA_KEY="${2-}"
   
   # update all OAI-PMH harvesters
   UpdateAllOaiPmhHarvesters "$newVersion" "$branch" "$userName" "$password"
