@@ -21,8 +21,6 @@
 #
 # Arguments:
 #  1 - the new version (Docker tag) of the deployed service
-#  2 - the minimum viable IP address of the deployed service (default: 10)
-#  3 - the maximum viable IP address of the deployed service (default: 255)
 #
 # Bamboo Plan Variables:
 #  bamboo_planRepository_1_repositoryUrl
@@ -58,8 +56,7 @@ source ./scripts/helper-scripts/k8s-utils.sh
 #  3 - the name of the service
 #  4 - the docker image name without tag
 #  5 - the tag of the docker image
-#  6 - a free IP address of a newly created YAML file
-#  7 - the Atlassian user that will be added to the header of the YAML file
+#  6 - the Atlassian user that will be added to the header of the YAML file
 #
 CreateYamlFile() {
   local kubernetesYaml="$1"
@@ -67,12 +64,7 @@ CreateYamlFile() {
   local serviceName="$3"
   local dockerImageName="$4"
   local dockerImageTag="$5"
-  local clusterIp="$6"
-  local userName="$7"
-  
-  if [ -z "$clusterIp" ]; then
-    echo "Cannot create $kubernetesYaml: No free ClusterIP could be retrieved!" >&2
-  fi
+  local userName="$6"
   
   # create directory if necessary
   local kubernetesDir="${kubernetesYaml%/*}"
@@ -88,7 +80,6 @@ CreateYamlFile() {
 
   SubstitutePlaceholderInFile "$kubernetesYaml" "serviceName"
   SubstitutePlaceholderInFile "$kubernetesYaml" "serviceType"
-  SubstitutePlaceholderInFile "$kubernetesYaml" "clusterIp"
   
   local dockerImage
   dockerImage="$dockerImageName:$dockerImageTag"
@@ -152,47 +143,6 @@ SubmitYamlFile() {
 }
 
 
-# Finds a free cluster IP in a range specified via Plan variables.
-#
-CreateClusterIp() {
-  local minIP="$1"
-  local maxIP="$2"
-  
-  if [ -z "$minIP" ] || [ -z "$maxIP" ]; then
-    echo "You must pass three arguments to the script:\n 2: the minimum viable IP address of the deployed service\n 3: the maximum IP address" >&2
-	exit 1
-  fi
-  
-  local clusterIpPrefix
-  clusterIpPrefix="${minIP%.*}."
-  
-  local clusterIpMin
-  clusterIpMin="${minIP##*.}"
-  
-  local clusterIpMax
-  clusterIpMax="${maxIP##*.}"
-  
-  if [ "$clusterIpMin" -lt 0 ] || [ "$clusterIpMin" -gt "$clusterIpMax" ]; then
-    echo "$minIP is not a valid cluster IP! The last part must be smaller than the maximum ($clusterIpMax)!" >&2
-    exit 1
-  fi
-
-  if [ "$clusterIpMax" -gt 255 ]; then
-    echo "$maxIP is not a valid cluster IP!" >&2
-    exit 1
-  fi
-
-  local clusterIp=$(GetFreeClusterIp "$KUBERNETES_YAML_DIR" "$clusterIpPrefix" "$clusterIpMin" "$clusterIpMax")
-
-  if [ -z "$clusterIp" ]; then
-    echo "Could not get ClusterIp: There must be at least one YAML file in $KUBERNETES_YAML_DIR!" >&2
-    exit 1
-  fi
-  
-  echo "$clusterIp"
-}
-
-
 # Checks out the Kubernetes deployment repository on a branch
 # that fits the current deployment environment.
 #
@@ -234,9 +184,6 @@ Main() {
     echo "You must pass the Docker image tag as first argument to the script!" >&2
 	exit 1
   fi
-  
-  local minimumClusterIP="${2-10}"
-  local maximumClusterIP="${3-255}"
 
   # get name of the user that ultimately triggered the deployment
   local atlassianUserName
@@ -274,12 +221,9 @@ Main() {
     echo "The file $kubernetesYaml already exists, changing docker image version..." >&2
     UpdateYamlFile "$kubernetesYaml" "$serviceType" "$dockerImageName" "$dockerImageTag" 
 
-  else
-    local clusterIp
-    clusterIp=$(CreateClusterIp "$minimumClusterIP" "$maximumClusterIP")
-  
+  else  
     echo "Creating file $kubernetesYaml..." >&2
-    CreateYamlFile "$kubernetesYaml" "$serviceType" "$serviceName" "$dockerImageName" "$dockerImageTag" "$clusterIp" "$atlassianUserName"
+    CreateYamlFile "$kubernetesYaml" "$serviceType" "$serviceName" "$dockerImageName" "$dockerImageTag" "$atlassianUserName"
   fi
 }
 
