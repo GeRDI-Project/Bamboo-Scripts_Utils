@@ -45,11 +45,10 @@ source ./scripts/helper-scripts/git-utils.sh
 # issue to "Done" if successful.
 #
 # Arguments:
-#  1 - the issue key of a sub-task to be merged
+#  1 - the issue key of a JIRA ticket to be merged and set to Done
 #  2 - an Atlassian user name
 #  3 - the password for the Atlassian user name
 #
-
 FinishAndMergeJiraTicket() {
   local jiraKey="$1"
   local atlassianUserName="$2"
@@ -135,7 +134,7 @@ Main() {
   TOTAL_MERGE_FAILS=0
 
   # merge all pull-requests
-  IterateSubtasksOfJiraTicket "SAI-1297" "FinishAndMergeJiraTicket" "'"$atlassianUserName"' '"$atlassianPassword"'" >&2
+  IterateSubtasksOfJiraTicket "$jiraKey" "FinishAndMergeJiraTicket" "'"$atlassianUserName"' '"$atlassianPassword"'" >&2
   
   echo " " >&2
   if [ $TOTAL_MERGE_FAILS -eq 0 ]; then
