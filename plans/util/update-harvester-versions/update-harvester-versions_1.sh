@@ -225,7 +225,7 @@ PrepareUpdate() {
     TARGET_VERSION="$SOURCE_VERSION"
   else
     # if no pom.xml exists, we cannot update it
-	echo "Cannot update '$PROJECT/$SLUG' because the pom.xml is missing!" >&2
+	echo "Skipping update of '$PROJECT/$SLUG', because it does not have a pom.xml!" >&2
     ARTIFACT_ID=""
 	SOURCE_VERSION=""
 	TARGET_VERSION=""
@@ -327,8 +327,11 @@ UpdateHarvester() {
   local slug=$(GetRepositorySlugFromCloneLink "$cloneLink")
   
   if $(IsOaiPmhHarvesterRepository "$projectId" "$slug" "$ATLASSIAN_USER_NAME" "$ATLASSIAN_PASSWORD") ; then
-    echo "Skipping update of $projectId/$slug, because it is an OAI-PMH harvester." >&2
+    echo "Skipping update of '$projectId/$slug', because it is an OAI-PMH harvester." >&2
 	
+  elif ! $(IsMavenizedRepository "$projectId" "$slug" "$ATLASSIAN_USER_NAME" "$ATLASSIAN_PASSWORD") ; then
+	echo "Skipping update of '$projectId/$slug', because it does not have a pom.xml!" >&2
+    
   else
     PrepareUpdate "$projectId" "$slug" "."
     if [ -n "$SOURCE_VERSION" ]; then

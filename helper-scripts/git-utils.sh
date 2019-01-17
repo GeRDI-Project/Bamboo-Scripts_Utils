@@ -849,6 +849,33 @@ IsOaiPmhHarvesterRepository() {
 }
 
 
+# Checks if a specified repository contains a pom.xml.
+# Exits with 1 if the repository cannot be reached, or the pom.xml is missing.
+#  Arguments:
+#  1 - the project id of the checked repository
+#  2 - the repository slug of the checked repository
+#  3 - a username for Basic Authentication (optional)
+#  4 - a password for Basic Authentication (optional)
+#
+IsMavenizedRepository() {
+  local projectId="$1"
+  local slug="$2"
+  local userName="${3-}"
+  local password="${4-}"
+    
+  local auth=""
+  if [ "$userName" != "" ]; then
+    auth="-u $userName:$password"
+  fi
+  
+  # check if pom.xml exists in repository
+  local response=$(curl -sfI $auth "https://code.gerdi-project.de/rest/api/1.0/projects/$projectId/repos/$slug/browse/pom.xml?raw&at=refs%2Fheads%2Fmaster")
+  if [ $? -ne 0 ]; then
+    exit 1
+  fi
+}
+
+
 # Adds read permission of a BitBucket repository to a specified user.
 #  Arguments:
 #  1 - a Bitbucket user name
