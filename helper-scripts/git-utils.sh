@@ -869,7 +869,8 @@ IsMavenizedRepository() {
   fi
   
   # check if pom.xml exists in repository
-  local response=$(curl -sfI $auth "https://code.gerdi-project.de/rest/api/1.0/projects/$projectId/repos/$slug/browse/pom.xml?raw&at=refs%2Fheads%2Fmaster")
+  local response
+  response=$(curl -sfI $auth "https://code.gerdi-project.de/rest/api/1.0/projects/$projectId/repos/$slug/browse/pom.xml?raw&at=refs%2Fheads%2Fmaster")
   if [ $? -ne 0 ]; then
     exit 1
   fi
