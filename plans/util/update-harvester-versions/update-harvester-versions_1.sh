@@ -283,7 +283,6 @@ ExecuteUpdate() {
         "$reviewer" \
         "") >&2
       ReviewJiraTask "$subTaskKey" "$ATLASSIAN_USER_NAME" "$ATLASSIAN_PASSWORD"
-      FinishJiraTask "$subTaskKey" "$ATLASSIAN_USER_NAME" "$ATLASSIAN_PASSWORD"
     else
 	  echo "Could not close JIRA task, because the major version changed! Please check the code!" >&2
     fi
@@ -328,80 +327,15 @@ UpdateHarvester() {
   local slug=$(GetRepositorySlugFromCloneLink "$cloneLink")
   
   if $(IsOaiPmhHarvesterRepository "$projectId" "$slug" "$ATLASSIAN_USER_NAME" "$ATLASSIAN_PASSWORD") ; then
-    echo "Postponing update of $projectId/$slug, because it is not an OAI-PMH harvester." >&2
+    echo "Skipping update of $projectId/$slug, because it is an OAI-PMH harvester." >&2
 	
   else
     PrepareUpdate "$projectId" "$slug" "."
     if [ -n "$SOURCE_VERSION" ]; then
       QueueParentPomUpdate "$newParentVersion"
       ExecuteUpdate "$atlassianUserEmail" "$atlassianUserDisplayName" "$reviewer"
-	
-	  if [ "$SLUG" = "oai-pmh" ]; then
-	    OAIPMH_VERSION="$TARGET_VERSION"
-	  fi
     fi
   fi
-}
-
-
-# FUNCTION FOR BUILDING AND DEPLOYING A HARVESTER RELATED LIBRARY VIA THE BAMBOO REST API
-BuildAndDeployLibrary() {  
-  local planLabel="$1"
-  
-  local isVersionAlreadyBuilt
-  isVersionAlreadyBuilt=$(IsMavenVersionDeployed "$ARTIFACT_ID" "$TARGET_VERSION")
-  
-  if [ "$isVersionAlreadyBuilt" = true ]; then
-    echo "Did not deploy $ARTIFACT_ID $TARGET_VERSION, because it already exists in the Sonatype repository." >&2
-	exit 0
-  fi
-  
-  if ! $(echo "$TARGET_VERSION" | grep -q "\-SNAPSHOT" ); then
-    echo "Cannot automatically deploy RELEASE versions, because it takes 15 minutes until they are accessible in the Maven Central repository!" >&2
-	exit 1
-  fi
-  
-  # get ID of deployment project
-  local deploymentId
-  deploymentId=$(GetDeploymentId "$planLabel" "$ATLASSIAN_USER_NAME" "$ATLASSIAN_PASSWORD")
-  if [ -z "$deploymentId" ]; then exit 1; fi
-  echo "deploymentId: $deploymentId" >&2
-  
-  # get name of deployment environment
-  local environmentName=$(GetDeployEnvironmentName "$SOURCE_BRANCH")
-  
-  # get ID of deployment environment
-  local environmentId
-  environmentId=$(GetDeployEnvironmentId "$deploymentId" "$environmentName" "$ATLASSIAN_USER_NAME" "$ATLASSIAN_PASSWORD")
-  if [ -z "$environmentId" ]; then exit 1; fi
-  echo "environmentId: $environmentId" >&2
-       
-  # get branch number of the plan
-  local planBranchId
-  planBranchId=$(GetPlanBranchId "$planLabel" "$BRANCH_NAME" "$ATLASSIAN_USER_NAME" "$ATLASSIAN_PASSWORD")
-  if [ -z "$planBranchId" ]; then exit 1; fi
-  echo "planLabel: $planLabel$planBranchId" >&2  
-
-  local planResultKey
-  planResultKey="$planLabel$planBranchId-2"
-        
-  # wait for plan to finish
-  WaitForPlanToBeDone "$planResultKey" "$ATLASSIAN_USER_NAME" "$ATLASSIAN_PASSWORD"
-     
-  # start bamboo deployment
-  local deploymentResultId
-  deploymentResultId=$(StartBambooDeployment \
-   "$deploymentId" \
-   "$environmentId" \
-   "$TARGET_VERSION($planResultKey)" \
-   "$planResultKey" \
-   "$ATLASSIAN_USER_NAME" \
-   "$ATLASSIAN_PASSWORD")
-        
-  if [ -z "$deploymentResultId" ]; then exit 1; fi
-  
-  echo "deploymentResultId: $deploymentResultId" >&2
-  WaitForDeploymentToBeDone "$deploymentResultId" "$ATLASSIAN_USER_NAME" "$ATLASSIAN_PASSWORD"
 }
 
 
@@ -462,9 +396,6 @@ Main() {
     QueueParentPomUpdate "$parentPomVersion"
     ExecuteUpdate "$atlassianUserEmail" "$atlassianUserDisplayName" "$reviewer"
 	local harvesterUtilsVersion="$TARGET_VERSION"
-    if ! $(BuildAndDeployLibrary "CAHL-HU"); then
-	  echo "DID NOT BUILD $ARTIFACT_ID $TARGET_VERSION !" >&2
-	fi
   fi
 
   # update json library
@@ -474,9 +405,6 @@ Main() {
     QueuePropertyUpdate "harvesterutils.dependency.version" "$harvesterUtilsVersion"
     ExecuteUpdate "$atlassianUserEmail" "$atlassianUserDisplayName" "$reviewer"
 	local jsonLibVersion="$TARGET_VERSION"
-    if ! $(BuildAndDeployLibrary "CAHL-JL"); then
-	  echo "DID NOT BUILD $ARTIFACT_ID $TARGET_VERSION !" >&2
-	fi
   fi
 
   # update harvester base library
@@ -486,9 +414,6 @@ Main() {
     QueuePropertyUpdate "gerdigson.dependency.version" "$jsonLibVersion"
     ExecuteUpdate "$atlassianUserEmail" "$atlassianUserDisplayName" "$reviewer"
     local harvesterLibVersion="$TARGET_VERSION"
-    if ! $(BuildAndDeployLibrary "CAHL-HBL"); then
-	  echo "DID NOT BUILD $ARTIFACT_ID $TARGET_VERSION !" >&2
-	fi
   fi
 
   # update harvester parent pom
@@ -499,9 +424,6 @@ Main() {
     QueuePropertyUpdate "harvesterutils.dependency.version" "$harvesterUtilsVersion"
     ExecuteUpdate "$atlassianUserEmail" "$atlassianUserDisplayName" "$reviewer"
     local harvesterParentPomVersion="$TARGET_VERSION"
-    if ! $(BuildAndDeployLibrary "CAHL-HPP"); then
-	  echo "DID NOT BUILD $ARTIFACT_ID $TARGET_VERSION !" >&2
-	fi
   fi
 
   # update all other harvesters
@@ -522,10 +444,6 @@ Main() {
   fi
 
   echo " " >&2
-  
-  # update OAI-PMH harvesters
-  cd "$TOP_FOLDER"
-  ./scripts/plans/util/update-harvester-versions/update-oaipmh-harvester-versions_2.sh "$OAIPMH_VERSION" "$JIRA_KEY"
 }
 
 
