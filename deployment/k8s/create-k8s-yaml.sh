@@ -221,7 +221,7 @@ Main() {
     echo "The file $kubernetesYaml already exists, changing docker image version..." >&2
     UpdateYamlFile "$kubernetesYaml" "$serviceType" "$dockerImageName" "$dockerImageTag" 
 
-  else  
+  else
     echo "Creating file $kubernetesYaml..." >&2
     CreateYamlFile "$kubernetesYaml" "$serviceType" "$serviceName" "$dockerImageName" "$dockerImageTag" "$atlassianUserName"
   fi
