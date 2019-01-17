@@ -187,7 +187,7 @@ GetDeployEnvironmentId() {
   environmentId=$(echo "$response" | grep -oP "(?<=\{\"id\":)\d+(?=,.*?\"name\":\"$environmentName\")")
   
   if [ -z "$environmentId" ]; then
-    echo "Could not find a 'Maven Deploy' environment for deployment project $deploymentId!" >&2
+    echo "Could not find a '$environmentName' environment for deployment project $deploymentId!" >&2
   fi
   
   echo "$environmentId"
