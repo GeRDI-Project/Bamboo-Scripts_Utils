@@ -258,11 +258,11 @@ ExecuteUpdate() {
     BRANCH_NAME="versionUpdate/$JIRA_KEY-$subTaskKey-VersionUpdate"
 	CreateBranch "$BRANCH_NAME"
     
-    # execute update queue
-    echo -e $($UPDATE_QUEUE_FILE) >&2
-   
     # set version
     echo -e $(mvn versions:set "-DnewVersion=$TARGET_VERSION" -DallowSnapshots=true -DgenerateBackupPoms=false -f"$POM_FOLDER/pom.xml") >&2
+	
+    # execute update queue
+    echo -e $($UPDATE_QUEUE_FILE) >&2
     
 	# commit and push updates
     commitMessage="$JIRA_KEY $subTaskKey Updated pom.xml version to $TARGET_VERSION. $(cat $COMMIT_DESCRIPTION_FILE)"
