@@ -150,12 +150,12 @@ IsMavenVersionHigher() {
 #  Arguments:
 #  1 - the path to the tag of which the value is retrieved (e.g. project.version)
 #  2 - the path to the pom.xml (default: current folder)
-#  3 - the number of retries for this operation (default: 1)
+#  3 - the number of retries for this operation (default: 0)
 #
 GetPomValue() {
   local valueKey="$1"
   local pomPath=$(GetPomXmlPath "${2-.}")
-  local retries="${3-1}"
+  local retries="${3-0}"
   
   # try to retrieve the value
   local retrievedValue

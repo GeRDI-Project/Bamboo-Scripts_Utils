@@ -111,7 +111,7 @@ QueueParentPomUpdate(){
   local targetParentVersion="$1"
   
   local sourceParentVersion
-  sourceParentVersion=$(GetPomValue "project.parent.version" "$POM_FOLDER/pom.xml")
+  sourceParentVersion=$(GetPomValue "project.parent.version" "$POM_FOLDER/pom.xml" 3)
 
   if $(IsMavenVersionHigher "$targetParentVersion" "$sourceParentVersion"); then 
     echo "Queueing to update parent-pom version of $ARTIFACT_ID from $sourceParentVersion to $targetParentVersion" >&2
@@ -218,9 +218,9 @@ PrepareUpdate() {
   
   # get version from pom
   if [ -f "$POM_FOLDER/pom.xml" ]; then
-    ARTIFACT_ID=$(GetPomValue "project.artifactId" "$POM_FOLDER/pom.xml") 
+    ARTIFACT_ID=$(GetPomValue "project.artifactId" "$POM_FOLDER/pom.xml" 3) 
 	echo "ArtifactId: $ARTIFACT_ID" >&2
-    SOURCE_VERSION=$(GetPomValue "project.version" "$POM_FOLDER/pom.xml")
+    SOURCE_VERSION=$(GetPomValue "project.version" "$POM_FOLDER/pom.xml" 3)
 	echo "Current version: $SOURCE_VERSION" >&2
     TARGET_VERSION="$SOURCE_VERSION"
   else
@@ -390,7 +390,7 @@ Main() {
 
   # get parent pom version  
   local parentPomVersion
-  parentPomVersion=$(GetPomValue "project.version" "parentPom/pom.xml")
+  parentPomVersion=$(GetPomValue "project.version" "parentPom/pom.xml" 3)
   echo "ParentPom Version: $parentPomVersion" >&2
 
   # update harvester utils
