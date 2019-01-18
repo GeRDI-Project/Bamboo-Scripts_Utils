@@ -70,7 +70,6 @@ metadata:
     run: ${serviceName}
     scs: ${serviceType}
 spec:
-  clusterIP: ${clusterIp}
   ports:
     - port: 8080
       protocol: TCP
