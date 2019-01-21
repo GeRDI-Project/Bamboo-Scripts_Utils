@@ -835,7 +835,7 @@ IsOaiPmhHarvesterRepository() {
   local password="${4-}"
     
   local auth=""
-  if [ "$userName" != "" ]; then
+  if [ -n "$userName" ]; then
     auth="-u $userName:$password"
   fi
   
@@ -864,7 +864,7 @@ IsMavenizedRepository() {
   local password="${4-}"
     
   local auth=""
-  if [ "$userName" != "" ]; then
+  if [ -n "$userName" ]; then
     auth="-u $userName:$password"
   fi
   

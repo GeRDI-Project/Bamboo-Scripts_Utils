@@ -167,7 +167,8 @@ GetPomValue() {
     echo "$retrievedValue"
 	
   elif [ $retries -gt 0 ]; then
-    # for some weird reason, the retrieval fails sometimes, so we can retry
+    # for an unknown reason, "mvn exec" fails sometimes
+	# often it helps to retry 
     sleep 1s
     GetPomValue "$valueKey" "$pomPath" $(expr $retries - 1)
 	

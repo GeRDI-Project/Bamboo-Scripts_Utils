@@ -71,8 +71,9 @@ FinishAndMergeJiraTicket() {
 }
 
 
-# Attempts to retrieve a JIRA issue key from a plan variable.
-# If the plan variable is left empty, the issue key is retrieved from a Bamboo job.
+# Attempts to retrieve a JIRA issue key from the plan variable "jiraIssueKey".
+# If the plan variable is left empty, the issue key is retrieved from the last successful build
+# of the "Update Harvester Versions" Bamboo job (UH-UHV).
 #
 # Arguments:
 #  1 - an Atlassian user name
@@ -111,7 +112,6 @@ Main() {
   # check early exit conditions
   ExitIfNotLoggedIn
   ExitIfPlanVariableIsMissing "atlassianPassword"
-  ExitIfPlanVariableIsMissing "jiraIssueKey"
 
   # get and verify credentials
   local atlassianUserName

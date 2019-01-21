@@ -217,7 +217,7 @@ AddJiraTicketToCurrentSprint() {
 #  1 - The JIRA issue key
 #  2 - The name of the function that is to be called for each JIRA sub-task
 #      Its first argument must be the sub-task key. Optional subsequent arguments
-#      must match the arguments specified in argument 5.
+#      must match the arguments specified in argument 3.
 #  3 - (optional) A space-separated list of arguments for the called function.
 #      Each argument must be surrounded by single-quotes.
 #
