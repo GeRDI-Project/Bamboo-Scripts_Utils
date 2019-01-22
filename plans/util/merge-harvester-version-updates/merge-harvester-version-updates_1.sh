@@ -125,7 +125,7 @@ Main() {
   # check if a JIRA key was specified
   local jiraKey
   jiraKey=$(GetJiraKey "$atlassianUserName" "$atlassianPassword" )
-  if[ -z "$jiraKey" ]; then
+  if [ -z "$jiraKey" ]; then
     echo "Could not retrieve JIRA issue key!" >&2
     exit 1
   fi
