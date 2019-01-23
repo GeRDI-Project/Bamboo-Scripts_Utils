@@ -540,8 +540,8 @@ MergeAllPullRequestsOfJiraTicket() {
   # extract clone links from commits with messages that start with the JIRA ticket number
   local cloneLinkList
   cloneLinkList=$(printf "%s" "$allCommits" \
-  | grep -oP '{"fromCommit".*?"message":"'"$jiraKey"'.*?}}}' \
-  | sed -e 's~.*"message":"'"$jiraKey"'.*\?"href":"\(http[^"]\+\?git\)".*~\1~g')
+  | grep -oP '(?<={"href":")http[^"]*?\.git(?=")' \
+  | sort -u)
   
   # check if we have a list of clone links
   if [ -z "$cloneLinkList" ]; then
@@ -560,7 +560,7 @@ MergeAllPullRequestsOfJiraTicket() {
     project=$(GetProjectIdFromCloneLink "$cloneLink")
     repositorySlug=$(GetRepositorySlugFromCloneLink "$cloneLink")
 	
-	  # get full branch name by looking for branches that start with the JIRA ticket number
+	# get full branch name by looking for branches that contain the JIRA ticket number
     branchName=$(curl -sX GET -u "$userName:$password" "https://code.gerdi-project.de/rest/api/latest/projects/$project/repos/$repositorySlug/branches?filterText=$jiraKey" \
 	| grep -oP "(?<=\"id\":\"refs/heads/)[^\"]+")
 	
