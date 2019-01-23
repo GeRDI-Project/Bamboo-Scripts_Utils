@@ -438,13 +438,14 @@ GetPullRequestIdOfSourceBranch() {
   
   local pullRequestId
   
-  # check if there are no pull requests
-  if $(echo "$allPullRequests" | grep -q '"{size":0,'); then
-    pullRequestId=""
+  # check if there are pull requests for the specified source branch
+  if $(echo "$allPullRequests" | grep -q '"fromRef":{"id":"refs/heads/'"$branchName"); then
+    pullRequestId=$(echo "$allPullRequests" \
+      | grep -oP '{"id":[^{]+?(?="fromRef":{"id":"refs/heads/'"$branchName)" \
+      | grep -oP '(?<="id":)[0-9]+' \
+      | head -n 1)
   else
-    pullRequestId=${allPullRequests%\"fromRef\":\{\"id\":\"refs/heads/$branchName*}
-    pullRequestId=${pullRequestId##*\"id\":}
-    pullRequestId=${pullRequestId%%,*}
+    pullRequestId=""
   fi
   
   echo "$pullRequestId"
