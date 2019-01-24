@@ -182,8 +182,8 @@ UpdateOaiPmhRepository() {
   # commit and push changes
   local userDisplayName=$(GetAtlassianUserDisplayName "$userName" "$password")
   local userEmail=$(GetAtlassianUserEmailAddress "$userName" "$password")
-  local message="Update Docker base image version to: $newVersion\n- This commit was triggered by a Bamboo Job."
-  (cd "$tempDir" && PushAllFilesToGitRepository "$userDisplayName" "$userEmail" "$message")
+  local commitMessage="$JIRA_KEY $subTaskKey Update Docker base image version to: $newVersion\n- This commit was triggered by a Bamboo Job."
+  (cd "$tempDir" && PushAllFilesToGitRepository "$userDisplayName" "$userEmail" "$commitMessage")
   
   # create pull-request
   (cd "$tempDir" && CreatePullRequest \
