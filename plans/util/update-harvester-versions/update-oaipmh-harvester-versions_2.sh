@@ -104,14 +104,13 @@ TryOaiPmhRepositoryUpdate() {
   
   if ! $(IsOaiPmhHarvesterRepository "$projectId" "$slug" "$userName" "$password") ; then
     echo "Skipping $projectId/$slug, because it is not an OAI-PMH harvester." >&2
-    exit 1
-  fi
-  
-  local currentVersion=$(GetDockerBaseImageVersion "$projectId" "$slug" "$branch" "$userName" "$password")
-  if $(IsDockerImageTagLower "$currentVersion" "$newVersion"); then
-    UpdateOaiPmhRepository "$newVersion" "$projectId" "$slug" "$branch" "$reviewer" "$userName" "$password"
-  else  
-    echo "Skipping $projectId/$slug, because its current version, $currentVersion, is higher or equal to $newVersion!" >&2
+  else
+    local currentVersion=$(GetDockerBaseImageVersion "$projectId" "$slug" "$branch" "$userName" "$password")
+    if $(IsDockerImageTagLower "$currentVersion" "$newVersion"); then
+      UpdateOaiPmhRepository "$newVersion" "$projectId" "$slug" "$branch" "$reviewer" "$userName" "$password"
+    else  
+      echo "Skipping $projectId/$slug, because its current version, $currentVersion, is higher or equal to $newVersion!" >&2
+    fi
   fi
 }
 
@@ -186,9 +185,6 @@ UpdateOaiPmhRepository() {
   local message="Update Docker base image version to: $newVersion\n- This commit was triggered by a Bamboo Job."
   (cd "$tempDir" && PushAllFilesToGitRepository "$userDisplayName" "$userEmail" "$message")
   
-  # clean up temp files
-  rm -rf "$tempDir"
-  
   # create pull-request
   (cd "$tempDir" && CreatePullRequest \
       "$userName" \
@@ -201,6 +197,9 @@ UpdateOaiPmhRepository() {
       "Docker base image version update." \
       "$reviewer" \
       "") >&2
+	  
+  # clean up temp files
+  rm -rf "$tempDir"
 	  
   # finish sub-task
   ReviewJiraTask "$subTaskKey" "$userName" "$password"
