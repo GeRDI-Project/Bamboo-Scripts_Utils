@@ -176,7 +176,7 @@ UpdateOaiPmhRepository() {
   
   # change version in Dockerfile
   perl -pi -e \
-       "s~(.*?FROM docker-registry\.gerdi\.research\.lrz\.de:5043/harvest/oai-pmh:)[^\s]*(.*)~\1$newVersion\2~" \
+       "s~(.*?FROM docker-registry\.gerdi\.research\.lrz\.de:5043/harvest/oai-pmh):[^\s]*(.*)~\1:$newVersion\2~" \
        "$tempDir/Dockerfile"
   
   # commit and push changes
@@ -201,9 +201,8 @@ UpdateOaiPmhRepository() {
   # clean up temp files
   rm -rf "$tempDir"
 	  
-  # finish sub-task
+  # set sub-task to "in review"
   ReviewJiraTask "$subTaskKey" "$userName" "$password"
-  FinishJiraTask "$subTaskKey" "$userName" "$password"
 }
 
 
