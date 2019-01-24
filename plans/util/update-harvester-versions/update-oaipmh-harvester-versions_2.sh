@@ -250,14 +250,14 @@ Main() {
   ExitIfPlanVariableIsMissing "reviewer"
   ExitIfPlanVariableIsMissing "branch"
 
-  local username
-  username=$(GetBambooUserName)
+  local userName
+  userName=$(GetBambooUserName)
   
   local password
   password=$(GetValueOfPlanVariable "atlassianPassword")
 
   # test Atlassian credentials
-  ExitIfAtlassianCredentialsWrong "$username" "$password"
+  ExitIfAtlassianCredentialsWrong "$userName" "$password"
   
   # check pull-request reviewer
   local reviewer
