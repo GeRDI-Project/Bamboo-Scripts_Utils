@@ -76,7 +76,7 @@ IsMavenVersionDeployed() {
   
   local httpCode
   httpCode=$(echo "$response" | grep -oP '(?<=HTTP/\d\.\d )\d+')
-  if [ $httpCode -eq 200 ]; then
+  if [ "$httpCode" = "200" ]; then
     echo true
   else
     echo false
@@ -150,10 +150,12 @@ IsMavenVersionHigher() {
 #  Arguments:
 #  1 - the path to the tag of which the value is retrieved (e.g. project.version)
 #  2 - the path to the pom.xml (default: current folder)
+#  3 - the number of retries for this operation (default: 0)
 #
 GetPomValue() {
   local valueKey="$1"
   local pomPath=$(GetPomXmlPath "${2-.}")
+  local retries="${3-0}"
   
   # try to retrieve the value
   local retrievedValue
@@ -163,6 +165,13 @@ GetPomValue() {
   # do not return the error message if the value was not retrieved
   if [ $? -eq 0 ]; then
     echo "$retrievedValue"
+	
+  elif [ $retries -gt 0 ]; then
+    # for an unknown reason, "mvn exec" fails sometimes
+	# often it helps to retry 
+    sleep 1s
+    GetPomValue "$valueKey" "$pomPath" $(expr $retries - 1)
+	
   else
     echo -e "Could not retrieve $valueKey from $pomPath:\n$retrievedValue" >&2
     exit 1

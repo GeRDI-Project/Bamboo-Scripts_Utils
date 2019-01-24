@@ -438,13 +438,14 @@ GetPullRequestIdOfSourceBranch() {
   
   local pullRequestId
   
-  # check if there are no pull requests
-  if $(echo "$allPullRequests" | grep -q '"{size":0,'); then
-    pullRequestId=""
+  # check if there are pull requests for the specified source branch
+  if $(echo "$allPullRequests" | grep -q '"fromRef":{"id":"refs/heads/'"$branchName"); then
+    pullRequestId=$(echo "$allPullRequests" \
+      | grep -oP '{"id":[^{]+?(?="fromRef":{"id":"refs/heads/'"$branchName)" \
+      | grep -oP '(?<="id":)[0-9]+' \
+      | head -n 1)
   else
-    pullRequestId=${allPullRequests%\"fromRef\":\{\"id\":\"refs/heads/$branchName*}
-    pullRequestId=${pullRequestId##*\"id\":}
-    pullRequestId=${pullRequestId%%,*}
+    pullRequestId=""
   fi
   
   echo "$pullRequestId"
@@ -540,8 +541,8 @@ MergeAllPullRequestsOfJiraTicket() {
   # extract clone links from commits with messages that start with the JIRA ticket number
   local cloneLinkList
   cloneLinkList=$(printf "%s" "$allCommits" \
-  | grep -oP '{"fromCommit".*?"message":"'"$jiraKey"'.*?}}}' \
-  | sed -e 's~.*"message":"'"$jiraKey"'.*\?"href":"\(http[^"]\+\?git\)".*~\1~g')
+  | grep -oP '(?<={"href":")http[^"]*?\.git(?=")' \
+  | sort -u)
   
   # check if we have a list of clone links
   if [ -z "$cloneLinkList" ]; then
@@ -560,7 +561,7 @@ MergeAllPullRequestsOfJiraTicket() {
     project=$(GetProjectIdFromCloneLink "$cloneLink")
     repositorySlug=$(GetRepositorySlugFromCloneLink "$cloneLink")
 	
-	  # get full branch name by looking for branches that start with the JIRA ticket number
+	# get full branch name by looking for branches that contain the JIRA ticket number
     branchName=$(curl -sX GET -u "$userName:$password" "https://code.gerdi-project.de/rest/api/latest/projects/$project/repos/$repositorySlug/branches?filterText=$jiraKey" \
 	| grep -oP "(?<=\"id\":\"refs/heads/)[^\"]+")
 	
@@ -816,6 +817,64 @@ GetDeletedFilesOfCommit() {
   diff=$((cd "$gitDir" && git diff $commitId~ $commitId) \
       || (cd "$gitDir" && git show $commitId))
   echo "$diff" | tr '\n' '\t' | grep -oP '(?<=diff --git a/)([^\t]+)(?= b/\1\tdeleted file mode)'
+}
+
+
+# Checks if a specified repository contains a Dockerfile that is derived from the OAI-PMH
+# harvester image. Exits with 1 if the repository cannot be reached, or the Dockerfile of
+# the project is not derived from the OAI-PMH image.
+#  Arguments:
+#  1 - the project id of the checked repository
+#  2 - the repository slug of the checked repository
+#  3 - a username for Basic Authentication (optional)
+#  4 - a password for Basic Authentication (optional)
+#
+IsOaiPmhHarvesterRepository() {
+  local projectId="$1"
+  local slug="$2"
+  local userName="${3-}"
+  local password="${4-}"
+    
+  local auth=""
+  if [ -n "$userName" ]; then
+    auth="-u $userName:$password"
+  fi
+  
+  # read DockerFile of repository
+  local countOaiPmhParents=$(curl -sfX GET $auth "https://code.gerdi-project.de/rest/api/1.0/projects/$projectId/repos/$slug/browse/Dockerfile?raw&at=refs%2Fheads%2Fmaster" \
+        | grep -c "FROM docker-registry\.gerdi\.research\.lrz\.de:5043/harvest/oai-pmh:")
+
+  if [ "$countOaiPmhParents" -eq "0" ]; then
+    exit 1
+  fi  
+}
+
+
+# Checks if a specified repository contains a pom.xml.
+# Exits with 1 if the repository cannot be reached, or the pom.xml is missing.
+#  Arguments:
+#  1 - the project id of the checked repository
+#  2 - the repository slug of the checked repository
+#  3 - a username for Basic Authentication (optional)
+#  4 - a password for Basic Authentication (optional)
+#
+IsMavenizedRepository() {
+  local projectId="$1"
+  local slug="$2"
+  local userName="${3-}"
+  local password="${4-}"
+    
+  local auth=""
+  if [ -n "$userName" ]; then
+    auth="-u $userName:$password"
+  fi
+  
+  # check if pom.xml exists in repository
+  local response
+  response=$(curl -sfI $auth "https://code.gerdi-project.de/rest/api/1.0/projects/$projectId/repos/$slug/browse/pom.xml?raw&at=refs%2Fheads%2Fmaster")
+  if [ $? -ne 0 ]; then
+    exit 1
+  fi
 }
 
 

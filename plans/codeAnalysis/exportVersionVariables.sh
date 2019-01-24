@@ -25,6 +25,10 @@
 #  1 the path to the pom.xml of which the Maven version is retrieved
 #  2 the path to the git folder of which the tag version is retrieved
 #  3 the file name of the file which is generated to be exported via the "Inject Bamboo variables" task
+#
+#  TEST_VERSION - the current version of the test environment
+#  STAGING_VERSION - the current version of the staging environment
+#  PRODUCTION_VERSION - the current version of the production environment
 
 # treat unset variables as an error when substituting
 set -u

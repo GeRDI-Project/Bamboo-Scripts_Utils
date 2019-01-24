@@ -33,79 +33,15 @@ source ./scripts/helper-scripts/git-utils.sh
 source ./scripts/helper-scripts/misc-utils.sh
 source ./scripts/helper-scripts/bamboo-utils.sh
 source ./scripts/helper-scripts/k8s-utils.sh
+source ./scripts/helper-scripts/docker-utils.sh
 
 
 #########################
 #  FUNCTION DEFINITIONS #
 #########################
 
-# Pushes a specified docker image to the registry and tags it with latest and a specified tag.
-# Subsequently, the image is removed from the local image list to free up space.
-#
-# Arguments:
-#  1 - the Docker Registry URL
-#  2 - the name of the Docker image to be built, excluding any tags
-#  3 - the tag of the Docker image to be built
-#
-DockerPush() {
-  local registryUrl="$1"
-  local imageName="$2"
-  local imageTag="$3"
-  
-  # push latest
-  local latestImage
-  latestImage="$registryUrl/$imageName:latest"
-  docker push "$latestImage"
-  
-  # remove image from local image list
-  echo "Removing docker image from local docker image list." >&2
-  echo $(docker rmi "$latestImage") >&2
 
-  # push custom tag if specified
-  if [ -n "$imageTag" ] && [ "$imageTag" != "latest" ]; then
-    local taggedImage
-    taggedImage="$registryUrl/$imageName:$imageTag"
-    docker push "$taggedImage"
-	
-	# remove image from local image list
-    echo "Removing docker image from local docker image list." >&2
-    echo $(docker rmi "$taggedImage") >&2
-  fi
-}
-
-
-# Builds a Docker image.
-#
-# Arguments:
-#  1 - the folder where the docker file is stored
-#  2 - the Docker Registry URL
-#  3 - the name of the Docker image to be built, excluding any tags
-#  4 - the tag of the Docker image to be built
-#
-DockerBuild() {
-  local dockerFileFolder="$1"
-  local registryUrl="$2"
-  local imageName="$3"
-  local imageTag="$4"
-  
-  local image
-  image="$registryUrl/$imageName:$imageTag"
-
-  # build image
-  echo "Building docker image: $image" >&2
-  
-  if [ -z "$imageTag" ] || [ "$imageTag" = "latest" ]; then
-    docker build -t "$registryUrl/$imageName:latest" \
-	             "$dockerFileFolder"
-  else
-    docker build -t "$registryUrl/$imageName:latest" \
-	             -t "$image" \
-				 "$dockerFileFolder"
-  fi
-}
-
-
-# If there are warfiles to be deployed, change their access rights 
+# If there are war files to be deployed, change their access rights 
 # in order to allow jetty to use them.
 #
 # Arguments: -
@@ -124,7 +60,7 @@ AllowWarFileAccess() {
 
 
 # Retrieves the Docker image name without the preceding registry URL and
-# without the image tag-
+# without the image tag.
 #
 GetDockerImageName() {
   local gitCloneLink="$bamboo_planRepository_1_repositoryUrl"

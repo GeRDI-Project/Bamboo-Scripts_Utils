@@ -187,7 +187,7 @@ GetDeployEnvironmentId() {
   environmentId=$(echo "$response" | grep -oP "(?<=\{\"id\":)\d+(?=,.*?\"name\":\"$environmentName\")")
   
   if [ -z "$environmentId" ]; then
-    echo "Could not find a 'Maven Deploy' environment for deployment project $deploymentId!" >&2
+    echo "Could not find a '$environmentName' environment for deployment project $deploymentId!" >&2
   fi
   
   echo "$environmentId"
@@ -499,13 +499,19 @@ GetDeployEnvironmentBranch() {
 # Retrieves the name of the current deployment environment, and
 # finds the corresponding environment of the deployed services.
 #
-# Arguments: -
+# Arguments:
+#  1 - (optional) the name of a plan branch
 #
 GetDeployEnvironmentName() {
-  case $(GetDeployEnvironmentBranch) in
+  local branch="${1-}"
+  if [ -z "$branch" ]; then
+    branch=$(GetDeployEnvironmentBranch)
+  fi
+  
+  case "$branch" in
     stage)      echo "staging";;
     production) echo "production";;
-    master)     echo "test";;
+    *)          echo "test";;
   esac
 }
 

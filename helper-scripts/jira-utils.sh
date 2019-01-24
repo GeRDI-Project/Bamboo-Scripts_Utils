@@ -208,3 +208,36 @@ AddJiraTicketToCurrentSprint() {
   
   echo "Added $jiraKeyToAdd to Sprint $sprintId" >&2
 }
+
+
+# Retrieves a list of JIRA sub-task keys for a specified JIRA issue and calls a specified
+# function on each sub-task issue key.
+#
+# Arguments:
+#  1 - The JIRA issue key
+#  2 - The name of the function that is to be called for each JIRA sub-task
+#      Its first argument must be the sub-task key. Optional subsequent arguments
+#      must match the arguments specified in argument 3.
+#  3 - (optional) A space-separated list of arguments for the called function.
+#      Each argument must be surrounded by single-quotes.
+#
+IterateSubtasksOfJiraTicket() {
+  local jiraKey="$1"
+  local iterFunctionName="$2"
+  local iterFunctionArgs="${3-}"
+  
+  local jiraProject="${jiraKey%%-*}"
+  
+  # get sub-task keys via curl
+  local subTaskKeys
+  subTaskKeys=$(curl -nsX GET "https://tasks.gerdi-project.de/rest/api/2/issue/$jiraKey")
+  subTaskKeys="${subTaskKeys##*"subtasks"}"
+  subTaskKeys="${subTaskKeys%%]*}"
+  subTaskKeys=$(echo "$subTaskKeys" | grep -oP "(?<=\"key\":\")$jiraProject-[0-9]+(?=\")")
+  
+  # execute function on each sub-task key
+  while read subTaskKey
+  do 
+    eval "$iterFunctionName" "'$subTaskKey' $iterFunctionArgs" >&2
+  done <<< "$(echo -e "$subTaskKeys")"
+}

@@ -30,6 +30,7 @@
 #  ManualBuildTriggerReason_userName - the login name of the current user
 #  atlassianPassword - the Atlassian password of the current user
 #  reviewer - the user name of the person that has to review the pull requests
+#  branch - the branch of the harvester repositories that is to be updated
 
 # treat unset variables as an error when substituting
 set -u
@@ -110,7 +111,7 @@ QueueParentPomUpdate(){
   local targetParentVersion="$1"
   
   local sourceParentVersion
-  sourceParentVersion=$(GetPomValue "project.parent.version" "$POM_FOLDER/pom.xml")
+  sourceParentVersion=$(GetPomValue "project.parent.version" "$POM_FOLDER/pom.xml" 3)
 
   if $(IsMavenVersionHigher "$targetParentVersion" "$sourceParentVersion"); then 
     echo "Queueing to update parent-pom version of $ARTIFACT_ID from $sourceParentVersion to $targetParentVersion" >&2
@@ -211,18 +212,20 @@ PrepareUpdate() {
   CloneGitRepository "$ATLASSIAN_USER_NAME" "$ATLASSIAN_PASSWORD" "$PROJECT" "$SLUG"
   
   # checkout branch
-  git checkout "$SOURCE_BRANCH"
+  if [ "$SOURCE_BRANCH" != "master" ]; then
+    git checkout "$SOURCE_BRANCH"
+  fi
   
   # get version from pom
   if [ -f "$POM_FOLDER/pom.xml" ]; then
-    ARTIFACT_ID=$(GetPomValue "project.artifactId" "$POM_FOLDER/pom.xml") 
+    ARTIFACT_ID=$(GetPomValue "project.artifactId" "$POM_FOLDER/pom.xml" 3) 
 	echo "ArtifactId: $ARTIFACT_ID" >&2
-    SOURCE_VERSION=$(GetPomValue "project.version" "$POM_FOLDER/pom.xml")
+    SOURCE_VERSION=$(GetPomValue "project.version" "$POM_FOLDER/pom.xml" 3)
 	echo "Current version: $SOURCE_VERSION" >&2
     TARGET_VERSION="$SOURCE_VERSION"
   else
     # if no pom.xml exists, we cannot update it
-	echo "Cannot update '$PROJECT/$SLUG' because the pom.xml is missing!" >&2
+	echo "Skipping update of '$PROJECT/$SLUG', because it does not have a pom.xml!" >&2
     ARTIFACT_ID=""
 	SOURCE_VERSION=""
 	TARGET_VERSION=""
@@ -252,14 +255,14 @@ ExecuteUpdate() {
     StartJiraTask "$subTaskKey" "$ATLASSIAN_USER_NAME" "$ATLASSIAN_PASSWORD"
   
     # create git branch
-    BRANCH_NAME="$JIRA_KEY-$subTaskKey-VersionUpdate"
+    BRANCH_NAME="versionUpdate/$JIRA_KEY-$subTaskKey-VersionUpdate"
 	CreateBranch "$BRANCH_NAME"
     
-    # execute update queue
-    echo -e $($UPDATE_QUEUE_FILE) >&2
-   
     # set version
     echo -e $(mvn versions:set "-DnewVersion=$TARGET_VERSION" -DallowSnapshots=true -DgenerateBackupPoms=false -f"$POM_FOLDER/pom.xml") >&2
+	
+    # execute update queue
+    echo -e $($UPDATE_QUEUE_FILE) >&2
     
 	# commit and push updates
     commitMessage="$JIRA_KEY $subTaskKey Updated pom.xml version to $TARGET_VERSION. $(cat $COMMIT_DESCRIPTION_FILE)"
@@ -280,7 +283,6 @@ ExecuteUpdate() {
         "$reviewer" \
         "") >&2
       ReviewJiraTask "$subTaskKey" "$ATLASSIAN_USER_NAME" "$ATLASSIAN_PASSWORD"
-      FinishJiraTask "$subTaskKey" "$ATLASSIAN_USER_NAME" "$ATLASSIAN_PASSWORD"
     else
 	  echo "Could not close JIRA task, because the major version changed! Please check the code!" >&2
     fi
@@ -321,69 +323,22 @@ UpdateHarvester() {
   local atlassianUserDisplayName="$4"
   local reviewer="$5"
   
-  PrepareUpdate "HAR" "$(GetRepositorySlugFromCloneLink "$cloneLink")" "."
-  if [ -n "$SOURCE_VERSION" ]; then
-    QueueParentPomUpdate "$newParentVersion"
-    ExecuteUpdate "$atlassianUserEmail" "$atlassianUserDisplayName" "$reviewer"
+  local projectId="HAR"
+  local slug=$(GetRepositorySlugFromCloneLink "$cloneLink")
+  
+  if $(IsOaiPmhHarvesterRepository "$projectId" "$slug" "$ATLASSIAN_USER_NAME" "$ATLASSIAN_PASSWORD") ; then
+    echo "Skipping update of '$projectId/$slug', because it is an OAI-PMH harvester." >&2
+	
+  elif ! $(IsMavenizedRepository "$projectId" "$slug" "$ATLASSIAN_USER_NAME" "$ATLASSIAN_PASSWORD") ; then
+	echo "Skipping update of '$projectId/$slug', because it does not have a pom.xml!" >&2
+    
+  else
+    PrepareUpdate "$projectId" "$slug" "."
+    if [ -n "$SOURCE_VERSION" ]; then
+      QueueParentPomUpdate "$newParentVersion"
+      ExecuteUpdate "$atlassianUserEmail" "$atlassianUserDisplayName" "$reviewer"
+    fi
   fi
-}
-
-
-# FUNCTION FOR BUILDING AND DEPLOYING A HARVESTER RELATED LIBRARY VIA THE BAMBOO REST API
-BuildAndDeployLibrary() {  
-  local planLabel="$1"
-  
-  local isVersionAlreadyBuilt
-  isVersionAlreadyBuilt=$(IsMavenVersionDeployed "$ARTIFACT_ID" "$TARGET_VERSION")
-  
-  if [ "$isVersionAlreadyBuilt" = true ]; then
-    echo "Did not deploy $ARTIFACT_ID $TARGET_VERSION, because it already exists in the Sonatype repository." >&2
-	exit 0
-  fi
-  
-  if ! $(echo "$TARGET_VERSION" | grep -q "\-SNAPSHOT" ); then
-    echo "Cannot automatically deploy RELEASE versions, because it takes 15 minutes until they are accessible in the Maven Central repository!" >&2
-	exit 1
-  fi
-  
-  # get ID of deployment project
-  local deploymentId
-  deploymentId=$(GetDeploymentId "$planLabel" "$ATLASSIAN_USER_NAME" "$ATLASSIAN_PASSWORD")
-  if [ -z "$deploymentId" ]; then exit 1; fi
-  echo "deploymentId: $deploymentId" >&2
-  
-  # get ID of 'Maven Deploy' environment
-  local environmentId
-  environmentId=$(GetDeployEnvironmentId "$deploymentId" "Maven Snapshot" "$ATLASSIAN_USER_NAME" "$ATLASSIAN_PASSWORD")
-  if [ -z "$environmentId" ]; then exit 1; fi
-  echo "environmentId: $environmentId" >&2
-       
-  # get branch number of the plan
-  local planBranchId
-  planBranchId=$(GetPlanBranchId "$planLabel" "$BRANCH_NAME" "$ATLASSIAN_USER_NAME" "$ATLASSIAN_PASSWORD")
-  if [ -z "$planBranchId" ]; then exit 1; fi
-  echo "planLabel: $planLabel$planBranchId" >&2  
-
-  local planResultKey
-  planResultKey="$planLabel$planBranchId-2"
-        
-  # wait for plan to finish
-  WaitForPlanToBeDone "$planResultKey" "$ATLASSIAN_USER_NAME" "$ATLASSIAN_PASSWORD"
-     
-  # start bamboo deployment
-  local deploymentResultId
-  deploymentResultId=$(StartBambooDeployment \
-   "$deploymentId" \
-   "$environmentId" \
-   "$TARGET_VERSION($planResultKey)" \
-   "$planResultKey" \
-   "$ATLASSIAN_USER_NAME" \
-   "$ATLASSIAN_PASSWORD")
-        
-  if [ -z "$deploymentResultId" ]; then exit 1; fi
-  
-  echo "deploymentResultId: $deploymentResultId" >&2
-  WaitForDeploymentToBeDone "$deploymentResultId" "$ATLASSIAN_USER_NAME" "$ATLASSIAN_PASSWORD"
 }
 
 
@@ -431,10 +386,11 @@ Main() {
   UPDATE_QUEUE_FILE=""
   BRANCH_NAME=""
   PROJECT=""
+  OAIPMH_VERSION=""
 
   # get parent pom version  
   local parentPomVersion
-  parentPomVersion=$(GetPomValue "project.version" "parentPom/pom.xml")
+  parentPomVersion=$(GetPomValue "project.version" "parentPom/pom.xml" 3)
   echo "ParentPom Version: $parentPomVersion" >&2
 
   # update harvester utils
@@ -443,9 +399,6 @@ Main() {
     QueueParentPomUpdate "$parentPomVersion"
     ExecuteUpdate "$atlassianUserEmail" "$atlassianUserDisplayName" "$reviewer"
 	local harvesterUtilsVersion="$TARGET_VERSION"
-    if ! $(BuildAndDeployLibrary "CAHL-HU"); then
-	  echo "DID NOT BUILD $ARTIFACT_ID $TARGET_VERSION !" >&2
-	fi
   fi
 
   # update json library
@@ -455,9 +408,6 @@ Main() {
     QueuePropertyUpdate "harvesterutils.dependency.version" "$harvesterUtilsVersion"
     ExecuteUpdate "$atlassianUserEmail" "$atlassianUserDisplayName" "$reviewer"
 	local jsonLibVersion="$TARGET_VERSION"
-    if ! $(BuildAndDeployLibrary "CAHL-JL"); then
-	  echo "DID NOT BUILD $ARTIFACT_ID $TARGET_VERSION !" >&2
-	fi
   fi
 
   # update harvester base library
@@ -467,9 +417,6 @@ Main() {
     QueuePropertyUpdate "gerdigson.dependency.version" "$jsonLibVersion"
     ExecuteUpdate "$atlassianUserEmail" "$atlassianUserDisplayName" "$reviewer"
     local harvesterLibVersion="$TARGET_VERSION"
-    if ! $(BuildAndDeployLibrary "CAHL-HBL"); then
-	  echo "DID NOT BUILD $ARTIFACT_ID $TARGET_VERSION !" >&2
-	fi
   fi
 
   # update harvester parent pom
@@ -480,9 +427,6 @@ Main() {
     QueuePropertyUpdate "harvesterutils.dependency.version" "$harvesterUtilsVersion"
     ExecuteUpdate "$atlassianUserEmail" "$atlassianUserDisplayName" "$reviewer"
     local harvesterParentPomVersion="$TARGET_VERSION"
-    if ! $(BuildAndDeployLibrary "CAHL-HPP"); then
-	  echo "DID NOT BUILD $ARTIFACT_ID $TARGET_VERSION !" >&2
-	fi
   fi
 
   # update all other harvesters
