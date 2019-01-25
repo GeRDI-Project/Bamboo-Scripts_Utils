@@ -59,7 +59,7 @@ FinishAndMergeJiraTicket() {
   failedMerges=$(MergeAllPullRequestsOfJiraTicket "$atlassianUserName" "$atlassianPassword" "$jiraKey")
 
   # set ticket to done
-  if [ $failedMerges -eq 0 ]; then
+  if [ "$failedMerges" = "0" ]; then
     ReviewJiraTask "$jiraKey" "$atlassianUserName" "$atlassianPassword"
     FinishJiraTask "$jiraKey" "$atlassianUserName" "$atlassianPassword"
   else
