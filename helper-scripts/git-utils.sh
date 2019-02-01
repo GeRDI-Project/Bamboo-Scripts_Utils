@@ -380,7 +380,6 @@ CreatePullRequest() {
   fi
   
   # create pull-request
-  local bitbucketPostResponse
   curl -sX POST -u "$userName:$password" -H "Content-Type: application/json" -d '{
     "title": "'"$title"'",
     "description": "'"$description"'",

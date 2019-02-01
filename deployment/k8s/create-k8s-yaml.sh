@@ -74,9 +74,10 @@ CreateYamlFile() {
   local templateYaml="$TEMPLATE_YAML_DIR/$serviceType.yml"
   
   if [ ! -f "$templateYaml" ]; then
-    echo -e "Cannot create YAML file: '$kubernetesYaml': There is no template for $serviceName-YAMLs.\n" \
-            "Either write and push '$kubernetesYaml' to the gerdireleases repository, or\n" \
-	        "create the template file '$templateYaml' in the BambooScripts repository and re-deploy this project, starting with the CI job." >&2
+    echo -e "The deployment failed, because a YAML file could not be retrieved automatically.\n" \
+            "It is expected to be in the sys/gerdireleases repository in $kubernetesYaml.\n" \
+            "If you wrote a yaml file, make sure it uses this path, and verify that the Docker image defined therein is: $dockerImageName\n" \
+		    "If all YAMLs of the $serviceType-service are similar, consider creating a template file '$templateYaml' in the BambooScripts repository and re-deploy this project, starting with the CI job." >&2
 	exit 1
   fi
   
@@ -108,7 +109,86 @@ CreateYamlFile() {
   environment=$(GetDeployEnvironmentName)
   SubstitutePlaceholderInFile "$kubernetesYaml" "environment"
   
+  # create branch
+  local branchName="create-yaml-for-$serviceName"
+  (cd "$kubernetesSlug" && CreateBranch "$branchName")
+  
+  # push new yaml file to branch
+  (cd "$kubernetesSlug" && git add "${kubernetesYaml#*/}")
   SubmitYamlFile "$kubernetesYaml" "Created '$kubernetesYaml' for Docker image '$dockerImageName:$dockerImageTag'."
+  
+  # create pull-request
+  CreateYamlCreationPullRequest "$kubernetesYaml" "$serviceName" "$branchName" "$userName"
+  
+  # deliberately fail the deployment
+  echo -e "The deployment failed, because a YAML file could not be retrieved automatically.\n" \
+          "It is expected to be in the sys/gerdireleases repository in $kubernetesYaml.\n" \
+          "If you wrote a yaml file, make sure it uses this path, and verify that the Docker image defined therein is: $dockerImageName\n" \
+          "A YAML file was generated for your convenience and a pull-request was created.\n" \
+          "Please verify or delete it accordingly:\n" \
+		  "https://code.gerdi-project.de/projects/SYS/repos/gerdireleases/pull-requests" >&2
+  exit 1
+}
+
+
+# Creates a pull request for merging a newly created YAML file to the gerdireleases repository.
+#
+# Arguments:
+#  1 - the path to the YAML file
+#  2 - the name of the service
+#  3 - the name of the branch from which the YAML is to be merged
+#  4 - the Atlassian user that will be added as a reviewer
+#
+CreateYamlCreationPullRequest() {
+  local kubernetesYaml="$1"
+  local serviceName="$2"
+  local branchName="$3"
+  local userName="$4"
+  
+  # assemble reviewers for pull-request
+  local reviewers
+  if [ "$userName" != "ntd@informatik.uni-kiel.de" ] && [ "$userName" != "row@informatik.uni-kiel.de" ] && [ "$userName" != "di72jiv" ]; then
+    reviewers='[{ "user": { "name": "'"$userName"'" }}, '
+  else
+    reviewers='['
+  fi
+  reviewers=$reviewers'{"user":{"name":"row@informatik.uni-kiel.de"}}, {"user":{"name":"ntd@informatik.uni-kiel.de"}}, {"user":{"name":"di72jiv"}}]'
+  
+  # create pull-request
+  curl -nsX POST -H "Content-Type: application/json" -d '{
+    "title": "Create YAML for '"$serviceName"'-Service",
+    "description": "A YAML file is created for deploying the '"$serviceName"'-service. If a YAML file already exists, please change its path to '"$kubernetesYaml"' and make sure the Docker image has the same path.",
+    "state": "OPEN",
+    "open": true,
+    "closed": false,
+    "fromRef": {
+        "id": "refs/heads/'"$branchName"'",
+        "repository": {
+            "slug": "gerdireleases",
+            "name": null,
+            "project": {
+                "key": "SYS"
+            }
+        }
+    },
+    "toRef": {
+        "id": "refs/heads/'$(GetDeployEnvironmentBranch)'",
+        "repository": {
+            "slug": "gerdireleases",
+            "name": null,
+            "project": {
+                "key": "SYS"
+            }
+        }
+    },
+    "locked": false,
+    "reviewers": '"$reviewers"',
+    "links": {
+        "self": [
+            null
+        ]
+    }
+  }' "https://code.gerdi-project.de/rest/api/latest/projects/SYS/repos/gerdireleases/pull-requests"
 }
 
 
