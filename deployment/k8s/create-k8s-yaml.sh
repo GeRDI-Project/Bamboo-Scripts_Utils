@@ -118,7 +118,8 @@ CreateYamlFile() {
   SubmitYamlFile "$kubernetesYaml" "Created '$kubernetesYaml' for Docker image '$dockerImageName:$dockerImageTag'."
   
   # create pull-request
-  CreateYamlCreationPullRequest "$kubernetesYaml" "$serviceName" "$branchName" "$userName"
+  local pullRequestId
+  pullRequestId=$(CreateYamlCreationPullRequest "$kubernetesYaml" "$serviceName" "$branchName" "$userName")
   
   # deliberately fail the deployment
   echo -e "The deployment failed, because a YAML file could not be retrieved automatically.\n" \
@@ -126,18 +127,21 @@ CreateYamlFile() {
           "If you wrote a yaml file, make sure it uses this path, and verify that the Docker image defined therein is: $dockerImageName\n" \
           "A YAML file was generated for your convenience and a pull-request was created.\n" \
           "Please verify or delete it accordingly:\n" \
-		  "https://code.gerdi-project.de/projects/SYS/repos/gerdireleases/pull-requests" >&2
+		  "https://code.gerdi-project.de/projects/SYS/repos/gerdireleases/pull-requests/$pullRequestId" >&2
   exit 1
 }
 
 
-# Creates a pull request for merging a newly created YAML file to the gerdireleases repository.
+# Creates a pull-request for merging a newly created YAML file to the gerdireleases repository.
 #
 # Arguments:
 #  1 - the path to the YAML file
 #  2 - the name of the service
 #  3 - the name of the branch from which the YAML is to be merged
 #  4 - the Atlassian user that will be added as a reviewer
+#
+# Returns:
+#  the pull-request ID
 #
 CreateYamlCreationPullRequest() {
   local kubernetesYaml="$1"
@@ -188,7 +192,8 @@ CreateYamlCreationPullRequest() {
             null
         ]
     }
-  }' "https://code.gerdi-project.de/rest/api/latest/projects/SYS/repos/gerdireleases/pull-requests"
+  }' "https://code.gerdi-project.de/rest/api/latest/projects/SYS/repos/gerdireleases/pull-requests" \
+  | grep -oP '(?<=^{"id":)[^,]+'
 }
 
 
