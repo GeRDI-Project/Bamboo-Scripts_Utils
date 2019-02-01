@@ -15,9 +15,9 @@
 # limitations under the License.
 
 # This script is called by Bamboo Deployment Jobs.
-# It creates a YAML file for a deployed service and pushes the file to the Kubernetes
-# deployment repository. If a file with the same name already exists, only the Docker
-# image tag inside the YAML file will be updated.
+# It creates a YAML file for a deployed service and creates a pull-request prior to exiting with 1.
+# If a file with the same name already exists, only the Docker image tag inside the YAML file will be updated,
+# and the script will terminate properly.
 #
 # Arguments:
 #  1 - the new version (Docker tag) of the deployed service
@@ -48,7 +48,8 @@ source ./scripts/helper-scripts/k8s-utils.sh
 #########################
 
 # Creates the YAML file for the service by copying a template and substituting
-# placeholders.
+# placeholders. The function will always exit erroneously, because the
+# deployment must not continue if no YAML existed before.
 #
 # Arguments:
 #  1 - the path to the file that is to be created
@@ -74,10 +75,10 @@ CreateYamlFile() {
   local templateYaml="$TEMPLATE_YAML_DIR/$serviceType.yml"
   
   if [ ! -f "$templateYaml" ]; then
-    echo -e "The deployment failed, because a YAML file could not be retrieved automatically.\n" \
+    echo -e "\n\nThe deployment failed, because a YAML file could not be retrieved automatically.\n" \
             "It is expected to be in the sys/gerdireleases repository in $kubernetesYaml.\n" \
             "If you wrote a yaml file, make sure it uses this path, and verify that the Docker image defined therein is: $dockerImageName\n" \
-		    "If all YAMLs of the $serviceType-service are similar, consider creating a template file '$templateYaml' in the BambooScripts repository and re-deploy this project, starting with the CI job." >&2
+		    "If all YAMLs of the $serviceType-service are similar, consider creating a template file '$templateYaml' in the BambooScripts repository and re-deploy this project, starting with the CI job.\n\n" >&2
 	exit 1
   fi
   
@@ -122,12 +123,12 @@ CreateYamlFile() {
   pullRequestId=$(CreateYamlCreationPullRequest "$kubernetesYaml" "$serviceName" "$branchName" "$userName")
   
   # deliberately fail the deployment
-  echo -e "The deployment failed, because a YAML file could not be retrieved automatically.\n" \
+  echo -e "\n\nThe deployment failed, because a YAML file could not be retrieved automatically.\n" \
           "It is expected to be in the sys/gerdireleases repository in $kubernetesYaml.\n" \
           "If you wrote a yaml file, make sure it uses this path, and verify that the Docker image defined therein is: $dockerImageName\n" \
           "A YAML file was generated for your convenience and a pull-request was created.\n" \
           "Please verify or delete it accordingly:\n" \
-		  "https://code.gerdi-project.de/projects/SYS/repos/gerdireleases/pull-requests/$pullRequestId" >&2
+		  "https://code.gerdi-project.de/projects/SYS/repos/gerdireleases/pull-requests/$pullRequestId\n\n" >&2
   exit 1
 }
 
