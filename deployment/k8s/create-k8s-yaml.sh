@@ -33,7 +33,7 @@ set -u
 # define global variables
 KUBERNETES_REPOSITORY="https://code.gerdi-project.de/scm/sys/gerdireleases.git"
 KUBERNETES_YAML_DIR="gerdireleases"
-TEMPLATE_YAML="scripts/deployment/k8s/k8s_template.yml"
+TEMPLATE_YAML_DIR="scripts/deployment/k8s/templates"
 
 # load helper scripts
 source ./scripts/helper-scripts/atlassian-utils.sh
@@ -69,12 +69,22 @@ CreateYamlFile() {
   # create directory if necessary
   local kubernetesDir="${kubernetesYaml%/*}"
   mkdir -p "$kubernetesDir"
-    
+  
+  # check if there is a template for this service
+  local templateYaml="$TEMPLATE_YAML_DIR/$serviceType.yml"
+  
+  if [ ! -f "$templateYaml" ]; then
+    echo -e "Cannot create YAML file: '$kubernetesYaml': There is no template for $serviceName-YAMLs.\n" \
+            "Either write and push '$kubernetesYaml' to the gerdireleases repository, or\n" \
+	        "create the template file '$templateYaml' in the BambooScripts repository and re-deploy this project, starting with the CI job." >&2
+	exit 1
+  fi
+  
   # copy template file
-  cp "$TEMPLATE_YAML" "$kubernetesYaml"
+  cp "$templateYaml" "$kubernetesYaml"
   
   if [ ! -f "$kubernetesYaml" ]; then
-    echo "The file $kubernetesYaml could not be created!" >&2
+    echo "Cannot create YAML file '$kubernetesYaml': Could not copy the template file '$templateYaml'!" >&2
     exit 1
   fi  
 
