@@ -77,7 +77,7 @@ MergeBranchesOfRepository() {
   elif ! $(HasBitbucketBranch "$userName" "$password" "$projectId" "$slug" "$targetBranch"); then
     echo "Cannot merge '$sourceBranch' to '$targetBranch' in '$projectId/$slug', because '$targetBranch' does not exist." >&2
 	
-  else  
+  else
     # create pull request
     CreatePullRequest \
       "$userName" \
@@ -107,7 +107,7 @@ Main() {
   local reviewer="$8"
   
   # create JIRA ticket
-  jiraKey=$(CreateJiraTicket \
+  local jiraKey=$(CreateJiraTicket \
 	    "$title" \
         "$description" \
         "$atlassianUserName" \
