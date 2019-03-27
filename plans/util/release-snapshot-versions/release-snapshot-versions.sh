@@ -105,7 +105,8 @@ RemoveSnapshotsOfRepository() {
     ReviewJiraTask "$subTaskKey" "$atlassianUserName" "$atlassianPassword"
 
     # create pull request
-    CreatePullRequest \
+    local feedback
+	feedback=$(CreatePullRequest \
       "$atlassianUserName" \
       "$atlassianPassword" \
       "$projectId" \
@@ -115,7 +116,7 @@ RemoveSnapshotsOfRepository() {
       "Remove Snapshots of $projectId/$slug" \
       "All Snapshots should be removed." \
       "$reviewer" \
-      ""
+      "")
       
     # clean up temporary folder
     rm -rf "$slug"

@@ -215,4 +215,7 @@ UpdateMavenSnapshotToRelease() {
       exit 1
     fi
   fi
+  
+  # clean up backup file
+  rm -f "$pomXmlPath.backup"
 }
