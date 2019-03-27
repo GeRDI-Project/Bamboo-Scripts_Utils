@@ -93,7 +93,7 @@ RemoveSnapshotsOfRepository() {
     (cd "$slug" && CreateBranch "$branch")
   
     # remove snapshot versions from pom
-    UpdateMavenSnapshotToRelease "$slug" >&2
+    UpdateMavenSnapshotToRelease "$slug" false >&2
   
     # commit and push pom changes
     (cd "$slug" && PushAllFilesToGitRepository \
