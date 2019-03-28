@@ -23,6 +23,7 @@
 # Bamboo Plan Variables:
 #  ManualBuildTriggerReason_userName - the login name of the current user
 #  atlassianPassword - the Atlassian password of the current user
+#  jiraIssueKey - (optional) the key of a ticket of which sub-tasks are to be created for each repository
 
 # treat unset variables as an error when substituting
 set -u
@@ -153,12 +154,17 @@ Main() {
   local atlassianUserEmail=$(GetAtlassianUserEmailAddress "$atlassianUserName" "$atlassianPassword" "$atlassianUserName")
   local atlassianUserDisplayName=$(GetAtlassianUserDisplayName "$atlassianUserName" "$atlassianPassword" "$atlassianUserName")
   
-  # create JIRA ticket
-  local jiraKey=$(CreateJiraTicket \
-	    "Remove Snapshot Versions for Release $bamboo_TEST_VERSION" \
-        "The -SNAPSHOT suffixes from all projects' pom.xmls are to be removed in order to be able to submit to Maven Central." \
-        "$atlassianUserName" \
-        "$atlassianPassword")
+  # retrieve the key of a JIRA ticket
+  local jiraKey=$(GetValueOfPlanVariable "jiraIssueKey")
+  
+  # create JIRA ticket if none exists yet
+  if [ -z "jiraKey" ]; then
+    jiraKey=$(CreateJiraTicket \
+  	    "Remove Snapshot Versions for Release $bamboo_TEST_VERSION" \
+          "The -SNAPSHOT suffixes from all projects' pom.xmls are to be removed in order to be able to submit to Maven Central." \
+          "$atlassianUserName" \
+          "$atlassianPassword")
+  fi
 		
   # start JIRA ticket in the current sprint
   AddJiraTicketToCurrentSprint "$jiraKey" "$atlassianUserName" "$atlassianPassword"
