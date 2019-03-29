@@ -49,7 +49,7 @@ source ./scripts/helper-scripts/misc-utils.sh
 #  3 - the password for the atlassian user
 #  4 - the name of the branch that is to be merged to the target branch
 #  5 - the name of the branch to which the source branch is merged
-#  6 - the title of the pull request
+#  6 - the key of the JIRA ticket used for merging branches
 #  7 - the description of the pull request
 #  8 - a pull request reviewer
 #
@@ -59,7 +59,7 @@ MergeBranchesOfRepository() {
   local password="$3"
   local sourceBranch="$4"
   local targetBranch="$5"
-  local title="$6"
+  local jiraKey="$6"
   local description="$7"
   local reviewer="$8"
   
@@ -78,6 +78,7 @@ MergeBranchesOfRepository() {
     echo "Cannot merge '$sourceBranch' to '$targetBranch' in '$projectId/$slug', because '$targetBranch' does not exist." >&2
 	
   else
+    local title="$jiraKey Merge $projectId/$slug: $sourceBranch -> $targetBranch"
     # create pull request
     CreatePullRequest \
       "$userName" \
@@ -118,7 +119,7 @@ Main() {
   StartJiraTask "$jiraKey" "$atlassianUserName" "$atlassianPassword"
   
   # define a list of arguments to be used by the 'MergeBranchesOfRepository' function
-  local repositoryArguments="'$atlassianUserName' '$atlassianPassword' '$sourceBranch' '$targetBranch' '$jiraKey $title' '$description' '$reviewer'"
+  local repositoryArguments="'$atlassianUserName' '$atlassianPassword' '$sourceBranch' '$targetBranch' '$jiraKey' '$description' '$reviewer'"
   
   ProcessListOfProjectsAndRepositories \
     "$atlassianUserName" \
