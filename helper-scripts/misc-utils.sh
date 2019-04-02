@@ -201,7 +201,7 @@ ProcessRepositoriesOfProject() {
   nextStart=$(echo "$response" | grep -oP '(?<="nextPageStart":)[0-9]+')
   
   local repoUrls
-  repoUrls=$(echo "$response" | grep -oP '(?<="clone":\[\{"href":")[^"]+')
+  repoUrls=$(echo "$response" | grep -oP '(?<="clone":\[)[^\]]+' | grep -oP '(?<={"href":")http[^"]+')
 
   # execute update of all repositories
   while read cloneLink
