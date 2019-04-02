@@ -52,13 +52,12 @@ source ./scripts/helper-scripts/misc-utils.sh
 # has a higher Docker base image version, the update is not executed.
 #
 # Arguments
-#  1 - the new Docker base image version
-#  2 - the project ID of the updated Bitbucket repository
-#  3 - the slug of the updated Bitbucket repository
-#  4 - the branch on which the update is to be deployed
-#  5 - the reviewer of the pull-request
-#  6 - the Atlassian user name of the one performing the updates
-#  7 - the Atlassian user password for the Atlassian user
+#  1 - the clone link of the updated Bitbucket repository
+#  2 - the Atlassian user name of the one performing the updates
+#  3 - the Atlassian user password for the Atlassian user
+#  4 - the new Docker base image version
+#  5 - the branch on which the update is to be deployed
+#  6 - the reviewer of the pull-request
 #
 TryOaiPmhRepositoryUpdate() {
   local cloneLink="$1"
@@ -258,7 +257,7 @@ Main() {
   
   # update all OAI-PMH harvesters
   local repositoryArguments="'$userName' '$password' '$newVersion' '$branch' '$reviewer'"
-  ProcessListOfProjectsAndRepositories \
+  ProcessRepositoriesOfProject \
     "$userName" \
     "$password" \
     "HAR" \

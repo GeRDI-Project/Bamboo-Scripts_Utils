@@ -37,40 +37,13 @@ source ./scripts/helper-scripts/misc-utils.sh
 #  FUNCTION DEFINITIONS #
 #########################
 
-# This function updates the license headers of all harvesters of the HAR project.
-#
-UpdateAllLicenseHeaders() {
-  local userName="$1"
-  local password="$2"
-  
-  # grep harvester clone URLs, and convert them to batch instructions
-  local cloneLinks
-  cloneLinks=$(curl -sX GET -u "$userName:$password" https://code.gerdi-project.de/rest/api/latest/projects/HAR/repos \
-  | python -m json.tool \
-  | grep -oE '"http.*?git"' \
-  | sed -e "s~\"http.*@\(.*\)\"~\\1~")
-
-  echo -e "Checking the following repositories:\n$cloneLinks\n" >&2
-  
-  # execute update of all harvesters
-  while read cloneLink
-  do
-    echo "Checking project: $cloneLink"
-    UpdateLicenseHeadersOfRepository "$cloneLink" "$userName" "$password"
-  done <<< "$(echo -e "$cloneLinks")"
-  
-  # clean up temporary folder
-  cd "$TOP_FOLDER"
-  rm -rf "$TEMP_FOLDER"
-}
-
 
 # This function updates all license headers of a specified harvester repository.
 #
 UpdateLicenseHeadersOfRepository() {
   local cloneLink="$1"
-  local userName="$2"
-  local password="$3"
+  local atlassianUserName="$2"
+  local atlassianPassword="$3"
 
   local repositorySlug
   repositorySlug=$(GetRepositorySlugFromCloneLink "$cloneLink")
@@ -86,7 +59,7 @@ UpdateLicenseHeadersOfRepository() {
   cd "$TEMP_FOLDER"
 
   # clone repository
-  CloneGitRepository "$userName" "$password" "$projectId" "$repositorySlug"
+  CloneGitRepository "$atlassianUserName" "$atlassianPassword" "$projectId" "$repositorySlug"
 
   # check if a pom XML with the correct parent exists
   if [ ! -f "pom.xml" ]; then
@@ -107,7 +80,7 @@ UpdateLicenseHeadersOfRepository() {
 
     # continue if the script was successful
     if [ $? -eq 0 ]; then
-      PushLicenseHeaderUpdate "$projectId" "$repositorySlug" "$userName" "$password"
+      PushLicenseHeaderUpdate "$projectId" "$repositorySlug" "$atlassianUserName" "$atlassianPassword"
 	else
 	  echo "Could not add license headers to $projectId/$repositorySlug!" >&2
     fi
@@ -120,8 +93,8 @@ UpdateLicenseHeadersOfRepository() {
 PushLicenseHeaderUpdate() { 
   local projectId="$1" 
   local repositorySlug="$2"
-  local username="$3"
-  local password="$4"
+  local atlassianUserName="$3"
+  local atlassianPassword="$4"
   
   if [ $(GetNumberOfUnstagedChanges) -ne 0 ]; then
     echo "License headers of $projectId/$repositorySlug need to be updated!" >&2
@@ -131,10 +104,10 @@ PushLicenseHeaderUpdate() {
  	  JIRA_KEY=""$(CreateJiraTicket \
 	    "Update Harvester License Headers" \
         "The license headers of some harvester projects are to be updated." \
-        "$username" \
-        "$password")
-      AddJiraTicketToCurrentSprint "$JIRA_KEY" "$username" "$password"
-      StartJiraTask "$JIRA_KEY" "$username" "$password"
+        "$atlassianUserName" \
+        "$atlassianPassword")
+      AddJiraTicketToCurrentSprint "$JIRA_KEY" "$atlassianUserName" "$atlassianPassword"
+      StartJiraTask "$JIRA_KEY" "$atlassianUserName" "$atlassianPassword"
     fi
 	
     # create sub-task
@@ -143,11 +116,11 @@ PushLicenseHeaderUpdate() {
 	  "$JIRA_KEY" \
 	  "Add license headers to $projectId/$repositorySlug" \
       "The license headers of $repositorySlug need to be updated and/or added." \
-	  "$username" \
-	  "$password")
+	  "$atlassianUserName" \
+	  "$atlassianPassword")
 	  
 	# start sub-task
-    StartJiraTask "$subTaskKey" "$username" "$password"
+    StartJiraTask "$subTaskKey" "$atlassianUserName" "$atlassianPassword"
   
     # create git branch
 	local branchName
@@ -159,10 +132,10 @@ PushLicenseHeaderUpdate() {
     commitMessage="$JIRA_KEY $subTaskKey Updated license headers."
 	
 	local atlassianUserEmail
-    atlassianUserEmail=$(GetAtlassianUserEmailAddress "$username" "$password" "$username")
+    atlassianUserEmail=$(GetAtlassianUserEmailAddress "$atlassianUserName" "$atlassianPassword" "$atlassianUserName")
 	
 	local atlassianUserDisplayName
-    atlassianUserDisplayName=$(GetAtlassianUserDisplayName "$username" "$password" "$username")
+    atlassianUserDisplayName=$(GetAtlassianUserDisplayName "$atlassianUserName" "$atlassianPassword" "$atlassianUserName")
 	
 	echo $(PushAllFilesToGitRepository "$atlassianUserDisplayName" "$atlassianUserEmail" "$commitMessage") >&2
   
@@ -171,8 +144,8 @@ PushLicenseHeaderUpdate() {
 	
     # create pull request
     echo $(CreatePullRequest \
-        "$username" \
-        "$password" \
+        "$atlassianUserName" \
+        "$atlassianPassword" \
         "$projectId" \
         "$repositorySlug" \
 	    "$branchName" \
@@ -181,8 +154,8 @@ PushLicenseHeaderUpdate() {
         "Updated and/or added license headers." \
         "$reviewer" \
         "") >&2
-      ReviewJiraTask "$subTaskKey" "$username" "$password"
-      FinishJiraTask "$subTaskKey" "$username" "$password"
+      ReviewJiraTask "$subTaskKey" "$atlassianUserName" "$atlassianPassword"
+      FinishJiraTask "$subTaskKey" "$atlassianUserName" "$atlassianPassword"
   else
     echo "All headers of $projectId/$repositorySlug are up-to-date!" >&2
   fi
@@ -220,7 +193,13 @@ Main() {
   JIRA_KEY=""
 
   # fire in the hole!
-  UpdateAllLicenseHeaders "$atlassianUserName" "$atlassianPassword"
+  local repositoryArguments="'$atlassianUserName' '$atlassianPassword'"
+  ProcessRepositoriesOfProject \
+    "$atlassianUserName" \
+    "$atlassianPassword" \
+    "HAR" \
+    "UpdateLicenseHeadersOfRepository" \
+    "$repositoryArguments"
 
   echo " " >&2
 
