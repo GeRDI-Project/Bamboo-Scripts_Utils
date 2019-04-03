@@ -192,16 +192,26 @@ ProcessRepositoriesOfProject() {
   local projectId="$3"
   local repoFunctionName="$4"
   local repoFunctionArguments="$5"
+  local startIndex="${6-0}"
+  
+  local response
+  response=$(curl -sX GET -u "$userName:$password" "https://code.gerdi-project.de/rest/api/1.0/projects/$projectId/repos?start=$startIndex")
+
+  local nextStart
+  nextStart=$(echo "$response" | grep -oP '(?<="nextPageStart":)[0-9]+')
   
   local repoUrls
-  repoUrls=$(curl -sX GET -u "$userName:$password" "https://code.gerdi-project.de/rest/api/latest/projects/$projectId/repos" \
-              | grep -oP '(?<="clone":\[\{"href":")[^"]+')
+  repoUrls=$(echo "$response" | grep -oP '(?<="clone":\[)[^\]]+' | grep -oP '(?<={"href":")http[^"]+')
 
   # execute update of all repositories
   while read cloneLink
   do 
     eval "$repoFunctionName" "'$cloneLink' $repoFunctionArguments" >&2
   done <<< "$(echo -e "$repoUrls")"
+  
+  if [ -n "$nextStart" ]; then
+    ProcessRepositoriesOfProject "$1" "$2" "$3" "$4" "$5" "$nextStart"
+  fi
 }
 
 
