@@ -187,6 +187,7 @@ GetPomValue() {
 #
 UpdateMavenSnapshotToRelease() {
   local pomXmlPath=$(GetPomXmlPath "${1-.}")
+  local validate="${2-true}"
   
   if [ ! -f "$pomXmlPath" ]; then
     echo "Cannot update '$pomXmlPath' because the path does not exist!" >&2
@@ -202,14 +203,19 @@ UpdateMavenSnapshotToRelease() {
        "$pomXmlPath"
   
   # check if maven still compiles
-  local mvnResult
-  mvnResult=$(mvn compile -f"$pomXmlPath")
+  if $validate ;then
+    local mvnResult
+    mvnResult=$(mvn compile -f"$pomXmlPath")
   
-  if [ $? -ne 0 ]; then
-    # restore pom.xml from backup file
-    mv -f "$pomXmlPath.backup" "$pomXmlPath"
+    if [ $? -ne 0 ]; then
+      # restore pom.xml from backup file
+      mv -f "$pomXmlPath.backup" "$pomXmlPath"
     
-    echo -e "Could not replace all SNAPSHOT versions:\n$mvnResult" >&2
-    exit 1
+      echo -e "Could not replace all SNAPSHOT versions:\n$mvnResult" >&2
+      exit 1
+    fi
   fi
+  
+  # clean up backup file
+  rm -f "$pomXmlPath.backup"
 }
