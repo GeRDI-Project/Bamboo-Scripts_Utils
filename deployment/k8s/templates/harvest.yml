@@ -59,7 +59,7 @@ spec:
       volumes:
         - name: ${serviceName}-cache
           hostPath:
-            path: /mnt/nfs/${environment}/${serviceType}/${serviceName}
+            path: /local/nfs/${serviceType}/${serviceName}
             type: DirectoryOrCreate
 ---
 apiVersion: v1
