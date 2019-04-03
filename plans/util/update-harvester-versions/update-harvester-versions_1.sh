@@ -301,17 +301,13 @@ UpdateAllHarvesters() {
   
   echo "Trying to update all Harvesters to parent version $newParentVersion!" >&2
   
-  local updateArguments
-  updateArguments=$(curl -sX GET -u "$ATLASSIAN_USER_NAME:$ATLASSIAN_PASSWORD" https://code.gerdi-project.de/rest/api/latest/projects/HAR/repos \
-  | python -m json.tool \
-  | grep -oE '"http.*?git"' \
-  | sed -e "s~\"http.*@\(.*\)\"~'\\1' '$newParentVersion' '$atlassianUserEmail' '$atlassianUserDisplayName' '$reviewer'~")
-
-  # execute update of all harvesters
-  while read arguments
-  do 
-    eval UpdateHarvester "$arguments"
-  done <<< "$(echo -e "$updateArguments")"
+  local repositoryArguments="'$newParentVersion' '$atlassianUserEmail' '$atlassianUserDisplayName' '$reviewer'"
+  ProcessRepositoriesOfProject \
+    "$ATLASSIAN_USER_NAME" \
+    "$ATLASSIAN_PASSWORD" \
+    "HAR" \
+    "UpdateHarvester" \
+    "$repositoryArguments"
 }
 
 
@@ -323,7 +319,7 @@ UpdateHarvester() {
   local atlassianUserDisplayName="$4"
   local reviewer="$5"
   
-  local projectId="HAR"
+  local projectId=$(GetProjectIdFromCloneLink "$cloneLink")
   local slug=$(GetRepositorySlugFromCloneLink "$cloneLink")
   
   if $(IsOaiPmhHarvesterRepository "$projectId" "$slug" "$ATLASSIAN_USER_NAME" "$ATLASSIAN_PASSWORD") ; then

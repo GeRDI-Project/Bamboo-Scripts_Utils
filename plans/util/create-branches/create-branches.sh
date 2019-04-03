@@ -42,13 +42,17 @@ source ./scripts/helper-scripts/misc-utils.sh
 #
 # Arguments:
 #  1 - the git clone link of the repository
-#  2 - the name of the source branch from which the branch is to be created
-#  3 - the name of the branch that is to be created
+#  2 - the Atlassian user name of the script executor
+#  3 - the Atlassian user password for the Atlassian user
+#  4 - the name of the source branch from which the branch is to be created
+#  5 - the name of the branch that is to be created
 #
 UpdateBranchesOfRepository() {
   local cloneLink="$1"
-  local sourceBranchName="$2"
-  local createdBranchName="$3"
+  local atlassianUserName="$2"
+  local atlassianPassword="$3"
+  local sourceBranchName="$4"
+  local createdBranchName="$5"
   
   local projectId
   projectId=$(GetProjectIdFromCloneLink "$cloneLink")
@@ -61,7 +65,7 @@ UpdateBranchesOfRepository() {
   cd "$slug"
   
   # clone repository
-  $(CloneGitRepository "$ATLASSIAN_USER_NAME" "$ATLASSIAN_PASSWORD" "$projectId" "$slug")
+  $(CloneGitRepository "$atlassianUserName" "$atlassianPassword" "$projectId" "$slug")
   
   # abort if target branch already exists
   if $(git branch -a | grep -qx " *remotes/origin/$createdBranchName"); then
@@ -89,57 +93,6 @@ UpdateBranchesOfRepository() {
 }
 
 
-# Adds a new branch to each repository of a bitbucket project.
-#
-# Arguments:
-#  1 - the bitbucket project abbreviation
-#  2 - the name of the source branch from which the branch is to be created
-#  3 - the name of the branch that is to be created
-#
-UpdateBranchesOfProject() {
-  local projectId="$1"
-  local sourceBranchName="$2"
-  local createdBranchName="$3"
-  
-  local repoUrls
-  repoUrls=$(curl -sX GET -u "$ATLASSIAN_USER_NAME:$ATLASSIAN_PASSWORD" "https://code.gerdi-project.de/rest/api/latest/projects/$projectId/repos" | python -m json.tool | grep -oP '(?<=")http.*?git(?=")') 
-
-  # execute update of all repositories
-  echo "Updating all repositories of project '$projectId':" >&2
-  while read cloneLink
-  do 
-    $(UpdateBranchesOfRepository "$cloneLink" "$sourceBranchName" "$createdBranchName")
-  done <<< "$(echo -e "$repoUrls")"
-  
-  exit 0
-}
-
-
-# Processes an argument and checks if it is a git clone link or a project ID,
-# in order to update either a single branch, or an entire project.
-#
-# Arguments:
-#  1 - either a Bitbucket Project key or a git clone link
-#  2 - the name of the source branch from which the branch is to be created
-#  3 - the name of the branch that is to be created
-#
-UpdateBranchesOfArgument() {
-  local argument="$1"
-  local sourceBranchName="$2"
-  local createdBranchName="$3"
-
-  if $(IsProject "$argument" "$ATLASSIAN_USER_NAME" "$ATLASSIAN_PASSWORD"); then
-    echo $(UpdateBranchesOfProject "$argument" "$sourceBranchName" "$createdBranchName") >&2
-	
-  elif $(IsCloneLink "$argument" "$ATLASSIAN_USER_NAME" "$ATLASSIAN_PASSWORD"); then
-    echo $(UpdateBranchesOfRepository "$argument" "$sourceBranchName" "$createdBranchName") >&2
-
-  else
-    echo "Argument '$argument' is neither a valid git clone link, nor a BitBucket project!" >&2
-  fi
-}
-
-
 # Main function that is executed by this script
 #
 Main() {
@@ -150,11 +103,11 @@ Main() {
   ExitIfPlanVariableIsMissing "createdBranchName"
   ExitIfPlanVariableIsMissing "sourceBranchName"
 
-  ATLASSIAN_USER_NAME=$(GetBambooUserName)
-  ATLASSIAN_PASSWORD=$(GetValueOfPlanVariable "atlassianPassword")
+  local atlassianUserName=$(GetBambooUserName)
+  local atlassianPassword=$(GetValueOfPlanVariable "atlassianPassword")
 
   # test Atlassian credentials
-  ExitIfAtlassianCredentialsWrong "$ATLASSIAN_USER_NAME" "$ATLASSIAN_PASSWORD"
+  ExitIfAtlassianCredentialsWrong "$atlassianUserName" "$atlassianPassword"
 
   # get plan variables
   local createdBranchName
@@ -164,13 +117,16 @@ Main() {
   sourceBranchName=$(GetValueOfPlanVariable sourceBranchName)
   
   local projectsAndCloneLinks
-  projectsAndCloneLinks=$(GetValueOfPlanVariable "projectsAndCloneLinks" | tr -d " " | tr "," "\n")
+  projectsAndCloneLinks=$(GetValueOfPlanVariable "projectsAndCloneLinks")
 
   # iterate through all clone links and/or projects
-  while read projectOrCloneLink
-  do 
-    $(UpdateBranchesOfArgument "$projectOrCloneLink" "$sourceBranchName" "$createdBranchName")
-  done <<< "$(echo -e "$projectsAndCloneLinks")"
+  local repositoryArguments="'$atlassianUserName' '$atlassianPassword' '$sourceBranchName' '$createdBranchName'"
+  ProcessListOfProjectsAndRepositories \
+    "$atlassianUserName" \
+    "$atlassianPassword" \
+    "$projectsAndCloneLinks" \
+    "UpdateBranchesOfRepository" \
+    "$repositoryArguments"
 }
 
 

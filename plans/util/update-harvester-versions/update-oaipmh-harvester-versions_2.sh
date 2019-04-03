@@ -47,60 +47,31 @@ source ./scripts/helper-scripts/misc-utils.sh
 #  FUNCTION DEFINITIONS #
 #########################
 
-# Attempts to update all OAI-PMH harvesters, creating a JIRA ticket and
-# a sub-task for every update, if applicable.
-#
-# Arguments
-#  1 - the new Docker base image version
-#  2 - the branch on which the update is to be deployed
-#  3 - the reviewer of the pull-requests
-#  4 - the Atlassian user name of the one performing the updates
-#  5 - the Atlassian user password for the Atlassian user
-#
-UpdateAllOaiPmhHarvesters() {
-  local newVersion="$1"
-  local branch="$2"
-  local reviewer="$3"
-  local userName="$4"
-  local password="$5"
-  
-  echo "Trying to update all OAI-PMH Harvesters to version $newVersion!" >&2
-  
-  local updateArguments
-  updateArguments=$(curl -sX GET -u "$userName:$password" https://code.gerdi-project.de/rest/api/latest/projects/HAR/repos \
-  | python -m json.tool \
-  | grep -oE '"http.*?git"' \
-  | sed -e "s~\"http.*@code.gerdi-project.de/scm/\(.*\)/\(.*\)\.git\"~'$newVersion' '\\1' '\\2' '$branch' '$reviewer' '$userName' '$password'~")
-
-  # execute update of all harvesters
-  while read arguments
-  do 
-    eval TryOaiPmhRepositoryUpdate "$arguments"
-  done <<< "$(echo -e "$updateArguments")"
-}
-
-
 # Attempts to update a single OAI-PMH harvester repository. If it
 # is not a valid OAI-PMH harvester repository, or if the repository
 # has a higher Docker base image version, the update is not executed.
 #
 # Arguments
-#  1 - the new Docker base image version
-#  2 - the project ID of the updated Bitbucket repository
-#  3 - the slug of the updated Bitbucket repository
-#  4 - the branch on which the update is to be deployed
-#  5 - the reviewer of the pull-request
-#  6 - the Atlassian user name of the one performing the updates
-#  7 - the Atlassian user password for the Atlassian user
+#  1 - the clone link of the updated Bitbucket repository
+#  2 - the Atlassian user name of the one performing the updates
+#  3 - the Atlassian user password for the Atlassian user
+#  4 - the new Docker base image version
+#  5 - the branch on which the update is to be deployed
+#  6 - the reviewer of the pull-request
 #
 TryOaiPmhRepositoryUpdate() {
-  local newVersion="$1"
-  local projectId="$2"
-  local slug="$3"
-  local branch="$4"
-  local reviewer="$5"
-  local userName="$6"
-  local password="$7"
+  local cloneLink="$1"
+  local userName="$2"
+  local password="$3"
+  local newVersion="$4"
+  local branch="$5"
+  local reviewer="$6"
+ 
+  local projectId
+  projectId=$(GetProjectIdFromCloneLink "$cloneLink")
+  
+  local slug
+  slug=$(GetRepositorySlugFromCloneLink "$cloneLink")  
   
   if ! $(IsOaiPmhHarvesterRepository "$projectId" "$slug" "$userName" "$password") ; then
     echo "Skipping $projectId/$slug, because it is not an OAI-PMH harvester." >&2
@@ -285,7 +256,13 @@ Main() {
   JIRA_KEY="${2-}"
   
   # update all OAI-PMH harvesters
-  UpdateAllOaiPmhHarvesters "$newVersion" "$branch" "$reviewer" "$userName" "$password"
+  local repositoryArguments="'$userName' '$password' '$newVersion' '$branch' '$reviewer'"
+  ProcessRepositoriesOfProject \
+    "$userName" \
+    "$password" \
+    "HAR" \
+    "TryOaiPmhRepositoryUpdate" \
+    "$repositoryArguments"
 
   echo " " >&2
 
