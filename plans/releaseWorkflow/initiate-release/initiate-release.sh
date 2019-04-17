@@ -85,18 +85,19 @@ Main() {
 	# of TEST_VERSION, unless a customTestVersion was given as parameter.
 	#
 	local currentTestVersion=${bamboo_TEST_VERSION:-0.0.0}
+	local newStagingVersion="$currentTestVersion"
 	local newTestVersion
 	[ $# -eq 1 ]  &&  newTestVersion="$1" || newTestVersion=$(IncrementVersion minor $currentTestVersion)
 
-	SetGlobalVariable  STAGING_VERSION "$currentTestVersion" "$ATLASSIAN_USER_NAME" "$ATLASSIAN_PASSWORD" >&2
+	SetGlobalVariable  STAGING_VERSION "$newStagingVersion" "$ATLASSIAN_USER_NAME" "$ATLASSIAN_PASSWORD" >&2
 	SetGlobalVariable  TEST_VERSION    "$newTestVersion"     "$ATLASSIAN_USER_NAME" "$ATLASSIAN_PASSWORD" >&2
 
 
 	#
 	# Create a pull request for merging the master into the stage branch for the released repos
 	#
-	local title="Merge to Staging $bamboo_STAGING_VERSION"
-	local description="All master branches are to be merged to stage for Feature Freeze $bamboo_STAGING_VERSION."
+	local title="Merge to Staging $newStagingVersion"
+	local description="All master branches are to be merged to stage for Feature Freeze $newStagingVersion."
 	local reviewer=$(GetValueOfPlanVariable reviewer)
 	local projectsAndCloneLinks=$(GetValueOfPlanVariable "RELEASED_REPOSITORIES")
 

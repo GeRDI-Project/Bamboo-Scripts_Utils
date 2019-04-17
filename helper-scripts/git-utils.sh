@@ -469,6 +469,12 @@ MergePullRequest() {
   
   local mergeResponse
   mergeResponse=$(curl -sX POST -u "$userName:$password" -H "Content-Type:application/json" https://code.gerdi-project.de/rest/api/latest/projects/$project/repos/$repositorySlug/pull-requests/$pullRequestId/merge?version=$pullRequestVersion) >&2
+  
+  if [ $? -eq 0 ]; then
+    echo "Merged pull-request: https://code.gerdi-project.de/projects/$project/repos/$repositorySlug" >&2
+  else
+    echo "Could not merge pull-request: https://code.gerdi-project.de/projects/$project/repos/$repositorySlug" >&2
+  fi
 }
 
 
@@ -601,7 +607,7 @@ MergeAllPullRequestsWithTitle() {
     echo "Merging all Pull-requests with title: $title" >&2
     while read arguments
     do    
-      echo $(eval MergePullRequest "'$userName' '$password' $arguments") >&2
+      eval MergePullRequest "'$userName' '$password' $arguments" >&2
     done <<< "$(echo -e "$argumentsList")"
   fi
 }

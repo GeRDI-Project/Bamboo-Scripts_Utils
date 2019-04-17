@@ -234,7 +234,7 @@ SubmitYamlFile() {
   local kubernetesSlug=$(echo "$KUBERNETES_REPOSITORY" | grep -oP '[^/]+(?=\.git)')
 
   (cd "$kubernetesSlug" && git add "${kubernetesYaml#*/}")
-  (cd "$kubernetesSlug" && git commit -m "$message\n- This commit was triggered by a Bamboo Job.")
+  (cd "$kubernetesSlug" && git commit -m "$message - This commit was triggered by a Bamboo Deployment: $bamboo_resultsUrl.")
   (cd "$kubernetesSlug" && git push)
 }
 

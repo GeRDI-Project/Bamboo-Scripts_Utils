@@ -46,11 +46,7 @@ ChangeGlobalReleaseVariable() {
   local userName="$1"
   local password="$2"
   
-  local stagingVersion="$bamboo_STAGING_VERSION"
-
-  if [ -z "$stagingVersion" ]; then
-    stagingVersion="0.0.0"
-  fi
+  local stagingVersion="${bamboo_STAGING_VERSION-0.0.0}"
 
   SetGlobalVariable "PRODUCTION_VERSION" "$stagingVersion" "$userName" "$password" >&2
   if [ $? -eq 0 ]; then
