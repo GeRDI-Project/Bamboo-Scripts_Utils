@@ -40,7 +40,7 @@ GetServiceType() {
   if [ "$projectName" = "harvester" ]; then
     serviceType="harvest"
   else
-	serviceType="$projectName"
+	serviceType=$(echo "$projectName" | tr ' ' '-')
   fi
   
   echo "$serviceType"
