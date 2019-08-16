@@ -51,6 +51,81 @@ GetAtlassianUserDisplayName() {
 }
 
 
+# Retrieves the elements of the 'values' JSON array of a paginated Atlassian REST API request.
+# If the request is split up to multiple pages, all elements of all 'values' arrays are concatenated
+# to a single comma-separated list.
+#  Arguments:
+#  1 - an Atlassian REST API URL
+#  2 - the pagination start index (optional, default: 0)
+GetJoinedAtlassianResponse() {
+  local url="$1"
+  local startIndex="${2-0}"
+  
+  local startQuery
+  if $(echo "$url" | grep -q '?'); then
+    startQuery="&start="
+  else
+    startQuery="?start="
+  fi
+  
+  local response 
+  response=$(curl -nsX GET "$url$startQuery$startIndex")
+
+  local nextStart
+  nextStart=$(echo "$response" | grep -oP '(?<="nextPageStart":)[0-9]+')
+  
+  # remove stuff around the values tags
+  response=${response#*\"values\":[}
+  response=${response%]*}
+  
+  if [ -n "$nextStart" ]; then
+    echo "$response,"$(JoinPaginatedResponse "$1" "$nextStart")
+  else
+    echo "$response"
+  fi
+}
+
+
+# Retrieves and processes the elements of the 'values' JSON array of a paginated Atlassian REST API request.
+# If the request is split up to multiple pages, the 'values'-elements of each page response are processed
+# using a specified function.
+#  Arguments:
+#  1 - an Atlassian REST API URL
+#  2 - the name of a function that receives the 'values' array content as the first argument
+#  3 - additional arguments that are passed to the function
+#  4 - the pagination start index (optional, default: 0)
+ProcessJoinedAtlassianResponse() {
+  local url="$1"
+  local functionName="$2"
+  local functionArguments="${3-}"
+  local startIndex="${4-0}"
+  
+  local startQuery
+  if $(echo "$url" | grep -q '?'); then
+    startQuery="&start="
+  else
+    startQuery="?start="
+  fi
+  
+  local response
+  response=$(curl -nsX GET "$url$startQuery$startIndex")
+
+  local nextStart
+  nextStart=$(echo "$response" | grep -oP '(?<="nextPageStart":)[0-9]+')
+  
+  # remove stuff around the values tags
+  response=${response#*\"values\":[}
+  response=${response%]*}
+  
+  # process response
+  eval "$functionName" "'$response' $functionArguments"
+  
+  if [ -n "$nextStart" ]; then
+    ProcessJoinedAtlassianResponse "$1" "$2" "$3" "$nextStart"
+  fi
+}
+
+
 # This function fails with exit code 1, if provided Atlassian login credentials are incorrect.
 #  Arguments:
 #  1 - an Atlassian user name
