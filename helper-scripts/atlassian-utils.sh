@@ -79,7 +79,7 @@ GetJoinedAtlassianResponse() {
   response=${response%]*}
   
   if [ -n "$nextStart" ]; then
-    echo "$response,"$(JoinPaginatedResponse "$1" "$nextStart")
+    echo "$response,"$(GetJoinedAtlassianResponse "$1" "$nextStart")
   else
     echo "$response"
   fi
