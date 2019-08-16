@@ -111,6 +111,7 @@ GetBitbucketTag() {
   curl -sX GET -u "$userName:$password" "https://code.gerdi-project.de/rest/api/1.0/projects/$projectId/repos/$repositorySlug/tags/$tagName"
 }
 
+
 # Retrieves a list of matching tags from a Bitbucket repository.
 #
 # Arguments:
@@ -126,6 +127,40 @@ GetBitbucketTags() {
     | grep -oP '(?<="displayId":")[^"]+'
 }
 
+
+# Retrieves the newest version tag of a BitBucket repository.
+#
+# Arguments:
+#  1 - Bitbucket Project ID
+#  2 - Repository slug
+#  3 - the branch that is checked (optional, default: master)
+#
+GetLatestVersionTag() {
+  local projectId="$1"
+  local repositorySlug="$2"
+  local branch="${3-master}"
+  
+  if [ "$branch" = "production" ]; then
+    echo "$bamboo_PRODUCTION_VERSION"
+
+  else
+    # get the version from the latest Bitbucket tag
+    local tagPrefix=""
+    if [ "$branch" = "stage" ]; then
+      tagPrefix="$bamboo_STAGING_VERSION-rc"
+    else
+      tagPrefix="$bamboo_TEST_VERSION-test"
+    fi  
+  
+    local latestBuildNumber
+    latestBuildNumber=$(GetBitbucketTags "$projectId" "$repositorySlug" "$tagPrefix" \
+      | grep -oP "(?<=$tagPrefix)\d+" \
+      | sort -g \
+      | tail -n1)
+  
+    echo "$tagPrefix$latestBuildNumber"
+  fi
+}
 
 
 # Checks if a tag in a Bitbucket repository exists and exits with 1 if it does not.
