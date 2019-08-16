@@ -57,9 +57,13 @@ GetAtlassianUserDisplayName() {
 #  Arguments:
 #  1 - an Atlassian REST API URL
 #  2 - the pagination start index (optional, default: 0)
+#  3 - an Atlassian user name (optional)
+#  4 - the password for the Atlassian user name (optional)
 GetJoinedAtlassianResponse() {
   local url="$1"
   local startIndex="${2-0}"
+  local userName="${3-}"
+  local password="${4-}"
   
   local startQuery
   if $(echo "$url" | grep -q '?'); then
@@ -68,9 +72,13 @@ GetJoinedAtlassianResponse() {
     startQuery="?start="
   fi
   
-  local response 
-  response=$(curl -nsX GET "$url$startQuery$startIndex")
-
+  local response
+  if [ -n "$userName" ]; then
+    response=$(curl -sX GET -u "$userName:$password" "$url$startQuery$startIndex")
+  else
+    response=$(curl -nsX GET "$url$startQuery$startIndex")
+  fi
+  
   local nextStart
   nextStart=$(echo "$response" | grep -oP '(?<="nextPageStart":)[0-9]+')
   
@@ -79,7 +87,7 @@ GetJoinedAtlassianResponse() {
   response=${response%]*}
   
   if [ -n "$nextStart" ]; then
-    echo "$response,"$(GetJoinedAtlassianResponse "$1" "$nextStart")
+    echo "$response,"$(GetJoinedAtlassianResponse "$1" "$nextStart" "$3" "$4")
   else
     echo "$response"
   fi
@@ -94,11 +102,15 @@ GetJoinedAtlassianResponse() {
 #  2 - the name of a function that receives the 'values' array content as the first argument
 #  3 - additional arguments that are passed to the function
 #  4 - the pagination start index (optional, default: 0)
+#  5 - an Atlassian user name (optional)
+#  6 - the password for the Atlassian user name (optional)
 ProcessJoinedAtlassianResponse() {
   local url="$1"
   local functionName="$2"
   local functionArguments="${3-}"
   local startIndex="${4-0}"
+  local userName="${5-}"
+  local password="${6-}"
   
   local startQuery
   if $(echo "$url" | grep -q '?'); then
@@ -108,7 +120,11 @@ ProcessJoinedAtlassianResponse() {
   fi
   
   local response
-  response=$(curl -nsX GET "$url$startQuery$startIndex")
+  if [ -n "$userName" ]; then
+    response=$(curl -sX GET -u "$userName:$password" "$url$startQuery$startIndex")
+  else
+    response=$(curl -nsX GET "$url$startQuery$startIndex")
+  fi
 
   local nextStart
   nextStart=$(echo "$response" | grep -oP '(?<="nextPageStart":)[0-9]+')
@@ -121,7 +137,7 @@ ProcessJoinedAtlassianResponse() {
   eval "$functionName" "'$response' $functionArguments"
   
   if [ -n "$nextStart" ]; then
-    ProcessJoinedAtlassianResponse "$1" "$2" "$3" "$nextStart"
+    ProcessJoinedAtlassianResponse "$1" "$2" "$3" "$nextStart" "$5" "$6"
   fi
 }
 
