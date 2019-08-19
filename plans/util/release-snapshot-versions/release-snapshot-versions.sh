@@ -91,7 +91,7 @@ RemoveSnapshotsOfRepository() {
 	  
     # create branch
     local branch="$subTaskKey-RemoveSnapshots"
-    (cd "$slug" && CreateBranch "$branch")
+    (cd "$slug" && CreateGitBranch "$branch")
   
     # remove snapshot versions from pom
     UpdateMavenSnapshotToRelease "$slug" false >&2

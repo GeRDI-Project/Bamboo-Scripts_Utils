@@ -88,7 +88,7 @@ CloneGitRepository() {
 #  Arguments:
 #  1 - the name of the branch
 #
-CreateBranch() {
+CreateGitBranch() {
   local branchName="$1"
   echo $(git checkout -b $branchName) >&2
   echo $(git push -q --set-upstream origin $branchName) >&2

@@ -144,7 +144,7 @@ UpdateOaiPmhRepository() {
   # create update branch
   local updateBranch
   updateBranch="versionUpdate/$JIRA_KEY-$subTaskKey-VersionUpdate"
-  (cd "$tempDir" && CreateBranch "$updateBranch")
+  (cd "$tempDir" && CreateGitBranch "$updateBranch")
   
   # change version in Dockerfile
   perl -pi -e \

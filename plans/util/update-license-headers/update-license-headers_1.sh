@@ -125,7 +125,7 @@ PushLicenseHeaderUpdate() {
     # create git branch
 	local branchName
     branchName="$JIRA_KEY-$subTaskKey-UpdateLicenseHeaders"
-	CreateBranch "$branchName"
+	CreateGitBranch "$branchName"
     
 	# commit and push updates
 	local commitMessage

@@ -113,7 +113,7 @@ CreateYamlFile() {
   # create branch
   local kubernetesSlug=$(echo "$KUBERNETES_REPOSITORY" | grep -oP '[^/]+(?=\.git)')
   local branchName="create-yaml-for-$serviceName"
-  (cd "$kubernetesSlug" && CreateBranch "$branchName")
+  (cd "$kubernetesSlug" && CreateGitBranch "$branchName")
   
   # push new yaml file to branch
   SubmitYamlFile "$kubernetesYaml" "Created '$kubernetesYaml' for Docker image '$dockerImageName:$dockerImageTag'."
