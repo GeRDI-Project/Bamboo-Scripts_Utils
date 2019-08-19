@@ -30,8 +30,7 @@ set -u
 
 source ./scripts/helper-scripts/atlassian-utils.sh
 source ./scripts/helper-scripts/bamboo-utils.sh
-source ./scripts/helper-scripts/misc-utils.sh
-source ./scripts/helper-scripts/git-utils.sh
+source ./scripts/helper-scripts/bitbucket-utils.sh
 
 #########################
 #  FUNCTION DEFINITIONS #
@@ -46,6 +45,8 @@ Main() {
 
   local atlassianUserName=$(GetBambooUserName)
   local atlassianPassword=$(GetValueOfPlanVariable "atlassianPassword")
+  
+  ExitIfAtlassianCredentialsWrong "$atlassianUserName" "$atlassianPassword"
   
   local title="Merge to Staging $bamboo_STAGING_VERSION"
 

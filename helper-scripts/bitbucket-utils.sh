@@ -19,7 +19,7 @@
 # load helper scripts
 source ./scripts/helper-scripts/atlassian-utils.sh
 
-# Creates a new empty Git repository.
+# Creates a new empty Bitbucket repository.
 #  Arguments:
 #  1 - a Bitbucket user name
 #  2 - the login password that belongs to argument 1
@@ -55,7 +55,7 @@ CreateBitbucketRepository() {
 }
 
 
-# Deletes a Git repository.
+# Deletes a Bitbucket repository.
 #  Arguments:
 #  1 - a Bitbucket user name
 #  2 - the login password that belongs to argument 1
@@ -304,7 +304,7 @@ CreateBitbucketBranch() {
 }
 
 
-# Removes a branch from a Git repository.
+# Removes a branch from a Bitbucket repository.
 #  Arguments:
 #  1 - a Bitbucket user name
 #  2 - the login password that belongs to argument 1
