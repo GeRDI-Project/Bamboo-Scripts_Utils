@@ -30,45 +30,10 @@ set -u
 # load helper scripts
 source ./scripts/helper-scripts/atlassian-utils.sh
 source ./scripts/helper-scripts/bamboo-utils.sh
+source ./scripts/helper-scripts/bitbucket-utils.sh
 source ./scripts/helper-scripts/git-utils.sh
 source ./scripts/helper-scripts/maven-utils.sh
 source ./scripts/helper-scripts/misc-utils.sh
-
-
-# Checks if a remote branch of a non-checked-out BitBucket repository exists and
-# creates one out of the latest master branch commit, if it does not exist.
-#  Arguments:
-#   1 - Bitbucket user name
-#   2 - Bitbucket user password
-#   3 - Bitbucket Project ID
-#   4 - Repository slug
-#   5 - The name of the branch that is to be checked
-#
-CreateBitbucketBranch() {
-  local userName="$1"
-  local password="$2"
-  local project="$3"
-  local repositorySlug="$4"
-  local branchName="$5"
-  
-  local response
-  response=$(curl -sX GET -u "$userName:$password" "https://code.gerdi-project.de/rest/api/latest/projects/$project/repos/$repositorySlug/branches/?filterText=$branchName")
-  
-  # make sure that no branch with the same name exists
-  if ! $(echo "$response" | grep -q "\"id\":\"refs/heads/$branchName\""); then
-    local revision
-	revision=$(curl -sX GET -u "$userName:$password" "https://code.gerdi-project.de/rest/api/1.0/projects/$project/repos/$repositorySlug/branches/?filterText=master"\
-	          | grep -oP "(?<=\"id\":\"refs/heads/master\",\"displayId\":\"master\",\"type\":\"BRANCH\",\"latestCommit\":\")[^\"]+")
-			  
-    echo "Creating Bitbucket branch '$branchName' for repository '$project/$repositorySlug', revision '$revision'." >&2
-	
-    response=$(curl -sX POST -u "$userName:$password" -H "Content-Type: application/json" -d '{
-      "name": "'"$branchName"'",
-      "startPoint": "'"$revision"'",
-      "message": "Bamboo automatically created this branch in order to support Continuous Deployment."
-    }' "https://code.gerdi-project.de/rest/api/1.0/projects/$project/repos/$repositorySlug/branches/")
-  fi
-}
 
 
 # Updates a Bitbucket repository, adding missing branches and user permissions.
@@ -91,22 +56,17 @@ UpdateRepository() {
 # Retrieves the provider name without spaces and special characters.
 #
 GetProviderClassName() {
-  local username="$1"
-  local password="$2"
-  local project="$3"
-  local repositorySlug="$4"
+  local project="$1"
+  local repositorySlug="$2"
   
-  local proviCLassName
-  proviClassName=$(curl -sX GET -u "$userName:$password" "https://code.gerdi-project.de/rest/api/1.0/projects/$project/repos/$repositorySlug/files" \
-  | grep -oP "(?<=src/main/java/de/gerdiproject/harvest/)[^\"]+(?=ContextListener.java\")")
-  
-  if [ -z "$proviClassName" ]; then
-    proviClassName=$(curl -sX GET "https://code.gerdi-project.de/rest/api/1.0/projects/$project/repos/$repositorySlug/files" \
-    | grep -oP "(?<=src/main/java/de/gerdiproject/harvest/)[^\"]+(?=ContextListener.java\")")
-  fi
-  
-  echo "$proviClassName"
+  local allFiles
+  allFiles=$(GetJoinedAtlassianResponse \
+           "https://code.gerdi-project.de/rest/api/1.0/projects/$project/repos/$repositorySlug/files")
+		   
+  echo "$allFiles" \
+        | grep -oP "(?<=src/main/java/de/gerdiproject/harvest/)[^\"]+(?=ContextListener.java\")"
 }
+
 
 # Creates jobs for a specified repository.
 #
@@ -127,6 +87,7 @@ ProcessRepository() {
   ProcessHarvesterRepository  "$project" "$repositorySlug" "$atlassianUserName" "$atlassianPassword" "$overwriteExistingJobs"
 }
 
+
 ProcessHarvesterRepository() {
   local project="$1"
   local repositorySlug="$2"
@@ -135,7 +96,7 @@ ProcessHarvesterRepository() {
   local overwriteExistingJobs="$5"
   
   local providerClassName
-  providerClassName=$(GetProviderClassName "$atlassianUserName" "$atlassianPassword" "$project" "$repositorySlug")
+  providerClassName=$(GetProviderClassName "$project" "$repositorySlug")
   
   if [ -z "$providerClassName" ]; then
     echo "Repository'$project/$repositorySlug' is not a harvester!" >&2

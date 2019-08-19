@@ -31,6 +31,7 @@
 set -u
 
 source ./scripts/helper-scripts/atlassian-utils.sh
+source ./scripts/helper-scripts/bitbucket-utils.sh
 source ./scripts/helper-scripts/bamboo-utils.sh
 source ./scripts/helper-scripts/misc-utils.sh
 source ./scripts/helper-scripts/git-utils.sh
@@ -112,10 +113,10 @@ GetUnchangedRepositories() {
   local password="$2"
   local title="$3"
   
-  local reposWithPullRequests  
-  reposWithPullRequests=$(curl -sX GET -u "$userName:$password" "https://code.gerdi-project.de/rest/api/1.0/dashboard/pull-requests?state=open&role=REVIEWER" \
-    | perl -pe 's~.*?{"id":\d+,"version":\d+?,"title":"[^"]*?'"$title"'[^"]*?",.*?"toRef":.*?"href":"ssh:[^"]+?/([^/]+?)/([^/]+?)\.git"~'"\1 \2\n"'~gi' \
-    | head -n -1)
+  local reposWithPullRequests
+  reposWithPullRequests=$(ProcessJoinedAtlassianResponse \
+    "https://code.gerdi-project.de/rest/api/1.0/dashboard/pull-requests?state=open&role=REVIEWER" \
+    "RetrieveProjectsAndSlugs" "'$title'" 0 "$userName" "$password")
   
   if [ -n "$reposWithPullRequests" ]; then
     # create temporary file to store the list of repositories
@@ -133,6 +134,18 @@ GetUnchangedRepositories() {
   fi
 }
 
+
+# Converts a pull-request API response to a list of project IDs and repository slugs.
+#
+# Arguments:
+#  1 - the response of a pull-requests GET request
+#  2 - a substring of a matching title
+RetrieveProjectsAndSlugs() {
+  echo "$1" \
+    | perl -pe 's~.*?{"id":\d+,"version":\d+?,"title":"[^"]*?'"$2"'[^"]*?",.*?"toRef":.*?"href":"ssh:[^"]+?/([^/]+?)/([^/]+?)\.git"~'"\1 \2\n"'~gi' \
+    | head -n -1
+}
+  
 
 # Checks if a git clone link is in a list of repositories that have open pull-requests.
 #

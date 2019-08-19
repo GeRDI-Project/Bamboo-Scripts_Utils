@@ -33,6 +33,8 @@
 # treat unset variables as an error when substituting
 set -u
 
+source ./scripts/helper-scripts/atlassian-utils.sh
+source ./scripts/helper-scripts/bitbucket-utils.sh
 source ./scripts/helper-scripts/git-utils.sh
 
 #########################
@@ -49,13 +51,14 @@ GetBuildNumber() {
   local slug=$(GetRepositorySlugFromCloneLink)
   
   # use BitBucket API, because git tag is buggy in Bamboo
-  local previousBuildNumber=$(curl -nsX GET "https://code.gerdi-project.de/rest/api/1.0/projects/$projectId/repos/$slug/tags/?filterText=$tagPrefix" \
-    | grep -oP '(?<="displayId":"'"$tagPrefix"')[^"]+'\
-    | sort -g\
-    | tail -n1)
+  local latestBuildNumber
+  latestBuildNumber=$(GetBitbucketTags "$projectId" "$slug" "$tagPrefix" \
+                 | grep -oP "(?<=$tagPrefix)\d+" \
+				 | sort -g \
+				 | tail -n1)
 
-  if [ -n "$previousBuildNumber" ]; then
-    echo $(expr 1 + $previousBuildNumber)
+  if [ -n "$latestBuildNumber" ]; then
+    echo $(expr 1 + $latestBuildNumber)
   else
     echo 1
   fi

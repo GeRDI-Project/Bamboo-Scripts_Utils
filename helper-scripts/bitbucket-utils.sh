@@ -26,7 +26,7 @@ source ./scripts/helper-scripts/atlassian-utils.sh
 #  3 - the ID of the project in which the repository is created
 #  4 - a human readable name of the repository
 #
-CreateGitRepository() {
+CreateBitbucketRepository() {
   local userName="$1"
   local password="$2"
   local projectId="$3"
@@ -62,7 +62,7 @@ CreateGitRepository() {
 #  3 - the ID of the project to which the repository belongs
 #  4 - the identifier of the repository that is to be deleted
 #
-DeleteGitRepository() {
+DeleteBitbucketRepository() {
   local userName="$1"
   local password="$2"
   local projectId="$3"
@@ -135,13 +135,28 @@ GetBitbucketTags() {
 #  2 - Repository slug
 #  3 - the branch that is checked (optional, default: master)
 #
-GetLatestVersionTag() {
+GetLatestBitbucketVersionTag() {
   local projectId="$1"
   local repositorySlug="$2"
   local branch="${3-master}"
   
   if [ "$branch" = "production" ]; then
-    echo "$bamboo_PRODUCTION_VERSION"
+    local releaseVersions=$(GetBitbucketTags "$projectId" "$repositorySlug" \
+      | grep -P "^^\d+\.\d+\.\d+$")
+	  
+    local highestMajor
+    highestMajor=$(echo "$releaseVersions" \
+	  | grep -oP "^^\d+" | sort -g | tail -n1)
+  
+    local highestMinor
+    highestMinor=$(echo "$releaseVersions" \
+      | grep -oP "(?<=^^$highestMajor\.)\d+" | sort -g | tail -n1)
+  
+    local highestBugFix
+    highestBugFix=$(echo "$versionList" \
+      | grep -oP "(?<=^^$highestMajor\.$highestMinor\.)\d+" | sort -g | tail -n1)
+	  
+    echo "$highestMajor.$highestMinor.$highestBugFix"
 
   else
     # get the version from the latest Bitbucket tag
@@ -251,6 +266,44 @@ HasBitbucketBranch() {
 }
 
 
+# Checks if a remote branch of a non-checked-out BitBucket repository exists and
+# creates one out of the latest commit of a specified branch, if it does not exist.
+#  Arguments:
+#   1 - Bitbucket user name
+#   2 - Bitbucket user password
+#   3 - Bitbucket Project ID
+#   4 - Repository slug
+#   5 - The name of the branch that is to be checked
+#   6 - The name of the branch from which the new branch is to be created (optional, default: master)
+#
+CreateBitbucketBranch() {
+  local userName="$1"
+  local password="$2"
+  local project="$3"
+  local repositorySlug="$4"
+  local branchName="$5"
+  local sourceBranchName="${6-master}"
+  
+  local response
+  response=$(curl -sX GET -u "$userName:$password" "https://code.gerdi-project.de/rest/api/latest/projects/$project/repos/$repositorySlug/branches/?filterText=$branchName")
+  
+  # make sure that no branch with the same name exists
+  if ! $(echo "$response" | grep -q "\"id\":\"refs/heads/$branchName\""); then
+    local revision
+	revision=$(curl -sX GET -u "$userName:$password" "https://code.gerdi-project.de/rest/api/1.0/projects/$project/repos/$repositorySlug/branches/?filterText=$sourceBranchName"\
+	          | grep -oP "(?<=\"id\":\"refs/heads/$sourceBranchName\",\"displayId\":\"$sourceBranchName\",\"type\":\"BRANCH\",\"latestCommit\":\")[^\"]+")
+			  
+    echo "Creating Bitbucket branch '$branchName' from '$sourceBranchName' for repository '$project/$repositorySlug', revision '$revision'." >&2
+	
+    response=$(curl -sX POST -u "$userName:$password" -H "Content-Type: application/json" -d '{
+      "name": "'"$branchName"'",
+      "startPoint": "'"$revision"'",
+      "message": "This branch was created by a Bamboo executed script."
+    }' "https://code.gerdi-project.de/rest/api/1.0/projects/$project/repos/$repositorySlug/branches/")
+  fi
+}
+
+
 # Removes a branch from a Git repository.
 #  Arguments:
 #  1 - a Bitbucket user name
@@ -259,7 +312,7 @@ HasBitbucketBranch() {
 #  4 - the identifier of the repository
 #  5 - the identifier of the branch that is to be deleted
 #
-DeleteBranch() {
+DeleteBitbucketBranch() {
   local userName="$1"
   local password="$2"
   local project="$3"
@@ -460,7 +513,7 @@ MergeAndCleanPullRequest() {
   
   if [ "$pullRequestStatus" = "MERGED" ]; then
     echo "No need to merge https://code.gerdi-project.de/projects/$project/repos/$repositorySlug/ because it was already merged!" >&2
-    DeleteBranch "$userName" "$password" "$project" "$repositorySlug" "$branchName"
+    DeleteBitbucketBranch "$userName" "$password" "$project" "$repositorySlug" "$branchName"
 	
   elif [ "$pullRequestStatus" = "APPROVED" ]; then
     echo "Merging https://code.gerdi-project.de/projects/$project/repos/$repositorySlug/pull-requests/$pullRequestId/" >&2
@@ -469,7 +522,7 @@ MergeAndCleanPullRequest() {
     pullRequestVersion=$(GetVersionFromPullRequestInfoJson "$pullRequestInfoJson")
 	
     MergePullRequest "$userName" "$password" "$project" "$repositorySlug" "$pullRequestId" "$pullRequestVersion" >&2
-    DeleteBranch "$userName" "$password" "$project" "$repositorySlug" "$branchName"
+    DeleteBitbucketBranch "$userName" "$password" "$project" "$repositorySlug" "$branchName"
 	
   elif [ "$pullRequestStatus" = "NEEDS_WORK" ]; then
     echo "Could not merge https://code.gerdi-project.de/projects/$project/repos/$repositorySlug/pull-requests/$pullRequestId/ because it was not approved yet!" >&2
