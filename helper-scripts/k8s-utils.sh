@@ -32,7 +32,7 @@ GetServiceType() {
   projectId=${projectId##*/}
   
   local projectName
-  projectName=$(curl -nsX GET https://code.gerdi-project.de/rest/api/latest/projects/$projectId/ \
+  projectName=$(curl -nsX GET https://code.gerdi-project.de/rest/api/1.0/projects/$projectId/ \
        | grep -oP "(?<=\"name\":\")[^\"]+" \
        | tr '[:upper:]' '[:lower:]')
      
@@ -65,7 +65,7 @@ GetServiceName() {
   repositorySlug=${repositorySlug##*/}
   
   local projectName
-  projectName=$(curl -nsX GET https://code.gerdi-project.de/rest/api/latest/projects/$projectId/ \
+  projectName=$(curl -nsX GET https://code.gerdi-project.de/rest/api/1.0/projects/$projectId/ \
        | grep -oP "(?<=\"name\":\")[^\"]+" \
        | tr '[:upper:]' '[:lower:]')
 	   

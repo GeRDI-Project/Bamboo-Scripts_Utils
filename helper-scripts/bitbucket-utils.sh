@@ -272,7 +272,7 @@ HasBitbucketBranch() {
   local branchName="$5"
   
   GetJoinedAtlassianResponse \
-    "https://code.gerdi-project.de/rest/api/latest/projects/$project/repos/$repositorySlug/branches/?filterText=$branchName" \
+    "https://code.gerdi-project.de/rest/api/1.0/projects/$project/repos/$repositorySlug/branches/?filterText=$branchName" \
     0 \
     "$userName" \
     "$password" \
@@ -337,7 +337,7 @@ DeleteBitbucketBranch() {
     deleteResponse=$(curl -sX DELETE -u "$userName:$password" -H "Content-Type: application/json" -d '{
       "name": "refs/heads/'"$branchName"'",
       "dryRun": false
-    }' https://code.gerdi-project.de/rest/branch-utils/latest/projects/$project/repos/$repositorySlug/branches/)
+    }' https://code.gerdi-project.de/rest/branch-utils/1.0/projects/$project/repos/$repositorySlug/branches/)
 	
     echo "$deleteResponse" >&2
   else
@@ -425,7 +425,7 @@ CreatePullRequest() {
             null
         ]
     }
-  }' "https://code.gerdi-project.de/rest/api/latest/projects/$project/repos/$repositorySlug/pull-requests"
+  }' "https://code.gerdi-project.de/rest/api/1.0/projects/$project/repos/$repositorySlug/pull-requests"
 }
 
 
@@ -448,7 +448,7 @@ GetPullRequestIdOfSourceBranch() {
   }
   
   ProcessJoinedAtlassianResponse \
-    "https://code.gerdi-project.de/rest/api/latest/projects/$project/repos/$repositorySlug/pull-requests?direction=OUTGOING&state=OPEN&withAttributes=false&withProperties=false" \
+    "https://code.gerdi-project.de/rest/api/1.0/projects/$project/repos/$repositorySlug/pull-requests?direction=OUTGOING&state=OPEN&withAttributes=false&withProperties=false" \
     "GetPrIdWithPrefix" \
       | head -n 1
 }
@@ -471,7 +471,7 @@ MergePullRequest() {
   local pullRequestVersion="$6"
   
   local mergeResponse
-  mergeResponse=$(curl -sX POST -u "$userName:$password" -H "Content-Type:application/json" https://code.gerdi-project.de/rest/api/latest/projects/$project/repos/$repositorySlug/pull-requests/$pullRequestId/merge?version=$pullRequestVersion) >&2
+  mergeResponse=$(curl -sX POST -u "$userName:$password" -H "Content-Type:application/json" https://code.gerdi-project.de/rest/api/1.0/projects/$project/repos/$repositorySlug/pull-requests/$pullRequestId/merge?version=$pullRequestVersion) >&2
   
   if [ $? -eq 0 ]; then
     echo "Merged pull-request: https://code.gerdi-project.de/projects/$project/repos/$repositorySlug" >&2
@@ -544,7 +544,7 @@ MergeAllPullRequestsOfJiraTicket() {
   
   # get all commits of JIRA ticket
   local allCommits
-  allCommits=$(GetJoinedAtlassianResponse "https://code.gerdi-project.de/rest/jira/latest/issues/$jiraKey/commits?maxChanges=1")
+  allCommits=$(GetJoinedAtlassianResponse "https://code.gerdi-project.de/rest/jira/1.0/issues/$jiraKey/commits?maxChanges=1")
   
   # extract clone links from commits with messages that start with the JIRA ticket number
   local cloneLinkList
@@ -576,7 +576,7 @@ MergeAllPullRequestsOfJiraTicket() {
 	
     # get fully qualified branch name by looking for branches that contain the JIRA ticket number
     branchName=$(ProcessJoinedAtlassianResponse \
-      "https://code.gerdi-project.de/rest/api/latest/projects/$project/repos/$repositorySlug/branches?filterText=$jiraKey" \
+      "https://code.gerdi-project.de/rest/api/1.0/projects/$project/repos/$repositorySlug/branches?filterText=$jiraKey" \
       "GetBranchId")
 	
     if [ -n "$branchName" ]; then
@@ -732,7 +732,7 @@ GetPullRequestInfoJson() {
   local repositorySlug="$4"
   local pullRequestId="$5"
   
-  echo $(curl -sX GET -u "$userName:$password" https://code.gerdi-project.de/rest/api/latest/projects/$project/repos/$repositorySlug/pull-requests/$pullRequestId)
+  echo $(curl -sX GET -u "$userName:$password" https://code.gerdi-project.de/rest/api/1.0/projects/$project/repos/$repositorySlug/pull-requests/$pullRequestId)
 }
 
 
@@ -791,7 +791,7 @@ GetBitBucketProjectName() {
   local project="$3"
   
   local response
-  response=$(curl -sX GET -u "$userName:$password" https://code.gerdi-project.de/rest/api/latest/projects/$project/)
+  response=$(curl -sX GET -u "$userName:$password" https://code.gerdi-project.de/rest/api/1.0/projects/$project/)
   echo "$response" | grep -oP "(?<=\"name\":\")[^\"]+"
 }
 

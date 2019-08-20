@@ -33,13 +33,13 @@ StartJiraTask() {
   local response
   response=$(curl -sX POST -u "$userName:$password" -H "Content-Type: application/json" -d '{
     "transition": {"id": 111}
-  }' https://tasks.gerdi-project.de/rest/api/latest/issue/$taskKey/transitions?expand=transitions.fields)
+  }' https://tasks.gerdi-project.de/rest/api/2/issue/$taskKey/transitions?expand=transitions.fields)
   
   echo "Setting $taskKey to 'In Progress'" >&2
   
   response=$(curl -sX POST -u "$userName:$password" -H "Content-Type: application/json" -d '{
     "transition": {"id": 81}
-  }' https://tasks.gerdi-project.de/rest/api/latest/issue/$taskKey/transitions?expand=transitions.fields)
+  }' https://tasks.gerdi-project.de/rest/api/2/issue/$taskKey/transitions?expand=transitions.fields)
   
 }
 
@@ -61,7 +61,7 @@ ReviewJiraTask() {
   local response
   response=$(curl -sX POST -u "$userName:$password" -H "Content-Type: application/json" -d '{
     "transition": {"id": 101}
-  }' https://tasks.gerdi-project.de/rest/api/latest/issue/$taskKey/transitions?expand=transitions.fields)
+  }' https://tasks.gerdi-project.de/rest/api/2/issue/$taskKey/transitions?expand=transitions.fields)
 }
 
 
@@ -81,7 +81,7 @@ FinishJiraTask() {
   local response
   response=$(curl -sX POST -u "$userName:$password" -H "Content-Type: application/json" -d '{
     "transition": {"id": 71}
-  }' https://tasks.gerdi-project.de/rest/api/latest/issue/$taskKey/transitions?expand=transitions.fields)
+  }' https://tasks.gerdi-project.de/rest/api/2/issue/$taskKey/transitions?expand=transitions.fields)
 }
 
 
@@ -107,7 +107,7 @@ AbortJiraTask() {
   "update": {
         "comment": [{"add": {"body": "'"$reason"'"}}]
     }
-  }' https://tasks.gerdi-project.de/rest/api/latest/issue/$taskKey/transitions?expand=transitions.fields)
+  }' https://tasks.gerdi-project.de/rest/api/2/issue/$taskKey/transitions?expand=transitions.fields)
 }
 
 
@@ -133,7 +133,7 @@ CreateJiraTicket() {
       "project": {"id": "10400"},
       "customfield_10006": 0
     }
-  }' https://tasks.gerdi-project.de/rest/api/latest/issue)
+  }' https://tasks.gerdi-project.de/rest/api/2/issue)
   
   local jiraKey
   jiraKey=${response#*\"key\":\"}
@@ -169,7 +169,7 @@ CreateJiraSubTask() {
     "project": {"id": "10400"},
     "parent": {"key": "'"$jiraParentKey"'"}
     }
-  }' https://tasks.gerdi-project.de/rest/api/latest/issue)
+  }' https://tasks.gerdi-project.de/rest/api/2/issue)
   
   local subTaskKey
   subTaskKey=${response#*\"key\":\"}
@@ -198,7 +198,7 @@ AddJiraTicketToCurrentSprint() {
       | grep -oP "(?<=\"id\":)(\d+)(?=,\"self\":\"https://tasks.gerdi-project.de/rest/agile/1.0/sprint/\1\",\"state\":\"active\")"
   }
   local sprintId
-  sprintId=$(ProcessJoinedAtlassianResponse "https://tasks.gerdi-project.de/rest/agile/latest/board/25/sprint" "GetActiveSprintId" \
+  sprintId=$(ProcessJoinedAtlassianResponse "https://tasks.gerdi-project.de/rest/agile/1.0/board/25/sprint" "GetActiveSprintId" \
              | tail -n1)
    
   # add issue to sprint

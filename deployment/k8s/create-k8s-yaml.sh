@@ -193,7 +193,7 @@ CreateYamlCreationPullRequest() {
             null
         ]
     }
-  }' "https://code.gerdi-project.de/rest/api/latest/projects/SYS/repos/gerdireleases/pull-requests" \
+  }' "https://code.gerdi-project.de/rest/api/1.0/projects/SYS/repos/gerdireleases/pull-requests" \
   | grep -oP '(?<=^{"id":)[^,]+'
 }
 

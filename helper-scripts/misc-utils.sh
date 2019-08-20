@@ -177,7 +177,7 @@ IsCloneLink() {
     local slug=$(echo "$checkedArg" | grep -oP "[^/.]+(?=\.git$)")
     local projectId=$(echo "$checkedArg" | grep -oP "[^/.]+(?=/$slug\.git)")
 	
-    IsUrlReachable "https://code.gerdi-project.de/rest/api/latest/projects/$projectId/repos/$slug" "$userName" "$password"
+    IsUrlReachable "https://code.gerdi-project.de/rest/api/1.0/projects/$projectId/repos/$slug" "$userName" "$password"
   else
     exit 1
   fi
@@ -197,7 +197,7 @@ IsProject() {
   local password="$3"
   
   if $(echo "$checkedArg" | grep -qx "[A-Z]\+\|[a-z]\+"); then
-    IsUrlReachable "https://code.gerdi-project.de/rest/api/latest/projects/$checkedArg/" "$userName" "$password"
+    IsUrlReachable "https://code.gerdi-project.de/rest/api/1.0/projects/$checkedArg/" "$userName" "$password"
   else
     exit 1
   fi

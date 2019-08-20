@@ -110,7 +110,7 @@ ProcessHarvesterRepository() {
   planKey="$(echo "$providerClassName" | sed -e "s~[a-z]~~g")HAR"
   
   # check if plans already exist
-  if ! $overwriteExistingJobs && $(IsUrlReachable "https://ci.gerdi-project.de/rest/api/latest/plan/CA-$planKey" "$atlassianUserName" "$atlassianPassword"); then
+  if ! $overwriteExistingJobs && $(IsUrlReachable "https://ci.gerdi-project.de/rest/api/1.0/plan/CA-$planKey" "$atlassianUserName" "$atlassianPassword"); then
     echo "Plans with the key '$planKey' already exist!" >&2
     exit 1
   fi
