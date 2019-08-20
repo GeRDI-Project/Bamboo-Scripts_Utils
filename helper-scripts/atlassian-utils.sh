@@ -65,32 +65,17 @@ GetJoinedAtlassianResponse() {
   local userName="${3-}"
   local password="${4-}"
   
-  local startQuery
-  if $(echo "$url" | grep -q '?'); then
-    startQuery="&start="
-  else
-    startQuery="?start="
-  fi
+  local joinedValues
+  JoinValuesArray() {
+    if [ -n "$joinedValues" ]; then
+      joinedValues="$joinedValues,$1"
+    else
+      joinedValues="$1"
+    fi    
+  }
   
-  local response
-  if [ -n "$userName" ]; then
-    response=$(curl -sX GET -u "$userName:$password" "$url$startQuery$startIndex")
-  else
-    response=$(curl -nsX GET "$url$startQuery$startIndex")
-  fi
-  
-  local nextStart
-  nextStart=$(echo "$response" | grep -oP '(?<="nextPageStart":)[0-9]+')
-  
-  # remove stuff around the values tags
-  response=${response#*\"values\":[}
-  response=${response%]*}
-  
-  if [ -n "$nextStart" ]; then
-    echo "$response,"$(GetJoinedAtlassianResponse "$1" "$nextStart" "$3" "$4")
-  else
-    echo "$response"
-  fi
+  ProcessJoinedAtlassianResponse "$url" "JoinValuesArray" "" "$startIndex" "$userName" "$password" >&2
+  echo "$joinedValues"
 }
 
 
@@ -112,31 +97,45 @@ ProcessJoinedAtlassianResponse() {
   local userName="${5-}"
   local password="${6-}"
   
+  # Atlassian uses a non-consistent page API, redundant query parameters mitigate that issue
   local startQuery
   if $(echo "$url" | grep -q '?'); then
-    startQuery="&start="
+    startQuery="&start=$startIndex&startAt=$startIndex"
   else
-    startQuery="?start="
+    startQuery="?start=$startIndex&startAt=$startIndex"
   fi
   
   local response
   if [ -n "$userName" ]; then
-    response=$(curl -sX GET -u "$userName:$password" "$url$startQuery$startIndex")
+    response=$(curl -sX GET -u "$userName:$password" "$url$startQuery")
   else
-    response=$(curl -nsX GET "$url$startQuery$startIndex")
+    response=$(curl -nsX GET "$url$startQuery")
   fi
-
-  local nextStart
-  nextStart=$(echo "$response" | grep -oP '(?<="nextPageStart":)[0-9]+')
   
-  # remove stuff around the values tags
+  # retrieve pagination metadata
+  local metadata
+  metadata="${response%%,\"values\":[*}"
+  metadata="$metadata${response##*]}"
+  
+  # retrieve values array
   response=${response#*\"values\":[}
   response=${response%]*}
+  response=$(echo "$response" | sed 's~'"'"'~\\'"'"'~g')
+
+  # check if this is the last page of a multi-page-request
+  local isLast
+  isLast=$(echo "$metadata" | grep -oP '(?<="isLast":|"isLastPage":)[a-z]+')
   
   # process response
-  eval "$functionName" "'$response' $functionArguments"
+  eval "'$functionName'" "$'$response' $functionArguments"
   
-  if [ -n "$nextStart" ]; then
+  if ! $isLast; then
+    # calculate the next start index of a multi-page request
+    local resultsPerPage
+    resultsPerPage=$(echo "$metadata" | grep -oP '(?<="limit":|"maxResults":|"max-results":)[0-9]+')
+    local nextStart
+    nextStart=$(expr $startIndex + $resultsPerPage)
+  
     ProcessJoinedAtlassianResponse "$1" "$2" "$3" "$nextStart" "$5" "$6"
   fi
 }
