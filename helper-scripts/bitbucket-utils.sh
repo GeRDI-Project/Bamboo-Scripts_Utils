@@ -88,8 +88,15 @@ GetLatestCommit() {
   local repositorySlug="$4"
   local branch="$5"
   
-  curl -sX GET -u "$userName:$password" "https://code.gerdi-project.de/rest/api/1.0/projects/$projectId/repos/$repositorySlug/branches/" \
-     | grep -oP '(?<="displayId":"'"$branch"'","type":"BRANCH","latestCommit":")[^"]+'
+  GetLatestCommit() {
+    echo "$1" \
+      | grep -oP '(?<="displayId":"'"$branch"'","type":"BRANCH","latestCommit":")[^"]+'
+  }
+  
+  ProcessJoinedAtlassianResponse \
+    "https://code.gerdi-project.de/rest/api/1.0/projects/$projectId/repos/$repositorySlug/branches/" \
+    "GetLatestCommit" "" 0 \
+    "$userName" "$password"
 }
 
 
@@ -108,6 +115,7 @@ GetBitbucketTag() {
   local projectId="$3"
   local repositorySlug="$4"
   local tagName="$5"
+  
   curl -sX GET -u "$userName:$password" "https://code.gerdi-project.de/rest/api/1.0/projects/$projectId/repos/$repositorySlug/tags/$tagName"
 }
 
@@ -123,7 +131,9 @@ GetBitbucketTags() {
   local projectId="$1"
   local repositorySlug="$2"
   local tagFilter="${3-}"
-  GetJoinedAtlassianResponse "https://code.gerdi-project.de/rest/api/1.0/projects/$projectId/repos/$repositorySlug/tags/?filterText=$tagFilter&orderBy=MODIFICATION" \
+  
+  GetJoinedAtlassianResponse \
+    "https://code.gerdi-project.de/rest/api/1.0/projects/$projectId/repos/$repositorySlug/tags/?filterText=$tagFilter&orderBy=MODIFICATION" \
     | grep -oP '(?<="displayId":")[^"]+'
 }
 
@@ -261,8 +271,12 @@ HasBitbucketBranch() {
   local repositorySlug="$4"
   local branchName="$5"
   
-  curl -sX GET -u "$userName:$password" "https://code.gerdi-project.de/rest/api/latest/projects/$project/repos/$repositorySlug/branches/?filterText=$branchName" \
-    | grep -q "\"id\":\"refs/heads/$branchName\""
+  GetJoinedAtlassianResponse \
+    "https://code.gerdi-project.de/rest/api/latest/projects/$project/repos/$repositorySlug/branches/?filterText=$branchName" \
+    0 \
+    "$userName" \
+    "$password" \
+      | grep -q "\"id\":\"refs/heads/$branchName\""
 }
 
 
@@ -284,22 +298,18 @@ CreateBitbucketBranch() {
   local branchName="$5"
   local sourceBranchName="${6-master}"
   
-  local response
-  response=$(curl -sX GET -u "$userName:$password" "https://code.gerdi-project.de/rest/api/latest/projects/$project/repos/$repositorySlug/branches/?filterText=$branchName")
-  
   # make sure that no branch with the same name exists
-  if ! $(echo "$response" | grep -q "\"id\":\"refs/heads/$branchName\""); then
+  if ! $(HasBitbucketBranch "$userName" "$password" "$project" "$repositorySlug" "$branchName"); then
     local revision
-	revision=$(curl -sX GET -u "$userName:$password" "https://code.gerdi-project.de/rest/api/1.0/projects/$project/repos/$repositorySlug/branches/?filterText=$sourceBranchName"\
-	          | grep -oP "(?<=\"id\":\"refs/heads/$sourceBranchName\",\"displayId\":\"$sourceBranchName\",\"type\":\"BRANCH\",\"latestCommit\":\")[^\"]+")
-			  
+	revision=$(GetLatestCommit "$userName" "$password" "$project" "$repositorySlug" "$sourceBranchName")
+	
     echo "Creating Bitbucket branch '$branchName' from '$sourceBranchName' for repository '$project/$repositorySlug', revision '$revision'." >&2
 	
-    response=$(curl -sX POST -u "$userName:$password" -H "Content-Type: application/json" -d '{
+    curl -sX POST -u "$userName:$password" -H "Content-Type: application/json" -d '{
       "name": "'"$branchName"'",
       "startPoint": "'"$revision"'",
       "message": "This branch was created by a Bamboo executed script."
-    }' "https://code.gerdi-project.de/rest/api/1.0/projects/$project/repos/$repositorySlug/branches/")
+    }' "https://code.gerdi-project.de/rest/api/1.0/projects/$project/repos/$repositorySlug/branches/" >&2
   fi
 }
 
@@ -319,11 +329,8 @@ DeleteBitbucketBranch() {
   local repositorySlug="$4"
   local branchName="$5"
   
-  local branchInfo
-  branchInfo=$(curl -sX GET -u "$userName:$password" https://code.gerdi-project.de/rest/api/latest/projects/$project/repos/$repositorySlug/branches?filterText=$branchName)
-  
   # only continue if the branch exists
-  if ! $(echo "$branchInfo" | grep -q '"size":0'); then
+  if $(HasBitbucketBranch "$userName" "$password" "$project" "$repositorySlug" "$branchName"); then
     echo "Deleting branch '$branchName' of '$project/$repositorySlug'" >&2
 	
 	local deleteResponse
@@ -424,35 +431,26 @@ CreatePullRequest() {
 
 # Returns the pull request identifier of a specified repository and source branch.
 #  Arguments:
-#  1 - a Bitbucket user name
-#  2 - the login password that belongs to argument 1
-#  3 - the ID of the project to which the repository belongs
-#  4 - the identifier of the repository
-#  5 - the identifier of the source branch
+#  1 - the ID of the project to which the repository belongs
+#  2 - the repository slug
+#  3 - a prefix of the source branch name
 #
 GetPullRequestIdOfSourceBranch() {
-  local userName="$1"
-  local password="$2"
-  local project="$3"
-  local repositorySlug="$4"
-  local branchName="$5"
+  local project="$1"
+  local repositorySlug="$2"
+  local branchName="$3"
   
-  local allPullRequests
-  allPullRequests=$(curl -sX GET -u "$userName:$password" https://code.gerdi-project.de/rest/api/latest/projects/$project/repos/$repositorySlug/pull-requests)
+  GetPrIdWithPrefix() {
+    echo "$1" \
+      | tr '\n' ' ' | tr -d '\r' \
+      | grep -oP '{"id":[^{]+?(?="fromRef":{"id":"refs/heads/([a-z]+/)?'"$branchName)" \
+      | grep -oP '(?<="id":)[0-9]+'
+  }
   
-  local pullRequestId
-  
-  # check if there are pull requests for the specified source branch
-  if $(echo "$allPullRequests" | grep -q '"fromRef":{"id":"refs/heads/'"$branchName"); then
-    pullRequestId=$(echo "$allPullRequests" \
-      | grep -oP '{"id":[^{]+?(?="fromRef":{"id":"refs/heads/'"$branchName)" \
-      | grep -oP '(?<="id":)[0-9]+' \
-      | head -n 1)
-  else
-    pullRequestId=""
-  fi
-  
-  echo "$pullRequestId"
+  ProcessJoinedAtlassianResponse \
+    "https://code.gerdi-project.de/rest/api/latest/projects/$project/repos/$repositorySlug/pull-requests?direction=OUTGOING&state=OPEN&withAttributes=false&withProperties=false" \
+    "GetPrIdWithPrefix" \
+      | head -n 1
 }
 
 
@@ -500,7 +498,7 @@ MergeAndCleanPullRequest() {
   local branchName="$5"
   
   local pullRequestId
-  pullRequestId=$(GetPullRequestIdOfSourceBranch "$userName" "$password" "$project" "$repositorySlug" "$branchName")
+  pullRequestId=$(GetPullRequestIdOfSourceBranch "$project" "$repositorySlug" "$branchName")
   
   local pullRequestInfoJson
   local pullRequestStatus
@@ -546,7 +544,7 @@ MergeAllPullRequestsOfJiraTicket() {
   
   # get all commits of JIRA ticket
   local allCommits
-  allCommits=$(curl -sX GET -u "$userName:$password" https://code.gerdi-project.de/rest/jira/latest/issues/$jiraKey/commits?maxChanges\=1)
+  allCommits=$(GetJoinedAtlassianResponse "https://code.gerdi-project.de/rest/jira/latest/issues/$jiraKey/commits?maxChanges=1")
   
   # extract clone links from commits with messages that start with the JIRA ticket number
   local cloneLinkList
@@ -561,6 +559,11 @@ MergeAllPullRequestsOfJiraTicket() {
     exit 1
   fi
   
+  # helper function that retrieves a fully qualified branch name
+  GetBranchId() {
+      echo "$1" | grep -oP "(?<=\"id\":\"refs/heads/)[^\"]+"
+  }
+	
   # execute merge of all pull-requests
   local project
   local repositorySlug
@@ -571,14 +574,15 @@ MergeAllPullRequestsOfJiraTicket() {
     project=$(GetProjectIdFromCloneLink "$cloneLink")
     repositorySlug=$(GetRepositorySlugFromCloneLink "$cloneLink")
 	
-	# get full branch name by looking for branches that contain the JIRA ticket number
-    branchName=$(curl -sX GET -u "$userName:$password" "https://code.gerdi-project.de/rest/api/latest/projects/$project/repos/$repositorySlug/branches?filterText=$jiraKey" \
-	| grep -oP "(?<=\"id\":\"refs/heads/)[^\"]+")
+    # get fully qualified branch name by looking for branches that contain the JIRA ticket number
+    branchName=$(ProcessJoinedAtlassianResponse \
+      "https://code.gerdi-project.de/rest/api/latest/projects/$project/repos/$repositorySlug/branches?filterText=$jiraKey" \
+      "GetBranchId")
 	
-	  if [ -n "$branchName" ]; then
-        $(MergeAndCleanPullRequest "$userName" "$password" "$project" "$repositorySlug" "$branchName")
-		[ $? -ne 0 ] && ((failedMerges++))
-	  fi
+    if [ -n "$branchName" ]; then
+      MergeAndCleanPullRequest "$userName" "$password" "$project" "$repositorySlug" "$branchName" >&2
+      [ $? -ne 0 ] && ((failedMerges++))
+	fi
   done
   echo $failedMerges )
 }
@@ -598,7 +602,9 @@ MergeAllPullRequestsWithTitle() {
   local title="$3"
 
   local myApprovedPullRequests
-  myApprovedPullRequests=$(curl -sX GET -u "$userName:$password" "https://code.gerdi-project.de/rest/api/1.0/dashboard/pull-requests?state=open&role=REVIEWER&participantStatus=APPROVED")
+  myApprovedPullRequests=$(GetJoinedAtlassianResponse \
+    "https://code.gerdi-project.de/rest/api/1.0/dashboard/pull-requests?state=open&role=REVIEWER&participantStatus=APPROVED" \
+	0 "$userName" "$password")
 
   local argumentsList  
   argumentsList=$(echo "$myApprovedPullRequests" \
@@ -639,10 +645,20 @@ ApprovePullRequest() {
     exit 1
   fi
   
-  local userSlug
-  userSlug=$(curl -sX GET -u "$userName:$password" "https://code.gerdi-project.de/rest/api/1.0/projects/$projectId/repos/$repositorySlug/pull-requests/$pullRequestId/participants/" \
-            | grep -oP '"name":"'"$userName"'",.*?"slug":"[^"]+"' \
-            | grep -oP '(?<="slug":")[^"]+')
+  # helper function that retrieves the user slug from a user name
+  GetUserSlug() {
+    echo "$1" \
+      | grep -oP '"name":"'"$userName"'",.*?"slug":"[^"]+"' \
+      | grep -oP '(?<="slug":")[^"]+'
+  }  
+  
+  # retrieve the user slug from the user name
+  local userSlug  
+  userSlug=$(ProcessJoinedAtlassianResponse \
+    "https://code.gerdi-project.de/rest/api/1.0/projects/$projectId/repos/$repositorySlug/pull-requests/$pullRequestId/participants/" \
+    "GetUserSlug" "" 0 \
+    "$userName" "$password")
+			
   if [ -z "$userSlug" ]; then
     echo "Could not approve pull-request '$projectId/$repositorySlug/$pullRequestId': $userName is not a reviewer!" >&2
     exit 1
@@ -676,7 +692,11 @@ ApproveAllPullRequestsWithTitle() {
   local title="$3"
 
   local myOpenPullRequests
-  myOpenPullRequests=$(curl -sX GET -u "$userName:$password" "https://code.gerdi-project.de/rest/api/1.0/dashboard/pull-requests?state=open&role=REVIEWER&participantStatus=UNAPPROVED")
+  myOpenPullRequests=$(GetJoinedAtlassianResponse \
+    "https://code.gerdi-project.de/rest/api/1.0/dashboard/pull-requests?state=open&role=REVIEWER&participantStatus=UNAPPROVED" \
+	0 \
+	"$userName" \
+	"$password")
   
   local argumentsList  
   argumentsList=$(echo "$myOpenPullRequests" \

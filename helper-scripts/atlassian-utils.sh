@@ -150,7 +150,7 @@ ExitIfAtlassianCredentialsWrong() {
   local userName="$1"
   local password="$2"
   
-  $(curl -sfX HEAD -u "$userName:$password" "https://code.gerdi-project.de/rest/api/latest/projects/")
+  curl -sfX HEAD -u "$userName:$password" "https://code.gerdi-project.de/rest/api/latest/projects/" >&2
   if [ $? -ne 0 ]; then
     echo "Incorrect Atlassian credentials!" >&2
     exit 1

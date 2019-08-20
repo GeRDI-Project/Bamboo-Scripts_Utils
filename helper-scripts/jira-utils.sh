@@ -16,6 +16,8 @@
 
 # This script offers helper functions that concern the GeRDI JIRA.
 
+# load helper scripts
+source ./scripts/helper-scripts/atlassian-utils.sh
 
 # Sets a JIRA ticket from "Selected for Development" to "In Progress".
 #  Arguments:
@@ -190,13 +192,14 @@ AddJiraTicketToCurrentSprint() {
   local userName="$2"
   local password="$3"
     
-  # retrieve active sprint name
-  local response
-  response=$(curl -sX GET -u "$userName:$password" -H "Content-Type: application/json" https://tasks.gerdi-project.de/rest/agile/latest/board/25/sprint) 
-
-  local sprintId  
-  sprintId=${response##*\"id\":}
-  sprintId=${sprintId%%,*}
+  # retrieve active sprint ID
+  GetActiveSprintId() {
+    echo "$1" \
+      | grep -oP "(?<=\"id\":)(\d+)(?=,\"self\":\"https://tasks.gerdi-project.de/rest/agile/1.0/sprint/\1\",\"state\":\"active\")"
+  }
+  local sprintId
+  sprintId=$(ProcessJoinedAtlassianResponse "https://tasks.gerdi-project.de/rest/agile/latest/board/25/sprint" "GetActiveSprintId" \
+             | tail -n1)
    
   # add issue to sprint
   curl --output '/dev/null' -sX PUT -u "$userName:$password" -H "Content-Type: application/json" -d '{
@@ -230,10 +233,9 @@ IterateSubtasksOfJiraTicket() {
   
   # get sub-task keys via curl
   local subTaskKeys
-  subTaskKeys=$(curl -nsX GET "https://tasks.gerdi-project.de/rest/api/2/issue/$jiraKey")
-  subTaskKeys="${subTaskKeys##*"subtasks"}"
-  subTaskKeys="${subTaskKeys%%]*}"
-  subTaskKeys=$(echo "$subTaskKeys" | grep -oP "(?<=\"key\":\")$jiraProject-[0-9]+(?=\")")
+  subTaskKeys=$(curl -nsX GET "https://tasks.gerdi-project.de/rest/api/2/issue/$jiraKey?fields=subtasks" \
+                | grep -oP '(?<="subtasks":\[).+' \
+                | grep -oP '(?<="key":")'"$jiraProject-[0-9]+"'(?=")')
   
   # execute function on each sub-task key
   while read subTaskKey
