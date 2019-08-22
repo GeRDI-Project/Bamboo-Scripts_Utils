@@ -39,6 +39,7 @@ source ./scripts/helper-scripts/atlassian-utils.sh
 source ./scripts/helper-scripts/bamboo-utils.sh
 source ./scripts/helper-scripts/jira-utils.sh
 source ./scripts/helper-scripts/git-utils.sh
+source ./scripts/helper-scripts/bitbucket-utils.sh
 source ./scripts/helper-scripts/maven-utils.sh
 source ./scripts/helper-scripts/misc-utils.sh
 
@@ -256,7 +257,7 @@ ExecuteUpdate() {
   
     # create git branch
     BRANCH_NAME="versionUpdate/$JIRA_KEY-$subTaskKey-VersionUpdate"
-	CreateBranch "$BRANCH_NAME"
+	CreateGitBranch "$BRANCH_NAME"
     
     # set version
     echo -e $(mvn versions:set "-DnewVersion=$TARGET_VERSION" -DallowSnapshots=true -DgenerateBackupPoms=false -f"$POM_FOLDER/pom.xml") >&2

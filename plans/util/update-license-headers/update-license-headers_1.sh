@@ -29,6 +29,7 @@ source ./scripts/helper-scripts/atlassian-utils.sh
 source ./scripts/helper-scripts/bamboo-utils.sh
 source ./scripts/helper-scripts/jira-utils.sh
 source ./scripts/helper-scripts/git-utils.sh
+source ./scripts/helper-scripts/bitbucket-utils.sh
 source ./scripts/helper-scripts/maven-utils.sh
 source ./scripts/helper-scripts/misc-utils.sh
 
@@ -125,7 +126,7 @@ PushLicenseHeaderUpdate() {
     # create git branch
 	local branchName
     branchName="$JIRA_KEY-$subTaskKey-UpdateLicenseHeaders"
-	CreateBranch "$branchName"
+	CreateGitBranch "$branchName"
     
 	# commit and push updates
 	local commitMessage

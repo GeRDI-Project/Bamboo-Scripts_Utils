@@ -61,7 +61,7 @@ GetPlanBranchId() {
   if [ "$branch" = "master" ]; then
     planBranchId=""
   else
-    planBranchId=$(curl -sX GET -u "$userName:$password" https://ci.gerdi-project.de/rest/api/latest/plan/$planLabel/branch/$branch \
+    planBranchId=$(curl -sX GET -u "$userName:$password" https://ci.gerdi-project.de/rest/api/1.0/plan/$planLabel/branch/$branch \
                    | grep -oP "(?<=key=\"$planLabel)[^\"]+" \
                    | head -1)
 				   
@@ -87,7 +87,7 @@ GetPlanBranchIdWithoutCredentials() {
   if [ "$branch" = "master" ]; then
     planBranchId=""
   else
-    planBranchId=$(curl -nsX GET https://ci.gerdi-project.de/rest/api/latest/plan/$planLabel/branch/$branch \
+    planBranchId=$(curl -nsX GET https://ci.gerdi-project.de/rest/api/1.0/plan/$planLabel/branch/$branch \
                    | grep -oP "(?<=key=\"$planLabel)[^\"]+" \
                    | head -1)
 				   
@@ -112,7 +112,7 @@ GetDeploymentId() {
   local password="$3"
   
   local deploymentId
-  deploymentId=$(curl -sX GET -u "$userName:$password"  "https://ci.gerdi-project.de/rest/api/latest/deploy/project/forPlan?planKey=$planLabel" \
+  deploymentId=$(curl -sX GET -u "$userName:$password"  "https://ci.gerdi-project.de/rest/api/1.0/deploy/project/forPlan?planKey=$planLabel" \
                  | grep -oP "(?<=\"id\":)\d+")
 
   # check if a plan with the specified label exists
@@ -139,7 +139,7 @@ GetLatestBambooPlanResultKey() {
   
   # check latest finished build
   local response
-  response=$(curl -sX GET -u "$userName:$password" -H "Content-Type: application/json"  https://ci.gerdi-project.de/rest/api/latest/result/$planLabel$planBranchId?max-results=1)
+  response=$(curl -sX GET -u "$userName:$password" -H "Content-Type: application/json"  https://ci.gerdi-project.de/rest/api/1.0/result/$planLabel$planBranchId?max-results=1)
   
   local planResultKey
   planResultKey=$(echo "$response" | grep -oP '(?<=<buildResultKey>).+(?=</buildResultKey>)')
@@ -154,7 +154,7 @@ GetLatestBambooPlanResultKey() {
 	nextBuildNumber=$(expr $nextBuildNumber + 1)
     nextPlanResultKey="${planResultKey%-*}-$nextBuildNumber"
 	
-    response=$(curl -u "$userName:$password"  -sIX HEAD "https://ci.gerdi-project.de/rest/api/latest/result/status/$nextPlanResultKey")
+    response=$(curl -u "$userName:$password"  -sIX HEAD "https://ci.gerdi-project.de/rest/api/1.0/result/status/$nextPlanResultKey")
     httpCode=$(echo "$response" | grep -oP '(?<=HTTP/\d\.\d )\d+')
 	
 	if [ "$httpCode" = "200" ]; then
@@ -180,7 +180,7 @@ GetDeployEnvironmentId() {
   local password="$4"
   
   local response
-  response=$(curl -sX GET -u "$userName:$password" -H "Content-Type: application/json" https://ci.gerdi-project.de/rest/api/latest/deploy/project/$deploymentId)
+  response=$(curl -sX GET -u "$userName:$password" -H "Content-Type: application/json" https://ci.gerdi-project.de/rest/api/1.0/deploy/project/$deploymentId)
   response=${response#*\"environments\":\[}
   
   local environmentId
@@ -209,7 +209,7 @@ GetPlanLabelByProjectAndName() {
   local password="$4"
   
   local response
-  response=$(curl -sX GET -u "$userName:$password" "https://ci.gerdi-project.de/rest/api/latest/search/plans?searchTerm=$planName")
+  response=$(curl -sX GET -u "$userName:$password" "https://ci.gerdi-project.de/rest/api/1.0/search/plans?searchTerm=$planName")
   echo "$response" | grep -oP "(?<=\<key\>)$projectId-.+?(?=\</key\>)" | head -n1
 }
 
@@ -227,7 +227,7 @@ StartBambooPlan() {
   local password="$3"
   
   local response
-  response=$(curl -sX POST -u "$userName:$password" -H "Content-Type: application/json" -d '{}' https://ci.gerdi-project.de/rest/api/latest/queue/$planLabel?stage\&executeAllStages)
+  response=$(curl -sX POST -u "$userName:$password" -H "Content-Type: application/json" -d '{}' https://ci.gerdi-project.de/rest/api/1.0/queue/$planLabel?stage\&executeAllStages)
   
   local buildNumber
   buildNumber=$(echo "$response" | grep -oP '(?<=buildNumber=")\d+(?=")')
@@ -253,7 +253,7 @@ StartBambooPlanBranchWithoutCredentials() {
   local branchId=$(GetPlanBranchId "$planLabel" "$branch")
   
   local response
-  response=$(curl -nsX POST -H "Content-Type: application/json" -d '{}' https://ci.gerdi-project.de/rest/api/latest/queue/$planLabel$branchId?stage\&executeAllStages)
+  response=$(curl -nsX POST -H "Content-Type: application/json" -d '{}' https://ci.gerdi-project.de/rest/api/1.0/queue/$planLabel$branchId?stage\&executeAllStages)
   
   local buildNumber
   buildNumber=$(echo "$response" | grep -oP '(?<=buildNumber=")\d+(?=")')
@@ -283,7 +283,7 @@ WaitForPlanToBeDone() {
   
   # send a head-request to check if a plan result page exists
   local resultsUrl
-  resultsUrl="https://ci.gerdi-project.de/rest/api/latest/result/$planResultKey"
+  resultsUrl="https://ci.gerdi-project.de/rest/api/1.0/result/$planResultKey"
   $(curl -sfX HEAD -u "$userName:$password" $resultsUrl)
   
   local responseCode=$?
@@ -342,7 +342,7 @@ StartBambooDeployment() {
     response=$(curl -sX POST -u "$userName:$password" -H "Content-Type: application/json" -d '{
       "planResultKey":"'"$planResultKey"'",
       "name":"'"$deploymentVersion$requestSuffix"'"
-    }' https://ci.gerdi-project.de/rest/api/latest/deploy/project/$deploymentId/version)
+    }' https://ci.gerdi-project.de/rest/api/1.0/deploy/project/$deploymentId/version)
   
     hasError=$(echo $response | grep -P "This release version is already in use, please select another.")
     if [ "${#hasError}" -eq 0 ]; then
@@ -354,7 +354,7 @@ StartBambooDeployment() {
     fi
   done
   
-  response=$(curl -sX POST -u "$userName:$password" -H "Content-Type: application/json" https://ci.gerdi-project.de/rest/api/latest/queue/deployment?environmentId=$environmentId\&versionId=$versionId)
+  response=$(curl -sX POST -u "$userName:$password" -H "Content-Type: application/json" https://ci.gerdi-project.de/rest/api/1.0/queue/deployment?environmentId=$environmentId\&versionId=$versionId)
   
   local deploymentResultId
   deploymentResultId=$(echo "$response" | grep -oP '(?<="deploymentResultId":)\d+(?=,)')
@@ -386,7 +386,7 @@ WaitForDeploymentToBeDone() {
   # wait 5 seconds and send a get-request to check if the plan is still running
   local response
   while [ "$deploymentState" = "UNKNOWN" ]; do
-    response=$(curl -sX GET -u "$userName:$password" -H "Content-Type: application/json" https://ci.gerdi-project.de/rest/api/latest/deploy/result/$deploymentResultId)
+    response=$(curl -sX GET -u "$userName:$password" -H "Content-Type: application/json" https://ci.gerdi-project.de/rest/api/1.0/deploy/result/$deploymentResultId)
     deploymentState=${response#*\"deploymentState\":\"}
     deploymentState=${deploymentState%%\"*}
     sleep 5
@@ -413,7 +413,7 @@ CreatePlanBranch() {
   local userName="$3"
   local password="$4"
   
-  echo "$(curl -sX PUT -u "$userName:$password" "https://ci.gerdi-project.de/rest/api/latest/plan/$planLabel/branch/$branch?vcsBranch=$branch")" >&2
+  echo "$(curl -sX PUT -u "$userName:$password" "https://ci.gerdi-project.de/rest/api/1.0/plan/$planLabel/branch/$branch?vcsBranch=$branch")" >&2
 }
 
 
@@ -429,12 +429,12 @@ DeleteGlobalVariable() {
   local password="$3"
   
   local globalVariableId
-  globalVariableId=$(curl -sX GET -u "$userName:$password" "https://ci.gerdi-project.de/rest/admin/latest/globalVariables" \
+  globalVariableId=$(curl -sX GET -u "$userName:$password" "https://ci.gerdi-project.de/rest/admin/1.0/globalVariables" \
                      | grep -oP '(?<="id":)\d+(?=,"name":"'"$globalVarName"'")')
   
   if [ -n "$globalVariableId" ]; then
     # if the global variable exists, change its value
-    curl -sX DELETE -u "$userName:$password" "https://ci.gerdi-project.de/rest/admin/latest/globalVariables/$globalVariableId"
+    curl -sX DELETE -u "$userName:$password" "https://ci.gerdi-project.de/rest/admin/1.0/globalVariables/$globalVariableId"
   fi
 }
 
@@ -453,20 +453,20 @@ SetGlobalVariable() {
   local password="$4"
   
   local globalVariableId
-  globalVariableId=$(curl -sX GET -u "$userName:$password" "https://ci.gerdi-project.de/rest/admin/latest/globalVariables" \
+  globalVariableId=$(curl -sX GET -u "$userName:$password" "https://ci.gerdi-project.de/rest/admin/1.0/globalVariables" \
                      | grep -oP '(?<="id":)\d+(?=,"name":"'"$globalVarName"'")')
   
   if [ -n "$globalVariableId" ]; then
     # if the global variable exists, change its value
     curl -sX PUT -u "$userName:$password" -H "Content-Type: application/json" -d '{
 	          "value":"'"$globalVarValue"'"
-            }' "https://ci.gerdi-project.de/rest/admin/latest/globalVariables/$globalVariableId"
+            }' "https://ci.gerdi-project.de/rest/admin/1.0/globalVariables/$globalVariableId"
   else
     # if the global variable does not exist, create it
     curl -sX POST -u "$userName:$password" -H "Content-Type: application/json" -d '{
               "name":"'"$globalVarName"'",
 	            "value":"'"$globalVarValue"'"
-            }' "https://ci.gerdi-project.de/rest/admin/latest/globalVariables"
+            }' "https://ci.gerdi-project.de/rest/admin/1.0/globalVariables"
   fi
 }
 

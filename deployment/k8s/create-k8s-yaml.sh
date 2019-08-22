@@ -113,7 +113,7 @@ CreateYamlFile() {
   # create branch
   local kubernetesSlug=$(echo "$KUBERNETES_REPOSITORY" | grep -oP '[^/]+(?=\.git)')
   local branchName="create-yaml-for-$serviceName"
-  (cd "$kubernetesSlug" && CreateBranch "$branchName")
+  (cd "$kubernetesSlug" && CreateGitBranch "$branchName")
   
   # push new yaml file to branch
   SubmitYamlFile "$kubernetesYaml" "Created '$kubernetesYaml' for Docker image '$dockerImageName:$dockerImageTag'."
@@ -193,7 +193,7 @@ CreateYamlCreationPullRequest() {
             null
         ]
     }
-  }' "https://code.gerdi-project.de/rest/api/latest/projects/SYS/repos/gerdireleases/pull-requests" \
+  }' "https://code.gerdi-project.de/rest/api/1.0/projects/SYS/repos/gerdireleases/pull-requests" \
   | grep -oP '(?<=^{"id":)[^,]+'
 }
 

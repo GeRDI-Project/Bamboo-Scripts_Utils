@@ -31,6 +31,7 @@ source ./scripts/helper-scripts/atlassian-utils.sh
 source ./scripts/helper-scripts/bamboo-utils.sh
 source ./scripts/helper-scripts/jira-utils.sh
 source ./scripts/helper-scripts/git-utils.sh
+source ./scripts/helper-scripts/bitbucket-utils.sh
 source ./scripts/helper-scripts/misc-utils.sh
 
 
@@ -60,36 +61,7 @@ UpdateBranchesOfRepository() {
   local slug
   slug=$(GetRepositorySlugFromCloneLink "$cloneLink")
   
-  # create temp directory
-  mkdir "$slug"
-  cd "$slug"
-  
-  # clone repository
-  $(CloneGitRepository "$atlassianUserName" "$atlassianPassword" "$projectId" "$slug")
-  
-  # abort if target branch already exists
-  if $(git branch -a | grep -qx " *remotes/origin/$createdBranchName"); then
-    echo "Repository '$projectId/$slug' already has a '$createdBranchName' branch." >&2
-    cd ..
-    rm -rf "$slug"
-    exit 1
-  fi
-  
-  # abort if source branch does not exist
-  if ! $(git branch -a | grep -qx " *remotes/origin/$sourceBranchName"); then
-    echo "Branch '$createdBranchName' cannot be created for repository '$projectId/$slug', because the source branch '$sourceBranchName' does not exist!" >&2
-    cd ..
-    rm -rf "$slug"
-	exit 1
-  fi
-  
-  # create new branch from source branch
-  echo $(git checkout "$sourceBranchName") >&2
-  CreateBranch "$createdBranchName"
-  
-  # remove temp directory
-  cd ..
-  rm -rf "$slug"
+  CreateBitbucketBranch "$atlassianUserName" "$atlassianPassword" "$projectId" "$slug" "$createdBranchName" "$sourceBranchName"
 }
 
 

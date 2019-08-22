@@ -93,6 +93,37 @@ IncrementVersion() {
 }
 
 
+# Retrieves the highest version number of a list of major.minor.bugfix versions.
+# Also takes build versions into consideration e.g. 1.2.3-test4
+#  Arguments:
+#  1 - a list of versions
+GetHighestVersion() {
+  local versionList="$1"
+  
+  local highestMajor
+  highestMajor=$(echo "$versionList" | grep -oP "^^\d+" | sort -g | tail -n1)
+  
+  local highestMinor
+  highestMinor=$(echo "$versionList" | grep -oP "(?<=^^$highestMajor\.)\d+" | sort -g | tail -n1)
+  
+  local highestBugFix
+  highestBugFix=$(echo "$versionList" | grep -oP "(?<=^^$highestMajor\.$highestMinor\.)\d+" | sort -g | tail -n1)
+  
+  local highestBuildNumber
+  highestBuildNumber=$(echo "$versionList" \
+    | grep -oP "(?<=^^$highestMajor\.$highestMinor\.$highestBugFix).*" \
+    | grep -oP "\d+" \
+    | sort -g \
+    | tail -n1)
+  
+  local suffix
+  suffix=$(echo "$versionList" \
+    | grep -oP "(?<=^^$highestMajor\.$highestMinor\.$highestBugFix).*(?=$highestBuildNumber)")
+  
+  echo "$highestMajor.$highestMinor.$highestBugFix$suffix$highestBuildNumber"
+}
+
+
 # Returns the HTTP response code of a HEAD request to a specified URL.
 #  Arguments:
 #  1 - the URL that is tested
@@ -146,7 +177,7 @@ IsCloneLink() {
     local slug=$(echo "$checkedArg" | grep -oP "[^/.]+(?=\.git$)")
     local projectId=$(echo "$checkedArg" | grep -oP "[^/.]+(?=/$slug\.git)")
 	
-    IsUrlReachable "https://code.gerdi-project.de/rest/api/latest/projects/$projectId/repos/$slug" "$userName" "$password"
+    IsUrlReachable "https://code.gerdi-project.de/rest/api/1.0/projects/$projectId/repos/$slug" "$userName" "$password"
   else
     exit 1
   fi
@@ -166,7 +197,7 @@ IsProject() {
   local password="$3"
   
   if $(echo "$checkedArg" | grep -qx "[A-Z]\+\|[a-z]\+"); then
-    IsUrlReachable "https://code.gerdi-project.de/rest/api/latest/projects/$checkedArg/" "$userName" "$password"
+    IsUrlReachable "https://code.gerdi-project.de/rest/api/1.0/projects/$checkedArg/" "$userName" "$password"
   else
     exit 1
   fi

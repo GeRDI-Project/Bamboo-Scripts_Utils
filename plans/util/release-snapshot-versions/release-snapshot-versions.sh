@@ -34,6 +34,7 @@ source ./scripts/helper-scripts/bamboo-utils.sh
 source ./scripts/helper-scripts/jira-utils.sh
 source ./scripts/helper-scripts/maven-utils.sh
 source ./scripts/helper-scripts/git-utils.sh
+source ./scripts/helper-scripts/bitbucket-utils.sh
 source ./scripts/helper-scripts/misc-utils.sh
 
 
@@ -91,7 +92,7 @@ RemoveSnapshotsOfRepository() {
 	  
     # create branch
     local branch="$subTaskKey-RemoveSnapshots"
-    (cd "$slug" && CreateBranch "$branch")
+    (cd "$slug" && CreateGitBranch "$branch")
   
     # remove snapshot versions from pom
     UpdateMavenSnapshotToRelease "$slug" false >&2

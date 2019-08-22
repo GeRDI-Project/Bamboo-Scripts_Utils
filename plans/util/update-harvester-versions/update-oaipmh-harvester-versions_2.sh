@@ -39,6 +39,7 @@ source ./scripts/helper-scripts/atlassian-utils.sh
 source ./scripts/helper-scripts/bamboo-utils.sh
 source ./scripts/helper-scripts/jira-utils.sh
 source ./scripts/helper-scripts/git-utils.sh
+source ./scripts/helper-scripts/bitbucket-utils.sh
 source ./scripts/helper-scripts/docker-utils.sh
 source ./scripts/helper-scripts/misc-utils.sh
 
@@ -143,7 +144,7 @@ UpdateOaiPmhRepository() {
   # create update branch
   local updateBranch
   updateBranch="versionUpdate/$JIRA_KEY-$subTaskKey-VersionUpdate"
-  (cd "$tempDir" && CreateBranch "$updateBranch")
+  (cd "$tempDir" && CreateGitBranch "$updateBranch")
   
   # change version in Dockerfile
   perl -pi -e \
@@ -174,39 +175,6 @@ UpdateOaiPmhRepository() {
 	  
   # set sub-task to "in review"
   ReviewJiraTask "$subTaskKey" "$userName" "$password"
-}
-
-
-# This function attempts to retrieve the latest tagged version 
-# of a specified Bitbucket repository.
-#
-# Arguments:
-#  1 - the project ID of the Bitbucket repository
-#  2 - the slug of the Bitbucket repository
-#  3 - the branch that is checked
-#
-GetLatestTag() {
-  local projectId="$1"
-  local slug="$2"
-  local branch="$3"
-  
-  # there is only one production version, so we can return it
-  if [ "$branch" = "production" ]; then
-    echo "$bamboo_PRODUCTION_VERSION"
-	
-  else
-    # get the version from the latest Bitbucket tag
-    local tagPrefix=""
-    if [ "$branch" = "stage" ]; then
-      tagPrefix="$bamboo_STAGING_VERSION-rc"
-    else
-      tagPrefix="$bamboo_TEST_VERSION-test"
-    fi  
-
-    curl -nsX GET "https://code.gerdi-project.de/rest/api/1.0/projects/$projectId/repos/$slug/tags/?filterText=$tagPrefix\&orderBy=modification" \
-      | grep -oP '(?<="displayId":")'"$tagPrefix"'[^"]+'\
-      | head -1
-  fi
 }
 
 
@@ -244,7 +212,7 @@ Main() {
   newVersion="${1-}"
   
   if [ -z "$newVersion" ]; then
-    newVersion=$(GetLatestTag "har" "oai-pmh" "$branch")
+    newVersion=$(GetLatestBitbucketVersionTag "har" "oai-pmh" "$branch")
 	
 	if [ -z "$newVersion" ]; then
 	  echo "Could not automatically retrieve a version to which the OAI-PMH harvesters are to be updated to!" >&2

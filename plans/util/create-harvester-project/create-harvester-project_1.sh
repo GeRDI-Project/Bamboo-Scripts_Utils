@@ -47,6 +47,7 @@ TEMP_FOLDER="repoTemp"
 source ./scripts/helper-scripts/atlassian-utils.sh
 source ./scripts/helper-scripts/bamboo-utils.sh
 source ./scripts/helper-scripts/git-utils.sh
+source ./scripts/helper-scripts/bitbucket-utils.sh
 source ./scripts/helper-scripts/maven-utils.sh
 source ./scripts/helper-scripts/misc-utils.sh
 
@@ -66,7 +67,7 @@ CreateRepository() {
   providerName=$(GetValueOfPlanVariable providerName)
 
   local repositorySlug
-  repositorySlug=$(CreateGitRepository "$userName" "$password" "$BITBUCKET_PROJECT" "$providerName")
+  repositorySlug=$(CreateBitbucketRepository "$userName" "$password" "$BITBUCKET_PROJECT" "$providerName")
   
   ExitIfLastOperationFailed ""
 
@@ -135,9 +136,9 @@ CreateRepository() {
   echo $(PushAllFilesToGitRepository "$atlassianUserDisplayName" "$atlassianUserEmail" "Bamboo: Created harvester repository for the provider '$providerName'.") >&2
 
   # create branch model
-  CreateBranch "stage"
+  CreateGitBranch "stage"
   ExitIfLastOperationFailed ""
-  CreateBranch "production"
+  CreateGitBranch "production"
   ExitIfLastOperationFailed ""
 
   cd ..
@@ -178,9 +179,9 @@ Main() {
   planKey="$(echo "$providerClassName" | sed -e "s~[a-z]~~g")$BITBUCKET_PROJECT"
   
   # check if plans already exist
-  if $(IsUrlReachable "https://ci.gerdi-project.de/rest/api/latest/plan/CA-$planKey" "$atlassianUserName" "$atlassianPassword"); then
+  if $(IsUrlReachable "https://ci.gerdi-project.de/rest/api/1.0/plan/CA-$planKey" "$atlassianUserName" "$atlassianPassword"); then
     echo "Plans with the key '$planKey' already exist!" >&2
-    DeleteGitRepository "$atlassianUserName" "$atlassianPassword" "$BITBUCKET_PROJECT" "$repositorySlug"
+    DeleteBitbucketRepository "$atlassianUserName" "$atlassianPassword" "$BITBUCKET_PROJECT" "$repositorySlug"
     exit 1
   fi
  
