@@ -65,7 +65,7 @@ GetJoinedAtlassianResponse() {
   local userName="${3-}"
   local password="${4-}"
   
-  local joinedValues
+  local joinedValues=""
   JoinValuesArray() {
     if [ -n "$joinedValues" ]; then
       joinedValues="$joinedValues,$1"
