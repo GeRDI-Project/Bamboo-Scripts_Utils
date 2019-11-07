@@ -81,7 +81,10 @@ GetGitHubRepositoryName() {
   local bitbucketProjectName="$1"
   local bitbucketRepoName="$2"
   
-  echo "$bitbucketRepoName"_"$bitbucketProjectName" | tr ' ' '-'
+  bitbucketProjectName=$(echo "$bitbucketProjectName" | tr ' ' '-' | tr '_' '-')
+  bitbucketRepoName=$(echo "$bitbucketRepoName" | tr ' ' '-' | tr '_' '-')
+  
+  echo "$bitbucketRepoName"_"$bitbucketProjectName"
 }
 
 
