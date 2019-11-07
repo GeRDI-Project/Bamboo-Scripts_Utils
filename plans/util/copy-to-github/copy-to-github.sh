@@ -71,6 +71,20 @@ GetGitHubRepositoryUrl() {
 }
 
 
+# Creates a valid GitHub repository name using Bitbucket information.
+#
+# Arguments:
+#  1 - the repository name in Bitbucket
+#  2 - the project name in Bitbucket
+#
+GetGitHubRepositoryName() {
+  local bitbucketProjectName="$1"
+  local bitbucketRepoName="$2"
+  
+  echo "$bitbucketRepoName"_"$bitbucketProjectName" | tr ' ' '-'
+}
+
+
 # Creates or updates a GitHub repository, mirroring an existing
 # Bitbucket GeRDI repository.
 #
@@ -106,8 +120,9 @@ AddGitHubRemoteToBitbucketRepository() {
   local projectName
   projectName=$(echo "$bitbucketResponse" | grep -oP '(?<="name":")[^"]+(?=","description":)')
   
+  # create GitHub repository name
   local gitHubRepoName
-  gitHubRepoName="$projectName-$repoName"
+  gitHubRepoName=$(GetGitHubRepositoryName "$projectName" "$repoName")
   
   local gitHubUrl
   
@@ -134,7 +149,7 @@ AddGitHubRemoteToBitbucketRepository() {
     }' "https://api.github.com/user/repos")
 
     # retrieve URL from GitHub repository
-    gitHubUrl=$(echo "$gitHubResponse" | grep -oP '(?<="git_url": ")github.com/'"$gitHubUserName"'/[^"]+')
+    gitHubUrl=$(echo "$gitHubResponse" | grep -oP '(?<="git_url": ")[^"]+')
     
 	if [ -n "$gitHubUrl" ]; then
 	  echo "Created GitHub repository '$gitHubUrl'. Adding data..." >&2
