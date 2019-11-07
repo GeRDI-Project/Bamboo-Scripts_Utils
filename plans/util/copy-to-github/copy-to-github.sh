@@ -118,7 +118,7 @@ AddGitHubRemoteToBitbucketRepository() {
 	if [ -n "$gitHubUrl" ]; then
 	  echo "Found existing GitHub repository '$gitHubUrl'. Updating..." >&2
 	else
-	  echo "Could not retrieve GitHub repository URL from '$repoName'!" >&2
+	  echo "Could not retrieve GitHub repository URL from '$gitHubRepoName'!" >&2
 	  exit 1
 	fi	
   else
@@ -139,7 +139,8 @@ AddGitHubRemoteToBitbucketRepository() {
 	if [ -n "$gitHubUrl" ]; then
 	  echo "Created GitHub repository '$gitHubUrl'. Adding data..." >&2
 	else
-	  echo "Could not create GitHub repository '$repoName'!" >&2
+	  echo "Could not create GitHub repository '$gitHubRepoName':" >&2
+	  echo -e "$gitHubResponse" >&2
 	  exit 1
 	fi
   fi
