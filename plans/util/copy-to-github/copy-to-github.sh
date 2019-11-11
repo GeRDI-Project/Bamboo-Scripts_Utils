@@ -36,14 +36,22 @@ source ./scripts/helper-scripts/bamboo-utils.sh
 # Arguments:
 #  1 - the GitHub owner of the repository
 #  2 - the name of the repository
+#  3 - the GitHub Organization of the repository (optional)
 #
 HasRepositoryOnGitHub() {
   local gitHubUserName="$1"
   local repositoryName="$2"
+  local gitHubOrganizationName="${3-}"
   
   # look for the repository name in the GitHub repository
-  curl -sX GET "https://api.github.com/users/$gitHubUserName/repos" \
+  if [ -n "$gitHubOrganizationName" ]; then
+    curl -sX GET "https://api.github.com/orgs/$gitHubOrganizationName/repos" \
   | grep -q '"name": "'"$repositoryName"
+  else
+    curl -sX GET "https://api.github.com/users/$gitHubUserName/repos" \
+  | grep -q '"name": "'"$repositoryName"
+  fi
+  
 }
 
 
@@ -52,14 +60,20 @@ HasRepositoryOnGitHub() {
 # Arguments:
 #  1 - the GitHub owner of the repository
 #  2 - the name of the repository
+#  3 - the GitHub Organization of the repository (optional)
 #
 GetGitHubRepositoryUrl() {
   local gitHubUserName="$1"
   local repositoryName="$2"
+  local gitHubOrganizationName="${3-}"
   
   # get GitHub repository info
   local gitHubResponse
-  gitHubResponse=$(curl -sX GET "https://api.github.com/users/$gitHubUserName/repos")
+  if [ -n "$gitHubOrganizationName" ]; then
+    gitHubResponse=$(curl -sX GET "https://api.github.com/orgs/$gitHubOrganizationName/repos")
+  else
+    gitHubResponse=$(curl -sX GET "https://api.github.com/users/$gitHubUserName/repos")
+  fi
   
   # extract the URL
   local gitHubUrl
@@ -104,6 +118,7 @@ AddGitHubRemoteToBitbucketRepository() {
   local bitbucketPassword="$3"
   local gitHubUserName="$4"
   local gitHubPassword="$5"
+  local gitHubOrganization="${6-}"
   
   # get Bitbucket project ID and slug
   local bitbucketProject
@@ -130,8 +145,8 @@ AddGitHubRemoteToBitbucketRepository() {
   local gitHubUrl
   
   # check if GitHub repository exists already
-  if $(HasRepositoryOnGitHub "$gitHubUserName" "$gitHubRepoName"); then
-    gitHubUrl=$(GetGitHubRepositoryUrl "$gitHubUserName" "$gitHubRepoName")
+  if $(HasRepositoryOnGitHub "$gitHubUserName" "$gitHubRepoName" "$gitHubOrganization"); then
+    gitHubUrl=$(GetGitHubRepositoryUrl "$gitHubUserName" "$gitHubRepoName" "$gitHubOrganization")
 	
 	if [ -n "$gitHubUrl" ]; then
 	  echo "Found existing GitHub repository '$gitHubUrl'. Updating..." >&2
@@ -140,6 +155,13 @@ AddGitHubRemoteToBitbucketRepository() {
 	  exit 1
 	fi	
   else
+    local gitHubRequestUrl
+	if [ -n "$gitHubOrganization" ]; then
+	  gitHubRequestUrl="https://api.github.com/orgs/$gitHubOrganization/repos"	
+	else
+	  gitHubRequestUrl="https://api.github.com/user/repos"
+	fi
+	
     # create repository on GitHub
     local gitHubResponse
     gitHubResponse=$(curl -sX POST -u "$gitHubUserName:$gitHubPassword" -H "Content-Type: application/json" -d '{
@@ -149,7 +171,7 @@ AddGitHubRemoteToBitbucketRepository() {
       "has_issues": false,
       "has_projects": false,
       "has_wiki": false
-    }' "https://api.github.com/user/repos")
+    }' "$gitHubRequestUrl")
 
     # retrieve URL from GitHub repository
     gitHubUrl=$(echo "$gitHubResponse" | grep -oP '(?<="git_url": ")[^"]+')
@@ -189,7 +211,10 @@ AddGitHubRemoteToBitbucketRepository() {
 Main() {
   ExitIfNotLoggedIn
   ExitIfPlanVariableIsMissing "atlassianPassword"
+  ExitIfPlanVariableIsMissing "gitHubUserName"
+  ExitIfPlanVariableIsMissing "gitHubPassword"
   ExitIfPlanVariableIsMissing "projectsAndCloneLinks"
+  ExitIfPlanVariableIsMissing "gitHubOrganization"
 
   # get and verify Atlassian credentials
   local bitbucketUserName
@@ -201,14 +226,19 @@ Main() {
   # get other plan variables
   local gitHubUserName
   gitHubUserName=$(GetValueOfPlanVariable "gitHubUserName")
+  
   local gitHubPassword
   gitHubPassword=$(GetValueOfPlanVariable "gitHubPassword")
+  
   local projectsAndCloneLinks
   projectsAndCloneLinks=$(GetValueOfPlanVariable "projectsAndCloneLinks")
   
+  local gitHubOrganization
+  gitHubOrganization=$(GetValueOfPlanVariable "gitHubOrganization")
+  
   # define a list of arguments to be used by the 'AddGitHubRemoteToBitbucketRepository' function
   local repositoryArguments
-  repositoryArguments="'$bitbucketUserName' '$bitbucketPassword' '$gitHubUserName' '$gitHubPassword'"
+  repositoryArguments="'$bitbucketUserName' '$bitbucketPassword' '$gitHubUserName' '$gitHubPassword' '$gitHubOrganization'"
   
   ProcessListOfProjectsAndRepositories \
     "$bitbucketUserName" \
