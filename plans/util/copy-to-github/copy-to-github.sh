@@ -128,15 +128,24 @@ AddGitHubRemoteToBitbucketRepository() {
 
   # get Bitbucket repository info
   local bitbucketResponse
-  bitbucketResponse=$(curl -sX GET "https://code.gerdi-project.de/rest/api/1.0/projects/$bitbucketProject/repos/$bitbucketSlug")
+  bitbucketResponse=$(curl -sX GET -u "$bitbucketUserName:$bitbucketPassword" "https://code.gerdi-project.de/rest/api/1.0/projects/$bitbucketProject/repos/$bitbucketSlug")
   
   # retrieve repository name
   local repoName
-  repoName=$(echo "$bitbucketResponse" | grep -oP '(?<="name":")[^"]+(?=","scmId":)')
+  repoName=${bitbucketResponse#*\"name\":\"}
+  repoName=${repoName%%\"*}
   
   # retrieve project name
   local projectName
-  projectName=$(echo "$bitbucketResponse" | grep -oP '(?<="name":")[^"]+(?=","description":)')
+  projectName=${bitbucketResponse#*\"project\":\{}
+  projectName=${projectName#*\"name\":\"}
+  projectName=${projectName%%\"*}
+  
+  if [ -z "$repoName" ] || [ -z "$projectName" ]; then
+	  echo "Could not retrieve project or repository name from: https://code.gerdi-project.de/rest/api/1.0/projects/$bitbucketProject/repos/$bitbucketSlug" >&2
+	  echo "The '$bitbucketUserName' Bitbucket user may lack permissions!" >&2
+      exit 1
+  fi
   
   # create GitHub repository name
   local gitHubRepoName
