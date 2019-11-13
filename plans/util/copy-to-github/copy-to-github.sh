@@ -31,29 +31,6 @@ source ./scripts/helper-scripts/bamboo-utils.sh
 #  FUNCTION DEFINITIONS #
 #########################
 
-# Checks if a repository with a specified name exists on GitHub.
-#
-# Arguments:
-#  1 - the GitHub owner of the repository
-#  2 - the name of the repository
-#  3 - the GitHub Organization of the repository (optional)
-#
-HasRepositoryOnGitHub() {
-  local gitHubUserName="$1"
-  local repositoryName="$2"
-  local gitHubOrganizationName="${3-}"
-  
-  # look for the repository name in the GitHub repository
-  if [ -n "$gitHubOrganizationName" ]; then
-    curl -sX GET "https://api.github.com/orgs/$gitHubOrganizationName/repos" \
-  | grep -q '"name": "'"$repositoryName"
-  else
-    curl -sX GET "https://api.github.com/users/$gitHubUserName/repos" \
-  | grep -q '"name": "'"$repositoryName"
-  fi
-  
-}
-
 
 # Retrieves the git URL of a GitHub repository.
 #
@@ -67,21 +44,48 @@ GetGitHubRepositoryUrl() {
   local repositoryName="$2"
   local gitHubOrganizationName="${3-}"
   
-  # get GitHub repository info
-  local gitHubResponse
+  local gitHubUrl
   if [ -n "$gitHubOrganizationName" ]; then
-    gitHubResponse=$(curl -sX GET "https://api.github.com/orgs/$gitHubOrganizationName/repos")
+    gitHubUrl="https://api.github.com/orgs/$gitHubOrganizationName/repos"
   else
-    gitHubResponse=$(curl -sX GET "https://api.github.com/users/$gitHubUserName/repos")
+    gitHubUrl="https://api.github.com/users/$gitHubUserName/repos"
   fi
   
-  # extract the URL
-  local gitHubUrl
-  gitHubUrl=${gitHubResponse#*\"name\": \"$repositoryName\",}
-  gitHubUrl=${gitHubUrl#*\"git_url\": \"}
-  gitHubUrl=${gitHubUrl%%\"*}
+  # local function for retrieving the URL
+  GetRepositoryUrl() {
+    local repoUrl
+    repoUrl=${1#*\"name\": \"$repositoryName\",}
+	
+	if ! [ "$1" = "$repoUrl" ]; then
+      repoUrl=${repoUrl#*\"git_url\": \"}
+      repoUrl=${repoUrl%%\"*}
+      echo "$repoUrl"
+	  exit 0
+	fi
+  }
   
-  echo "$gitHubUrl"
+  IterateGitHubRepositories "GetRepositoryUrl" "$gitHubUrl"
+}
+
+
+# Iterates all paginated responses of a specified GitHub URL.
+#
+# Arguments:
+#  1 - the name of the function that is to be executed on each response
+#  2 - a GitHub API URL that supports pagination
+#  3 - the starting page number (optional)
+#
+IterateGitHubRepositories() {
+  local functionName="$1"
+  local gitHubUrl="$2"
+  local page="${3-1}"
+
+  local gitHubResponse=$(curl -sX GET "$gitHubUrl?page=$page")
+
+  if $(echo "$gitHubResponse" | grep -q '"id":'); then
+    eval "$functionName" "'$gitHubResponse'"
+    IterateGitHubRepositories "$functionName" "$gitHubUrl" $(expr $page + 1)
+  fi
 }
 
 
@@ -154,15 +158,9 @@ AddGitHubRemoteToBitbucketRepository() {
   local gitHubUrl
   
   # check if GitHub repository exists already
-  if $(HasRepositoryOnGitHub "$gitHubUserName" "$gitHubRepoName" "$gitHubOrganization"); then
-    gitHubUrl=$(GetGitHubRepositoryUrl "$gitHubUserName" "$gitHubRepoName" "$gitHubOrganization")
-	
-	if [ -n "$gitHubUrl" ]; then
+  gitHubUrl=$(GetGitHubRepositoryUrl "$gitHubUserName" "$gitHubRepoName" "$gitHubOrganization")
+  if [ -n "$gitHubUrl" ]; then
 	  echo "Found existing GitHub repository '$gitHubUrl'. Updating..." >&2
-	else
-	  echo "Could not retrieve GitHub repository URL from '$gitHubRepoName'!" >&2
-	  exit 1
-	fi	
   else
     local gitHubRequestUrl
 	if [ -n "$gitHubOrganization" ]; then
