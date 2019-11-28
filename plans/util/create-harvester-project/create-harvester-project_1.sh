@@ -48,7 +48,6 @@ source ./scripts/helper-scripts/atlassian-utils.sh
 source ./scripts/helper-scripts/bamboo-utils.sh
 source ./scripts/helper-scripts/git-utils.sh
 source ./scripts/helper-scripts/bitbucket-utils.sh
-source ./scripts/helper-scripts/maven-utils.sh
 source ./scripts/helper-scripts/misc-utils.sh
 
 
@@ -73,17 +72,6 @@ CreateRepository() {
 
   # grant the bamboo-agent the permission to tag the repository
   AddWritePermissionForRepository "$userName" "$password" "$BITBUCKET_PROJECT" "$repositorySlug" "bamboo-agent"
-
-  # create temporary folder
-  rm -fr "$TEMP_FOLDER"
-  mkdir "$TEMP_FOLDER"
-  cd "$TEMP_FOLDER"
-
-  # clone newly created repository
-  CloneGitRepository "$userName" "$password" "$BITBUCKET_PROJECT" "$repositorySlug"
-
-  # copy placeholder project into the cloned repository
-  echo $(cp -rT "../harvesterSetup/placeholderProject/" "./") >&2
 
   # get placeholder values  
   local providerUrl
@@ -115,33 +103,43 @@ CreateRepository() {
   local authorOrganizationUrl
   authorOrganizationUrl=$(GetValueOfPlanVariable authorOrganizationUrl)
   
-  local parentPomVersion
-  parentPomVersion=$(GetLatestMavenVersion "GeRDI-parent-harvester" true)
+  # create temporary folder
+  rm -fr "$TEMP_FOLDER"
+  mkdir "$TEMP_FOLDER"
+  cd "$TEMP_FOLDER"
   
   # rename placeholders for the project
-  echo $(./../harvesterSetup/scripts/renameSetup.sh\
+  ./../harvesterSetup/scripts/setupProject.sh\
   "$providerName"\
   "$providerUrl"\
   "$authorFullName"\
   "$authorEmail"\
   "$authorOrganization"\
   "$authorOrganizationUrl"\
-  "$parentPomVersion") >&2
- 
-  # run file formatter
-  local mavenResult=$(mvn compile)
-  echo $(./scripts/formatting/astyle-format.sh) >&2
-
+  "true"\
+  "." >&2
+  
+  # navigate into the repository folder
+  local repoFolder=$(ls)
+  cd "$repoFolder"
+  
   # commit and push all files
-  echo $(PushAllFilesToGitRepository "$atlassianUserDisplayName" "$atlassianUserEmail" "Bamboo: Created harvester repository for the provider '$providerName'.") >&2
-
+  local gitUser=$(echo "$userName" | sed -e "s/@/%40/g")
+  git init >&2
+  git remote add origin "https://$gitUser:$password@code.gerdi-project.de/scm/$BITBUCKET_PROJECT/$repositorySlug.git" >&2
+  git add . >&2
+  git config user.email "$authorEmail" >&2
+  git config user.name "$atlassianUserDisplayName" >&2
+  git commit -m "Bamboo: Created harvester repository for the provider '$providerName'." >&2
+  git push -u origin master >&2
+  
   # create branch model
   CreateGitBranch "stage"
   ExitIfLastOperationFailed ""
   CreateGitBranch "production"
   ExitIfLastOperationFailed ""
 
-  cd ..
+  cd ../..
   
   echo "$repositorySlug"
 }
@@ -172,7 +170,7 @@ Main() {
  
   # retrieve name of the provider from the file name of the context listener
   local providerClassName
-  providerClassName=$(basename -s ContextListener.java $TEMP_FOLDER/src/main/java/de/gerdiproject/harvest/*ContextListener.java)
+  providerClassName=$(basename -s ContextListener.java $TEMP_FOLDER/*/src/main/java/de/gerdiproject/harvest/*ContextListener.java)
   
   # check if a plan with the same ID already exists in CodeAnalysis
   local planKey
